@@ -1038,9 +1038,9 @@ end
 handlers.TAXIMAP_OPENED = function()
   learnNpc("flight")
   -- Learn which flights are open from here, for the travel planner.
-  local current, reachable = Api.taxiReach()
-  if current then
-    Atlas.recordFlights(atlas, current, reachable)
+  local node, reachable = Api.taxiReach()
+  if node then
+    Atlas.recordFlights(atlas, node, reachable)
   end
 end
 handlers.BAG_UPDATE_DELAYED = function()
