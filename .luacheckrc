@@ -12,8 +12,9 @@ globals = {
 -- Game API the addon reads. Listed one by one on purpose: a typo in a global
 -- name is exactly what luacheck should catch.
 read_globals = {
-  "BackdropTemplateMixin", "C_AddOns", "C_Container", "C_Item", "C_Map", "C_QuestLog",
-  "C_SuperTrack", "C_Timer", "C_TooltipInfo", "CreateFrame", "GetAddOnMetadata",
+  "BackdropTemplateMixin", "C_AddOns", "C_Container", "C_Item", "C_Map", "C_QuestLine", "C_QuestLog",
+  "C_SuperTrack", "C_Timer", "C_TooltipInfo", "CreateFrame", "CreateVector2D", "GetAddOnMetadata",
+  "GetPlayerFacing",
   "GetBuildInfo", "GetContainerItemInfo", "GetContainerItemQuestInfo",
   "GetContainerNumFreeSlots", "GetContainerNumSlots", "GetInventoryItemID", "GetItemInfo",
   "GetLocale", "GetMoney", "GetNumQuestLogEntries", "GetNumTrainerServices",

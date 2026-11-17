@@ -14,6 +14,8 @@ core\Throttle.lua
 core\Trainer.lua
 core\Bags.lua
 core\State.lua
+core\Geo.lua
 game\Api.lua
 game\UI.lua
+game\Arrow.lua
 game\Main.lua
