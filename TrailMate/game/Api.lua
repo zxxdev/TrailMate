@@ -65,6 +65,120 @@ function Api.faction()
   return (safe(UnitFactionGroup, "player"))
 end
 
+-- Travel ---------------------------------------------------------------------
+
+-- Continent maps of the classic world (Kalimdor, Eastern Kingdoms).
+Api.CONTINENTS = { 1414, 1415 }
+local HEARTHSTONE = 6948
+
+--- World position of a map point: continent id, x, y in yards; or nil.
+function Api.worldPos(mapID, x, y)
+  if not (C_Map and C_Map.GetWorldPosFromMapPos and CreateVector2D and mapID and x and y) then
+    return nil
+  end
+  local cont, pos = safe(C_Map.GetWorldPosFromMapPos, mapID, CreateVector2D(x, y))
+  if not (cont and pos and pos.GetXY) then
+    return nil
+  end
+  local wx, wy = safe(pos.GetXY, pos)
+  if type(wx) ~= "number" or type(wy) ~= "number" then
+    return nil
+  end
+  return { cont = cont, x = wx, y = wy }
+end
+
+local function nodeXY(n)
+  local pos = n.position
+  if type(pos) == "table" and pos.GetXY then
+    return safe(pos.GetXY, pos)
+  elseif type(pos) == "table" then
+    return pos.x, pos.y
+  end
+  return nil
+end
+
+--- Flight points the world map shows for the player (their faction only):
+--- { name, known, cont, x, y (world), mapID, mx, my (for the arrow) }.
+function Api.flightNodes()
+  local out = {}
+  local T = C_TaxiMap
+  if not (T and T.GetTaxiNodesForMap) then
+    return out
+  end
+  local unreachable = Enum and Enum.FlightPathState and Enum.FlightPathState.Unreachable or 2
+  for _, contMap in ipairs(Api.CONTINENTS) do
+    local nodes = safe(T.GetTaxiNodesForMap, contMap)
+    for _, n in ipairs(type(nodes) == "table" and nodes or {}) do
+      local mx, my = nodeXY(n)
+      local w = type(mx) == "number" and Api.worldPos(contMap, mx, my)
+      if w and type(n.name) == "string" then
+        out[#out + 1] = {
+          name = n.name, known = n.state ~= unreachable, cont = w.cont, x = w.x, y = w.y,
+          mapID = contMap, mx = mx, my = my,
+        }
+      end
+    end
+  end
+  return out
+end
+
+--- At an open flight map: the current node's name and the names it can reach.
+function Api.taxiReach()
+  local T = C_TaxiMap
+  local mapID = safe(GetTaxiMapID)
+  if not (T and T.GetAllTaxiNodes and mapID) then
+    return nil
+  end
+  local nodes = safe(T.GetAllTaxiNodes, mapID)
+  if type(nodes) ~= "table" then
+    return nil
+  end
+  local states = Enum and Enum.FlightPathState or {}
+  local currentState, reachableState = states.Current or 0, states.Reachable or 1
+  local current, reachable = nil, {}
+  for _, n in ipairs(nodes) do
+    if n.state == currentState then
+      current = n.name
+    elseif n.state == reachableState then
+      reachable[#reachable + 1] = n.name
+    end
+  end
+  return current, reachable
+end
+
+--- The hearthstone: { name, ready, cooldown (seconds left), have } or nil.
+function Api.hearth()
+  local name = safe(GetBindLocation)
+  if type(name) ~= "string" or name == "" then
+    return nil
+  end
+  local countFn = (C_Item and C_Item.GetItemCount) or GetItemCount
+  local have = (safe(countFn, HEARTHSTONE) or 0) > 0
+  local cdFn = (C_Container and C_Container.GetItemCooldown) or GetItemCooldown
+  local start, duration = safe(cdFn, HEARTHSTONE)
+  local left = 0
+  if type(start) == "number" and type(duration) == "number" and start > 0 then
+    left = math.max(0, start + duration - (safe(GetTime) or 0))
+  end
+  return { name = name, have = have, ready = have and left == 0, cooldown = left }
+end
+
+--- The continent a zone belongs to (its uiMapID), or nil.
+function Api.continentOf(mapID)
+  local guard = 0
+  while mapID and guard < 10 do
+    local info = C_Map and safe(C_Map.GetMapInfo, mapID)
+    if type(info) ~= "table" then
+      return nil
+    end
+    if info.mapType == 2 then -- Enum.UIMapType.Continent
+      return mapID
+    end
+    mapID, guard = info.parentMapID, guard + 1
+  end
+  return nil
+end
+
 --- The creature you are talking to (quest giver, trainer, vendor):
 --- { id, name }, or nil. The id is the 6th field of its GUID
 --- ("Creature-0-server-instance-zone-ID-spawn").

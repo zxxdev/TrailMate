@@ -26,7 +26,8 @@ local COLORS = {
   learn = "|cff40c040", skip = "|cffc04040", later = "|cffd0a020",
 }
 
-local lastReportLines, lastVendorLines = {}, {}
+local lastReportLines, lastVendorLines, travelLines = {}, {}, {}
+local hearthing = false -- the hearthstone was just used: learn where it lands
 
 -- Every line TrailMate prints is also kept in the log (panel, Log tab).
 local function out(line)
@@ -148,9 +149,18 @@ end
 
 local buildFromQuestLog
 
+-- The step window shows the trip while travelling to a chosen zone.
+local function render()
+  if detour and detour.zone then
+    ns.UI.renderTravel(travelLines, L)
+  else
+    ns.UI.render(plan, current, statuses, L, markMethod)
+  end
+end
+
 local function refresh()
   if not plan then
-    ns.UI.render(nil, nil, nil, L)
+    render()
     if not detour then
       ns.Arrow.setTarget(nil)
     end
@@ -170,7 +180,7 @@ local function refresh()
     say(L["Plan finished."])
   end
   updateTarget()
-  ns.UI.render(plan, current, statuses, L, markMethod)
+  render()
   ns.Panel.refresh()
 end
 
@@ -420,8 +430,96 @@ local function sayStrategy()
   end
 end
 
--- The player picks a zone: the route works there, and if there are no
--- quests for it yet, the arrow points the way to it.
+-- Travel ---------------------------------------------------------------------
+
+local function nodeTarget(n)
+  return { mapID = n.mapID, x = n.mx, y = n.my }
+end
+
+-- Where the hearthstone lands: a flight point with the bind's name, or the
+-- place the atlas saw it land before.
+local function hearthPlace(hearth, nodes)
+  for _, n in ipairs(nodes) do
+    if n.name:find(hearth.name, 1, true) == 1 then
+      hearth.cont, hearth.x, hearth.y = n.cont, n.x, n.y
+      return
+    end
+  end
+  local b = Atlas.bind(atlas, hearth.name)
+  local w = b and Api.worldPos(b.mapID, b.x, b.y)
+  if w then
+    hearth.cont, hearth.x, hearth.y = w.cont, w.x, w.y
+  end
+end
+
+local function describeStep(s, name, hearth)
+  if s.kind == "hearth" then
+    return L["Use your hearthstone (%s)."]:format(hearth.name)
+  elseif s.kind == "fly" then
+    return L["Fly from %s to %s."]:format(s.from.name, s.to.name)
+      .. (s.confirmed and "" or (" " .. L["(route not confirmed yet)"]))
+  elseif s.kind == "ship" then
+    return L["%s is on another continent: take a zeppelin or a ship from a capital or port."]:format(name)
+      .. (s.via and (" " .. L["Nearest flight master you know: %s."]:format(s.via.name)) or "")
+  elseif s.to and s.to.name then
+    return L["Go to the flight master: %s."]:format(s.to.name)
+  end
+  return L["Walk to %s."]:format(name)
+end
+
+-- Plans the quickest way to a zone with what the game says (flight points
+-- learned and seen connected, hearthstone, continent), tells the player the
+-- steps and points the arrow at the first place to go.
+local function travelTo(mapID, name)
+  local p = playerPoint()
+  local nodes = Api.flightNodes()
+  local hearth = Api.hearth()
+  if hearth then
+    hearthPlace(hearth, nodes)
+  end
+  local trip = ns.Travel.plan({
+    here = p.mapID and p.x and Api.worldPos(p.mapID, p.x, p.y),
+    dest = Api.worldPos(mapID, 0.5, 0.5),
+    nodes = nodes,
+    hearth = hearth,
+    reach = function(a, b)
+      return Atlas.reach(atlas, a.name, b.name)
+    end,
+    speed = (p.level or 1) >= 40 and ns.Travel.MOUNT or ns.Travel.RUN,
+  })
+  local lines, target = {}, nil
+  if trip then
+    lines[1] = L["Route to %s (about %s):"]:format(name, ns.Travel.minutes(trip.cost))
+    for _, s in ipairs(trip.steps) do
+      lines[#lines + 1] = "- " .. describeStep(s, name, hearth)
+      if not target then
+        if s.kind == "walk" then
+          target = s.to.name and nodeTarget(s.to) or { mapID = mapID, x = 0.5, y = 0.5 }
+        elseif s.kind == "ship" and s.via then
+          target = nodeTarget(s.via)
+        end
+      end
+    end
+  else
+    lines[1] = L["Travel to %s"]:format(name)
+  end
+  travelLines = lines
+  detour = {
+    target = target or { mapID = mapID, x = 0.5, y = 0.5 },
+    label = lines[2] and lines[2]:sub(3) or lines[1],
+    zone = mapID,
+    zoneName = name,
+  }
+  ns.Arrow.setTarget(detour.target, detour.label)
+  for _, line in ipairs(lines) do
+    say(line)
+  end
+  render()
+  ns.Panel.refresh()
+end
+
+-- The player picks a zone: the route works there, and the travel planner
+-- shows the quickest way to get there.
 local function chooseZone(rest)
   if (rest or ""):lower() == "auto" then
     cdb.prefs.focusZone = nil
@@ -437,11 +535,13 @@ local function chooseZone(rest)
   cdb.prefs.focusZone = z.mapID
   local name = Api.mapName(z.mapID) or z.name
   say(L["Next zone: %s."]:format(name))
-  buildFromQuestLog(false)
   if (lastCounts[z.mapID] or 0) == 0 then
-    local label = L["Travel to %s"]:format(name)
-    detour = { target = { mapID = z.mapID, x = 0.5, y = 0.5 }, label = label, zone = z.mapID }
-    ns.Arrow.setTarget(detour.target, label)
+    say(L["No quests of yours there yet: pick some up when you arrive."])
+  else
+    buildFromQuestLog(true)
+  end
+  if Api.position() ~= z.mapID then
+    travelTo(z.mapID, name)
   end
 end
 
@@ -742,7 +842,10 @@ local function routeLines()
     end
   end
   if detour then
-    lines[#lines + 1] = L["Arrow: %s"]:format(detour.label)
+    lines[#lines + 1] = ""
+    for _, line in ipairs(detour.zone and travelLines or { L["Arrow: %s"]:format(detour.label) }) do
+      lines[#lines + 1] = line
+    end
   end
   lines[#lines + 1] = ""
   for _, line in ipairs(lastReportLines) do
@@ -845,7 +948,34 @@ handlers.QUEST_LOG_UPDATE = function()
   questChanged()
 end
 handlers.QUEST_REMOVED = questChanged
-handlers.ZONE_CHANGED_NEW_AREA = questChanged
+
+handlers.ZONE_CHANGED_NEW_AREA = function()
+  -- Just used the hearthstone: learn where it lands.
+  if hearthing then
+    hearthing = false
+    after(2, function()
+      local h = Api.hearth()
+      if h then
+        Atlas.recordBind(atlas, h.name, playerPoint())
+      end
+    end)
+  end
+  -- On the way to a chosen zone: plan again from here (after a flight or the hearthstone).
+  if detour and detour.zone and Api.position() ~= detour.zone then
+    after(2, function()
+      if detour and detour.zone then
+        travelTo(detour.zone, detour.zoneName or "?")
+      end
+    end)
+  end
+  questChanged()
+end
+
+handlers.UNIT_SPELLCAST_SUCCEEDED = function(unit, _, spellID)
+  if unit == "player" and spellID == 8690 then -- Hearthstone
+    hearthing = true
+  end
+end
 
 handlers.QUEST_ACCEPTED = function(a, b)
   local questID = b or a
@@ -907,6 +1037,11 @@ handlers.PLAYER_XP_UPDATE = function()
 end
 handlers.TAXIMAP_OPENED = function()
   learnNpc("flight")
+  -- Learn which flights are open from here, for the travel planner.
+  local current, reachable = Api.taxiReach()
+  if current then
+    Atlas.recordFlights(atlas, current, reachable)
+  end
 end
 handlers.BAG_UPDATE_DELAYED = function()
   bagThrottle:mark()

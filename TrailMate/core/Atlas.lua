@@ -215,6 +215,51 @@ function Atlas.findNpc(atlas, role, class, faction, player)
   return best, nil
 end
 
+--- Remembers which flight points could be reached from a flight master, as
+--- the flight map showed them. from and each of reachable are node names.
+function Atlas.recordFlights(atlas, from, reachable)
+  if type(from) ~= "string" or from == "" or type(reachable) ~= "table" then
+    return false
+  end
+  if type(atlas.flights) ~= "table" then
+    atlas.flights = {}
+  end
+  local set = {}
+  for _, name in ipairs(reachable) do
+    if type(name) == "string" then
+      set[name] = true
+    end
+  end
+  atlas.flights[from] = set
+  return true
+end
+
+--- true if the route was seen open, false if seen closed, nil if unknown.
+function Atlas.reach(atlas, from, to)
+  local set = type(atlas.flights) == "table" and atlas.flights[from]
+  if type(set) ~= "table" then
+    return nil
+  end
+  return set[to] == true
+end
+
+--- Remembers where the hearthstone took the player, by bind name.
+function Atlas.recordBind(atlas, name, p)
+  if type(name) ~= "string" or name == "" or not isPlace(p) then
+    return false
+  end
+  if type(atlas.binds) ~= "table" then
+    atlas.binds = {}
+  end
+  atlas.binds[name] = place(p)
+  return true
+end
+
+function Atlas.bind(atlas, name)
+  local b = type(atlas.binds) == "table" and atlas.binds[name]
+  return isPlace(b) and place(b) or nil
+end
+
 --- Counts for /tm diag.
 function Atlas.counts(atlas)
   local npcs, quests = 0, 0

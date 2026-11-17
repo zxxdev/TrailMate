@@ -55,6 +55,24 @@ function UI.setShown(shown)
   UI.frame:SetShown(shown)
 end
 
+--- While travelling to a chosen zone the window shows the trip, not the
+--- quests of the zone being left. lines: title, then "- step" lines.
+function UI.renderTravel(lines, L)
+  local f = UI.frame
+  if not f then
+    return
+  end
+  f.counter:SetText(L["Travel"])
+  f.step:SetText(lines[2] and (lines[2]:gsub("^%- ", "")) or (lines[1] or ""))
+  f.why:SetText(lines[1] or "")
+  local rest = {}
+  for i = 3, math.min(#lines, 5) do
+    rest[#rest + 1] = lines[i]
+  end
+  f.next:SetText(table.concat(rest, "\n"))
+  f.arrow:SetText(L["Back to the quests: /tm plan"])
+end
+
 --- Draws the plan state. Any argument may be nil.
 function UI.render(plan, current, statuses, L, arrowMethod)
   local f = UI.frame

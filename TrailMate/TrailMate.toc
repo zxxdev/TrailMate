@@ -22,6 +22,7 @@ core\Bags.lua
 core\State.lua
 core\Geo.lua
 core\Atlas.lua
+core\Travel.lua
 game\Api.lua
 game\Theme.lua
 game\UI.lua

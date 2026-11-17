@@ -307,6 +307,50 @@ describe("addon smoke test", function()
     assert.matches("aún no ha visto ninguno", output())
   end)
 
+  it("plans the trip to a chosen zone by flight and shows it in the step window", function()
+    local function vec(x, y)
+      return { x = x, y = y, GetXY = function(self) return self.x, self.y end }
+    end
+    rawset(_G, "CreateVector2D", vec)
+    rawset(_G, "UnitLevel", function() return 33 end)
+    -- World in yards: the player's zone around (500, 500); Stranglethorn far south.
+    _G.C_Map.GetWorldPosFromMapPos = function(mapID, v)
+      if mapID == 1415 then
+        return 0, vec(v.x * 100000 - 50000, v.y * 100000 - 50000)
+      elseif mapID == 1434 then
+        return 0, vec(v.x * 1000, v.y * 1000 - 12000)
+      end
+      return 0, vec(v.x * 1000, v.y * 1000)
+    end
+    rawset(_G, "C_TaxiMap", {
+      GetTaxiNodesForMap = function(mapID)
+        if mapID ~= 1415 then
+          return {}
+        end
+        return {
+          { name = "Hammerfall", position = vec(0.506, 0.505), state = 1 },
+          { name = "Grom'gol", position = vec(0.505, 0.386), state = 1 },
+          { name = "Unlearned", position = vec(0.5, 0.4), state = 2 },
+        }
+      end,
+    })
+    _G.SlashCmdList.TRAILMATE("diario")
+    _G.SlashCmdList.TRAILMATE("estrategia")
+    local index = output():match("%[(%d)%] Stranglethorn Vale")
+    assert.is_not_nil(index)
+    _G.SlashCmdList.TRAILMATE("zona " .. index)
+    local window = named.TrailMateFrame
+    assert.equals("Viaje", window.counter.shown_text)
+    assert.equals("Ve al maestro de vuelo: Hammerfall.", window.step.shown_text)
+    assert.matches("Vuela de Hammerfall a Grom'gol%. %(ruta aún sin confirmar%)", output())
+    assert.matches("Viaje a Stranglethorn Vale %(unos %d+ min%)", output())
+    assert.is_nil(output():find("Unlearned", 1, true))
+    _G.SlashCmdList.TRAILMATE("plan")
+    assert.equals("Hacer: Lobos", window.step.shown_text)
+    rawset(_G, "C_TaxiMap", nil)
+    rawset(_G, "CreateVector2D", nil)
+  end)
+
   it("explains the strategy and lets the player pick another zone", function()
     _G.SlashCmdList.TRAILMATE("diario")
     _G.SlashCmdList.TRAILMATE("estrategia")
