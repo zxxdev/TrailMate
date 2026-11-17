@@ -30,8 +30,9 @@ describe("Talents", function()
 
   it("offers the class templates named after the real trees", function()
     local list = Talents.templates("HUNTER", tree())
-    assert.equals(3, #list)
-    assert.equals("Beast Mastery", list[1].label)
+    assert.equals(4, #list)
+    assert.equals("Levelling build", list[1].label)
+    assert.equals("Beast Mastery", list[2].label)
     assert.equals("easy", list[1].difficulty)
     -- Another class gets a plain "fill this tree" choice per tree.
     local other = Talents.templates("PRIEST", tree())
@@ -41,7 +42,7 @@ describe("Talents", function()
 
   it("follows the template order and opens rows every five points", function()
     local tabs = tree()
-    local bm = Talents.templates("HUNTER", tabs)[1]
+    local bm = Talents.templates("HUNTER", tabs)[2]
     local picks = Talents.plan(tabs, bm, 11)
     -- Deadly Aspects 1-5, then Unleashed Fury in row 2 (open after 5 points),
     -- then Intimidation in row 3 once Unleashed Fury is maxed.
@@ -67,7 +68,7 @@ describe("Talents", function()
 
   it("waits for a prerequisite to be maxed", function()
     local tabs = tree({ ["Deadly Aspects"] = 5, ["Endurance Training"] = 5, ["Unleashed Fury"] = 4 })
-    local bm = Talents.templates("HUNTER", tabs)[1]
+    local bm = Talents.templates("HUNTER", tabs)[2]
     local picks = Talents.plan(tabs, bm, 2)
     assert.equals("Unleashed Fury", picks[1].talent.name)
     assert.equals("Intimidation", picks[2].talent.name)
@@ -125,7 +126,7 @@ describe("Talents", function()
 
     it("plans on the nodes like on a classic tree", function()
       local tabs = Talents.fromNodes(nodes, { "Beast Mastery", "Marksmanship", "Survival" })
-      local bm = Talents.templates("HUNTER", tabs)[1]
+      local bm = Talents.templates("HUNTER", tabs)[2]
       local picks = Talents.plan(tabs, bm, 6)
       assert.equals("Deadly Aspects", picks[1].talent.name)
       assert.equals("Endurance Training", picks[6].talent.name)
@@ -169,7 +170,7 @@ describe("Talents", function()
       assert.same({ tier = 5, column = 2 }, byName["Bestial Wrath"].prereq)
       assert.equals(6, tabs[3].talents[2].tier) -- 10 units off still counts as its row
       -- 25 points spent at level 34: the next point goes to Frenzy (row 6).
-      local bm = Talents.templates("HUNTER", tabs)[1]
+      local bm = Talents.templates("HUNTER", tabs)[2]
       local groups = Talents.group(Talents.plan(tabs, bm, 6))
       assert.equals("Frenzy", groups[1].talent.name)
       assert.same({ 1, 5 }, { groups[1].from, groups[1].to })
@@ -180,10 +181,69 @@ describe("Talents", function()
   it("says how many template names the tree has and picks the busiest tree", function()
     local tabs = tree({ ["Savage Strikes"] = 2 })
     local list = Talents.templates("HUNTER", tabs)
-    local found, total = Talents.found(tabs, list[1])
+    local found, total = Talents.found(tabs, list[2])
     assert.equals(4, found)
     assert.is_true(total > found)
     assert.equals("hunter-sv", Talents.choose(list, tabs).id)
     assert.equals("hunter-mm", Talents.choose(list, tabs, "hunter-mm").id)
+  end)
+
+  describe("the user's levelling build (31/16/4)", function()
+    -- The talents the build uses, where Forever puts them (row, column).
+    local function realTrees(ranks)
+      ranks = ranks or {}
+      local function t(name, tier, column, maxRank, prereq)
+        return { name = name, tier = tier, column = column, rank = ranks[name] or 0, maxRank = maxRank,
+          prereq = prereq }
+      end
+      return {
+        { name = "Beast Mastery", talents = {
+          t("Deadly Aspects", 1, 2, 5), t("Endurance Training", 1, 3, 5), t("Focused Fire", 2, 1, 2),
+          t("Bestial Swiftness", 3, 2, 1), t("Unleashed Fury", 3, 3, 5), t("Ferocity", 4, 3, 5),
+          t("Summon Hawk", 4, 4, 1), t("Intimidation", 5, 2, 1, { tier = 3, column = 2 }),
+          t("Bestial Discipline", 5, 4, 2), t("Frenzy", 6, 3, 5, { tier = 4, column = 3 }),
+          t("Bestial Wrath", 7, 2, 1, { tier = 5, column = 2 }),
+        } },
+        { name = "Marksmanship", talents = {
+          t("Lethal Attacks", 1, 3, 5), t("Improved Stings", 2, 1, 3), t("Careful Aim", 2, 3, 5),
+          t("Rapid Killing", 3, 1, 2), t("Trueshot Aura", 4, 2, 1),
+        } },
+        { name = "Survival", talents = { t("Improved Tracking", 1, 2, 5), t("Deflection", 1, 3, 5) } },
+      }
+    end
+
+    it("goes level by level across the trees and ends 31/16/4", function()
+      local tabs = realTrees()
+      local build = Talents.templates("HUNTER", tabs)[1]
+      local p = Talents.preview(tabs, build, 51)
+      assert.equals("31/16/4", p.split)
+      -- The user's own list: 10-14 Deadly Aspects, 15-16 Focused Fire, ... 57-60 Improved Tracking.
+      assert.same({ 10, 14, "Deadly Aspects" }, { p.levels[1].from, p.levels[1].to, p.levels[1].talent.name })
+      assert.same({ 25, 25, "Summon Hawk" }, { p.levels[5].from, p.levels[5].to, p.levels[5].talent.name })
+      assert.same({ 40, "Bestial Wrath", 1 }, { p.levels[11].from, p.levels[11].talent.name, p.levels[11].tree })
+      assert.same({ 41, 45, "Lethal Attacks", 2 },
+        { p.levels[12].from, p.levels[12].to, p.levels[12].talent.name, p.levels[12].tree })
+      local last = p.levels[#p.levels]
+      assert.same({ 57, 60, "Improved Tracking", 3, 4 }, { last.from, last.to, last.talent.name, last.tree,
+        last.rankTo })
+      -- Each tree ends with its deepest talent.
+      assert.equals("Bestial Wrath", p.trees[1].taken[#p.trees[1].taken].talent.name)
+      assert.equals("Trueshot Aura", p.trees[2].taken[#p.trees[2].taken].talent.name)
+      -- The preview does not touch the player's real trees.
+      assert.equals(0, tabs[1].talents[1].rank)
+    end)
+
+    it("at level 34 with the build's 25 points, the next is Frenzy (the user's case)", function()
+      local tabs = realTrees({ ["Deadly Aspects"] = 5, ["Focused Fire"] = 2, ["Endurance Training"] = 3,
+        ["Unleashed Fury"] = 5, ["Summon Hawk"] = 1, ["Ferocity"] = 5, ["Bestial Swiftness"] = 1,
+        ["Intimidation"] = 1, ["Bestial Discipline"] = 2 })
+      local build = Talents.templates("HUNTER", tabs)[1]
+      local groups = Talents.group(Talents.plan(tabs, build, 8))
+      assert.same({ "Frenzy", 1, 5, 1 }, { groups[1].talent.name, groups[1].from, groups[1].to, groups[1].tree })
+      assert.equals("Bestial Wrath", groups[2].talent.name)
+      assert.same({ "Lethal Attacks", 2 }, { groups[3].talent.name, groups[3].tree }) -- then Marksmanship
+      local found, total = Talents.found(tabs, build)
+      assert.equals(total, found)
+    end)
   end)
 end)

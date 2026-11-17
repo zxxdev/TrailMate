@@ -25,6 +25,20 @@ Talents.PER_ROW = 5
 -- levelling, not an official guide.
 Talents.TEMPLATES = {
   HUNTER = {
+    -- A build by level across the three trees (31/16/4): one entry per
+    -- talent with the ranks to take, in the order they are taken.
+    {
+      id = "hunter-levelling", tree = 1, difficulty = "easy", name = "Levelling build",
+      note = "Beast Mastery up to Bestial Wrath, then Marksmanship up to Trueshot Aura, then Survival.",
+      build = {
+        { "Deadly Aspects", 5 }, { "Focused Fire", 2 }, { "Endurance Training", 3 }, { "Unleashed Fury", 5 },
+        { "Summon Hawk", 1 }, { "Ferocity", 5 }, { "Bestial Swiftness", 1 }, { "Intimidation", 1 },
+        { "Bestial Discipline", 2 }, { "Frenzy", 5 }, { "Bestial Wrath", 1 },
+        { "Lethal Attacks", 5 }, { "Improved Stings", 3 }, { "Careful Aim", 5 }, { "Rapid Killing", 2 },
+        { "Trueshot Aura", 1 },
+        { "Improved Tracking", 4 },
+      },
+    },
     {
       id = "hunter-bm", tree = 1, difficulty = "easy",
       note = "Easiest to level: a strong pet takes the hits, little downtime.",
@@ -83,7 +97,7 @@ function Talents.templates(class, tabs)
       for k, v in pairs(t) do
         copy[k] = v
       end
-      copy.label = tab.name
+      copy.label = t.name or tab.name
       list[#list + 1] = copy
     end
   end
@@ -119,28 +133,115 @@ function Talents.choose(list, tabs, savedId)
   return best
 end
 
---- How many of the template's names exist in the player's tree.
+-- The names a template uses: its order of preference, or its build.
+local function namesOf(template)
+  if template.build then
+    local out = {}
+    for _, entry in ipairs(template.build) do
+      out[#out + 1] = entry[1]
+    end
+    return out
+  end
+  return template.priority or {}
+end
+
+--- How many of the template's names exist in the player's trees.
 function Talents.found(tabs, template)
   local names = {}
-  for _, t in ipairs(tabs[template.tree].talents) do
-    names[t.name] = true
+  for i, tab in ipairs(tabs) do
+    if template.build or i == template.tree then
+      for _, t in ipairs(tab.talents) do
+        names[t.name] = true
+      end
+    end
   end
-  local n = 0
-  for _, name in ipairs(template.priority) do
+  local n, list = 0, namesOf(template)
+  for _, name in ipairs(list) do
     if names[name] then
       n = n + 1
     end
   end
-  return n, #template.priority
+  return n, #list
 end
 
 local function pos(tier, column)
   return tier .. ":" .. column
 end
 
---- The next `limit` points in order, as { talent, rank } (rank after the
---- point). The tree is not changed.
+-- A build: take each entry's ranks in order, across trees. An entry whose
+-- row or prerequisite is not open yet waits, and the next one is taken.
+-- When the build is done, the main tree is filled row by row.
+local function planBuild(tabs, template, limit)
+  local ranks, spent, byName, byPos = {}, {}, {}, {}
+  for i, tab in ipairs(tabs) do
+    spent[i], byPos[i] = 0, {}
+    for _, t in ipairs(tab.talents) do
+      ranks[t] = t.rank or 0
+      spent[i] = spent[i] + ranks[t]
+      byName[t.name] = byName[t.name] or { talent = t, tree = i }
+      byPos[i][pos(t.tier, t.column)] = t
+    end
+  end
+  local function open(t, tree)
+    if ranks[t] >= t.maxRank or spent[tree] < (t.tier - 1) * Talents.PER_ROW then
+      return false
+    end
+    local p = t.prereq and byPos[tree][pos(t.prereq.tier, t.prereq.column)]
+    return not p or ranks[p] >= p.maxRank
+  end
+  -- One entry per point: the talent and the rank it reaches.
+  local steps, seen = {}, {}
+  for _, entry in ipairs(template.build) do
+    for _ = 1, entry[2] do
+      seen[entry[1]] = (seen[entry[1]] or 0) + 1
+      steps[#steps + 1] = { name = entry[1], rank = seen[entry[1]] }
+    end
+  end
+  local picks = {}
+  for _ = 1, limit do
+    local pick
+    for _, s in ipairs(steps) do
+      local found = byName[s.name]
+      if found and ranks[found.talent] < s.rank and open(found.talent, found.tree) then
+        pick = found
+        break
+      end
+    end
+    if not pick then
+      local main = tabs[template.tree]
+      local sorted = {}
+      for _, t in ipairs(main and main.talents or {}) do
+        sorted[#sorted + 1] = t
+      end
+      table.sort(sorted, function(a, b)
+        if a.tier ~= b.tier then
+          return a.tier < b.tier
+        end
+        return a.column < b.column
+      end)
+      for _, t in ipairs(sorted) do
+        if open(t, template.tree) then
+          pick = { talent = t, tree = template.tree }
+          break
+        end
+      end
+    end
+    if not pick then
+      break
+    end
+    ranks[pick.talent] = ranks[pick.talent] + 1
+    spent[pick.tree] = spent[pick.tree] + 1
+    picks[#picks + 1] = { talent = pick.talent, rank = ranks[pick.talent], tree = pick.tree }
+  end
+  return picks
+end
+
+--- The next `limit` points in order, as { talent, rank, tree } (rank after
+--- the point). The trees are not changed.
 function Talents.plan(tabs, template, limit)
+  if template.build then
+    return planBuild(tabs, template, limit)
+  end
   local tab = tabs[template.tree]
   if not tab then
     return {}
@@ -192,9 +293,64 @@ function Talents.plan(tabs, template, limit)
     end
     ranks[pick] = ranks[pick] + 1
     spent = spent + 1
-    picks[#picks + 1] = { talent = pick, rank = ranks[pick] }
+    picks[#picks + 1] = { talent = pick, rank = ranks[pick], tree = template.tree }
   end
   return picks
+end
+
+--- What a template does from level 10, for the preview: the points by
+--- level (grouped), the points per tree, and the talents each tree ends
+--- with. maxPoints: the points to show (51 at level 60).
+function Talents.preview(tabs, template, maxPoints)
+  -- The same trees, empty.
+  local empty = {}
+  for i, tab in ipairs(tabs) do
+    local talents = {}
+    for _, t in ipairs(tab.talents) do
+      local copy = {}
+      for k, v in pairs(t) do
+        copy[k] = v
+      end
+      copy.rank = 0
+      talents[#talents + 1] = copy
+    end
+    empty[i] = { name = tab.name, talents = talents }
+  end
+  local picks = Talents.plan(empty, template, maxPoints)
+  local levels, points, final = {}, {}, {}
+  for i, p in ipairs(picks) do
+    local level = 9 + i
+    local last = levels[#levels]
+    if last and last.talent == p.talent then
+      last.to, last.rankTo = level, p.rank
+    else
+      levels[#levels + 1] = { from = level, to = level, talent = p.talent, tree = p.tree, rankFrom = p.rank,
+        rankTo = p.rank }
+    end
+    points[p.tree] = (points[p.tree] or 0) + 1
+    final[p.talent] = p.rank
+  end
+  local trees = {}
+  for i, tab in ipairs(empty) do
+    local taken = {}
+    for _, t in ipairs(tab.talents) do
+      if final[t] then
+        taken[#taken + 1] = { talent = t, rank = final[t] }
+      end
+    end
+    table.sort(taken, function(a, b)
+      if a.talent.tier ~= b.talent.tier then
+        return a.talent.tier < b.talent.tier
+      end
+      return a.talent.column < b.talent.column
+    end)
+    trees[i] = { name = tab.name, points = points[i] or 0, taken = taken }
+  end
+  local split = {}
+  for i = 1, #empty do
+    split[i] = tostring(points[i] or 0)
+  end
+  return { levels = levels, trees = trees, split = table.concat(split, "/") }
 end
 
 -- Modern clients (WoW Forever) -------------------------------------------------
@@ -413,7 +569,7 @@ function Talents.group(picks)
     if last and last.talent == p.talent then
       last.to = p.rank
     else
-      out[#out + 1] = { talent = p.talent, from = p.rank, to = p.rank }
+      out[#out + 1] = { talent = p.talent, from = p.rank, to = p.rank, tree = p.tree }
     end
   end
   return out

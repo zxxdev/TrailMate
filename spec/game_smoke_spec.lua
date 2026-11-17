@@ -514,11 +514,11 @@ describe("addon smoke test", function()
 
     fire("ADDON_LOADED", "Blizzard_TalentUI")
     local panel = named.TrailMateTalents
-    assert.matches("^> Beast Mastery", panel.choices[1].shown_text)
+    assert.matches("^> Build de subida", panel.choices[1].shown_text)
     assert.equals("Deadly Aspects", panel.name.shown_text)
     assert.equals("Gasta tu punto aquí (1 por gastar)", panel.heading.shown_text)
     assert.is_true(panel.glow.visible) -- lit in the game's window
-    assert.equals("Endurance Training (rangos 1-5/5)", panel.rows[1].text.shown_text)
+    assert.matches("^Endurance Training %(rangos 1%-5/5%)", panel.rows[1].text.shown_text)
     -- The reminder names the talent.
     fire("CHARACTER_POINTS_CHANGED")
     local found
@@ -527,7 +527,7 @@ describe("addon smoke test", function()
     end
     assert.equals("Punto de talento: coge Deadly Aspects", found)
     -- Choosing another template is saved per character.
-    panel.choices[3].scripts.OnClick()
+    panel.choices[4].scripts.OnClick()
     assert.equals("hunter-sv", _G.TrailMateCharDB.talents.template)
     assert.equals("Esta rama está completa.", panel.name.shown_text)
     assert.is_false(panel.glow.visible)

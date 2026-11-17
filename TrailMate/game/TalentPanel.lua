@@ -77,6 +77,16 @@ function TalentPanel.attach()
       TalentPanel.pick(i)
     end)
     b:SetPoint("TOPLEFT", 14, -44 - (i - 1) * 24)
+    -- Hovering a template shows where it goes: by level, per tree, and
+    -- the talents each tree ends with.
+    b:SetScript("OnEnter", function(self)
+      TalentPanel.showPreview(i, self)
+    end)
+    b:SetScript("OnLeave", function()
+      if GameTooltip then
+        GameTooltip:Hide()
+      end
+    end)
     b:Hide()
     f.choices[i] = b
   end
@@ -146,6 +156,92 @@ function TalentPanel.attach()
   return f
 end
 
+-- One colour per tree, so the spec of each point is clear at a glance.
+local TREE_COLORS = { { 0.55, 0.85, 0.40 }, { 0.45, 0.75, 1.00 }, { 1.00, 0.60, 0.30 } }
+
+local function treeColor(i)
+  local c = TREE_COLORS[i] or { 0.9, 0.9, 0.9 }
+  return c[1], c[2], c[3]
+end
+
+local function hex(i)
+  local r, g, b = treeColor(i)
+  return ("|cff%02x%02x%02x"):format(r * 255, g * 255, b * 255)
+end
+
+--- The preview lines of template i, as { left, right, tree, done } rows,
+--- for the tooltip (and the tests). nil when there is no such template.
+function TalentPanel.previewLines(i)
+  local L = TalentPanel.L
+  local a = TalentPanel.advice()
+  local t = a and a.list[i]
+  if not t then
+    return nil
+  end
+  local p = ns.Talents.preview(a.tabs, t, 51)
+  local spent = 0
+  for _, tab in ipairs(a.tabs) do
+    for _, talent in ipairs(tab.talents) do
+      spent = spent + (talent.rank or 0)
+    end
+  end
+  local rows = {}
+  local parts = {}
+  for k, tree in ipairs(p.trees) do
+    parts[#parts + 1] = hex(k) .. tree.name .. " " .. tree.points .. "|r"
+  end
+  rows[#rows + 1] = { L["Points"] .. ": " .. table.concat(parts, "  ") }
+  rows[#rows + 1] = { " " }
+  rows[#rows + 1] = { L["By level"], nil, nil, "heading" }
+  for _, g in ipairs(p.levels) do
+    local levels = g.from == g.to and tostring(g.from) or (g.from .. "-" .. g.to)
+    local ranks = g.rankFrom == g.rankTo and ("%d/%d"):format(g.rankTo, g.talent.maxRank)
+      or ("%d-%d/%d"):format(g.rankFrom, g.rankTo, g.talent.maxRank)
+    -- Levels already behind you show grey.
+    rows[#rows + 1] = { levels, g.talent.name .. " " .. ranks, g.tree, g.to - 9 <= spent }
+  end
+  rows[#rows + 1] = { " " }
+  rows[#rows + 1] = { L["Ends with"], nil, nil, "heading" }
+  for k, tree in ipairs(p.trees) do
+    local last = tree.taken[#tree.taken]
+    if last then
+      rows[#rows + 1] = { tree.name, ("%s %d/%d"):format(last.talent.name, last.rank, last.talent.maxRank), k }
+    end
+  end
+  return rows, t, p
+end
+
+function TalentPanel.showPreview(i, owner)
+  local tip = rawget(_G, "GameTooltip")
+  if not tip then
+    return
+  end
+  local rows, t, p = TalentPanel.previewLines(i)
+  if not rows then
+    return
+  end
+  local L = TalentPanel.L
+  tip:SetOwner(owner, "ANCHOR_RIGHT")
+  tip:AddLine(("%s  %s"):format(L[t.label], p.split), 1, 0.82, 0)
+  if t.note then
+    tip:AddLine(L[t.note], 0.9, 0.9, 0.9, true)
+  end
+  for _, row in ipairs(rows) do
+    if row[4] == "heading" then
+      tip:AddLine(row[1], 1, 0.82, 0)
+    elseif row[2] then
+      local r, g, b = treeColor(row[3])
+      if row[4] == true then
+        r, g, b = 0.5, 0.5, 0.5
+      end
+      tip:AddDoubleLine(row[1], row[2], 0.8, 0.8, 0.8, r, g, b)
+    else
+      tip:AddLine(row[1], 0.9, 0.9, 0.9)
+    end
+  end
+  tip:Show()
+end
+
 function TalentPanel.pick(i)
   local list = TalentPanel.list
   if list and list[i] then
@@ -186,8 +282,13 @@ function TalentPanel.refresh()
   for i, b in ipairs(f.choices) do
     local t = a and a.list[i]
     if t then
+      -- The spec at a glance: points per tree at level 60, one colour each.
+      local split = {}
+      for k, tree in ipairs(ns.Talents.preview(a.tabs, t, 51).trees) do
+        split[k] = hex(k) .. tree.points .. "|r"
+      end
       local mark = t == a.chosen and "> " or ""
-      b:SetText(mark .. t.label .. (t.difficulty and (" - " .. L[t.difficulty]) or ""))
+      b:SetText(("%s%s  %s"):format(mark, L[t.label], table.concat(split, "/")))
       b:Show()
     else
       b:Hide()
@@ -204,7 +305,7 @@ function TalentPanel.refresh()
     showGlow(f, nil)
     return
   end
-  local chosen, tab = a.chosen, a.tabs[a.chosen.tree]
+  local chosen = a.chosen
   f.note:SetText(chosen.note and L[chosen.note] or L["No template for this tree: it is filled row by row."])
   local first = a.groups[1]
   if not first then
@@ -223,8 +324,11 @@ function TalentPanel.refresh()
     f.icon:Show()
     f.ring:SetShown(a.points > 0)
     f.name:SetText(t.name)
-    f.info:SetText(L["%s - %s, row %d"]:format(rankText(first, L), tab.name, t.tier))
-    local button = a.points > 0 and ns.Api.talentButton(chosen.tree, t) or nil
+    -- A build crosses trees: say which tree, in its colour.
+    local tree = first.tree or chosen.tree
+    local tab = a.tabs[tree]
+    f.info:SetText(L["%s - %s, row %d"]:format(rankText(first, L), hex(tree) .. tab.name .. "|r", t.tier))
+    local button = a.points > 0 and ns.Api.talentButton(tree, t) or nil
     showGlow(f, button)
     f.where:SetText(a.points > 0 and not button and L["Open the %s tab to see it lit up."]:format(tab.name) or "")
   end
@@ -233,7 +337,8 @@ function TalentPanel.refresh()
     if g then
       row.icon:SetTexture(g.talent.icon)
       row.icon:Show()
-      row.text:SetText(("%s (%s)"):format(g.talent.name, rankText(g, L)))
+      row.text:SetText(("%s (%s) %s%s|r"):format(g.talent.name, rankText(g, L), hex(g.tree or chosen.tree),
+        a.tabs[g.tree or chosen.tree].name))
     else
       row.icon:Hide()
       row.text:SetText("")
@@ -243,7 +348,7 @@ function TalentPanel.refresh()
     f.footer:SetText("")
   else
     local found, total = ns.Talents.found(a.tabs, chosen)
-    f.footer:SetText(L["A guide from the classic trees, not checked in Forever: %d of %d names found in yours."]
+    f.footer:SetText(L["A suggested order, not an official guide: %d of %d talents found in your trees."]
       :format(found, total))
   end
 end
