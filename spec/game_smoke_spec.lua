@@ -4,6 +4,7 @@
 -- nil calls, wrong arguments) before anyone has to find them in-game.
 
 local frames, named, printed
+local watched, superTracked = {}, nil
 
 local function fakeObject(name)
   local o = { scripts = {}, events = {}, name = name }
@@ -38,6 +39,7 @@ local quests = {
 
 local function install()
   frames, named, printed = {}, {}, {}
+  watched, superTracked = {}, nil
   local env = {
     print = function(...)
       local parts = {}
@@ -74,6 +76,17 @@ local function install()
       IsComplete = function(id) return id == 11 end,
       IsQuestFlaggedCompleted = function() return false end,
       GetQuestsOnMap = function() return { { questID = 10, x = 0.3, y = 0.3 } } end,
+      GetLogIndexForQuestID = function(id)
+        for i, q in ipairs(quests) do
+          if q.questID == id then
+            return i
+          end
+        end
+      end,
+      GetQuestWatchType = function(id) return watched[id] end,
+      AddQuestWatch = function(id) watched[id] = 0 end,
+      RemoveQuestWatch = function(id) watched[id] = nil end,
+      SetSelectedQuest = function() end,
     },
     C_Map = {
       GetBestMapForUnit = function() return 1429 end,
@@ -86,7 +99,10 @@ local function install()
       ClearUserWaypoint = function() end,
     },
     UiMapPoint = { CreateFromCoordinates = function(m, x, y) return { m, x, y } end },
-    C_SuperTrack = { SetSuperTrackedUserWaypoint = function() end },
+    C_SuperTrack = {
+      SetSuperTrackedUserWaypoint = function() end,
+      SetSuperTrackedQuestID = function(id) superTracked = id end,
+    },
     C_Container = {
       GetContainerNumSlots = function(bag) return bag == 0 and 2 or 0 end,
       GetContainerItemInfo = function(_, slot)
@@ -168,16 +184,37 @@ describe("addon smoke test", function()
     _G.SlashCmdList.TRAILMATE("diario")
     tick()
     local window = named.TrailMateFrame
-    assert.equals("Entregar: Jabalies", window.step.shown_text)
-    _G.SlashCmdList.TRAILMATE("salta")
+    -- "Lobos" has a place in this zone, "Jabalies" has none: Lobos goes first.
     assert.equals("Hacer: Lobos", window.step.shown_text)
-    assert.matches("Flecha: map pin", window.arrow.shown_text)
-    assert.is_true(_G.TrailMateCharDB.plan.steps[1] ~= nil)
+    _G.SlashCmdList.TRAILMATE("salta")
+    assert.equals("Entregar: Lobos", window.step.shown_text)
+    _G.SlashCmdList.TRAILMATE("salta")
+    assert.equals("Entregar: Jabalies", window.step.shown_text)
+  end)
+
+  it("highlights the current quest in the log and on the map, and cleans up after itself", function()
+    _G.SlashCmdList.TRAILMATE("diario")
+    assert.equals(10, superTracked)
+    assert.equals(0, watched[10])
+    assert.matches("Flecha: quest", named.TrailMateFrame.arrow.shown_text)
+    _G.SlashCmdList.TRAILMATE("salta")
+    _G.SlashCmdList.TRAILMATE("salta")
+    assert.equals(11, superTracked)
+    assert.is_nil(watched[10])
+    _G.SlashCmdList.TRAILMATE("borrar")
+    assert.is_nil(watched[11])
+  end)
+
+  it("does not remove a quest the player was already watching", function()
+    watched[10] = 0
+    _G.SlashCmdList.TRAILMATE("diario")
+    _G.SlashCmdList.TRAILMATE("salta")
+    _G.SlashCmdList.TRAILMATE("salta")
+    assert.equals(0, watched[10])
   end)
 
   it("points its own arrow at the current quest with distance and direction", function()
     _G.SlashCmdList.TRAILMATE("diario")
-    _G.SlashCmdList.TRAILMATE("salta")
     eventFrame().scripts.OnUpdate(eventFrame(), 0.1)
     local arrow = named.TrailMateArrow
     -- Player at 0.5,0.5 and the quest at 0.3,0.3 on a 1000-yard map:
@@ -197,7 +234,7 @@ describe("addon smoke test", function()
     })
     _G.SlashCmdList.TRAILMATE("diario")
     local plan = _G.TrailMateCharDB.plan
-    assert.equals("accept-30", plan.steps[2].id)
+    assert.equals("accept-30", plan.steps[1].id)
     -- Picking up a quest that is not in the plan rebuilds it.
     quests[3] = { questID = 31, title = "Nueva", isHeader = false }
     fire("QUEST_ACCEPTED", 31)
@@ -234,7 +271,7 @@ describe("addon smoke test", function()
     rawset(_G, "TrailMateCharDB", saved)
     loadAddon()
     fire("ADDON_LOADED", "TrailMate")
-    assert.equals("Entregar: Jabalies", named.TrailMateFrame.step.shown_text)
+    assert.equals("Hacer: Lobos", named.TrailMateFrame.step.shown_text)
   end)
 
   it("advises at the trainer and respects the tracking preference", function()

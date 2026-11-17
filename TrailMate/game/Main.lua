@@ -57,11 +57,12 @@ local function updateTarget(force)
   local target = stepTarget(step)
   ns.Arrow.setTarget(target, step and step.text)
   if changed then
+    local focused = Api.focusQuest(step and step.questID)
     if target then
-      markMethod = Api.setArrow(target, step.text)
+      markMethod = Api.setArrow(target, step.text, focused)
     else
       Api.clearArrow()
-      markMethod = nil
+      markMethod = focused and "quest" or nil
     end
   end
 end
@@ -143,6 +144,7 @@ local function clearPlan()
   cdb.plan, cdb.progress = nil, nil
   arrowStep = nil
   Api.clearArrow()
+  Api.unfocusQuest()
   refresh()
 end
 

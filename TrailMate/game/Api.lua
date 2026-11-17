@@ -223,6 +223,43 @@ function Api.availableQuests(mapID)
   return out
 end
 
+local watchedByUs
+
+--- Stops highlighting the quest TrailMate focused, and removes it from the
+--- objective tracker only if TrailMate was the one who added it.
+function Api.unfocusQuest()
+  if watchedByUs and C_QuestLog and C_QuestLog.RemoveQuestWatch then
+    try(C_QuestLog.RemoveQuestWatch, watchedByUs)
+  end
+  watchedByUs = nil
+end
+
+--- Highlights a quest of the log the way the game does when you click it:
+--- super-tracked on the map, shown in the objective tracker and selected in
+--- the quest log. Returns true if the game accepted it.
+function Api.focusQuest(questID)
+  Api.unfocusQuest()
+  local Q = C_QuestLog
+  if not questID or not Q then
+    return false
+  end
+  if Q.GetLogIndexForQuestID and not safe(Q.GetLogIndexForQuestID, questID) then
+    return false -- not in the log (yet): nothing to highlight
+  end
+  if Q.AddQuestWatch and Q.GetQuestWatchType and safe(Q.GetQuestWatchType, questID) == nil then
+    if try(Q.AddQuestWatch, questID) then
+      watchedByUs = questID
+    end
+  end
+  if Q.SetSelectedQuest then
+    try(Q.SetSelectedQuest, questID)
+  end
+  if C_SuperTrack and C_SuperTrack.SetSuperTrackedQuestID then
+    return (try(C_SuperTrack.SetSuperTrackedQuestID, questID))
+  end
+  return false
+end
+
 local tomtomUid, pinSet = nil, false
 
 function Api.clearArrow()
@@ -236,9 +273,10 @@ function Api.clearArrow()
   pinSet = false
 end
 
---- Points the arrow at a target. Uses TomTom when it is installed, and the
---- game's own map pin otherwise. Returns the method used, or nil.
-function Api.setArrow(target, title)
+--- Marks a target on the map. Uses TomTom when it is installed; otherwise the
+--- game's own map pin, unless the quest is already highlighted (focused).
+--- Returns the method used, or nil.
+function Api.setArrow(target, title, focused)
   Api.clearArrow()
   if TomTom and TomTom.AddWaypoint then
     -- TomTom draws the map and minimap marks; TrailMate draws its own arrow.
@@ -248,6 +286,9 @@ function Api.setArrow(target, title)
       tomtomUid = uid
       return "TomTom"
     end
+  end
+  if focused then
+    return "quest"
   end
   if C_Map and C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates then
     if C_Map.CanSetUserWaypointOnMap and not safe(C_Map.CanSetUserWaypointOnMap, target.mapID) then
@@ -443,7 +484,8 @@ Api.PROBES = {
   "issecretvalue", "C_AddOns.GetAddOnMetadata", "TomTom.AddWaypoint",
   "GetPlayerFacing", "C_Map.GetMapWorldSize", "C_Map.GetWorldPosFromMapPos",
   "C_Map.GetMapPosFromWorldPos", "CreateVector2D", "C_QuestLine.GetAvailableQuestLines",
-  "IsSpellKnown", "IsPlayerSpell",
+  "IsSpellKnown", "IsPlayerSpell", "C_SuperTrack.SetSuperTrackedQuestID",
+  "C_QuestLog.AddQuestWatch", "C_QuestLog.SetSelectedQuest", "C_QuestLog.GetLogIndexForQuestID",
 }
 
 --- Lines describing what this client exposes. No names, nothing personal.
