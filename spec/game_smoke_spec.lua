@@ -468,6 +468,27 @@ describe("addon smoke test", function()
     assert.is_false(panel.visible)
   end)
 
+  it("runs the self-test from the Log tab without changing anything", function()
+    _G.SlashCmdList.TRAILMATE("diario")
+    local planBefore = _G.TrailMateCharDB.plan
+    local panel = named.TrailMatePanel
+    panel.pages.Log.test.scripts.OnClick()
+    local out = output()
+    assert.matches("Autotest en marcha", out)
+    assert.matches("%[PASS%] route: ", out)
+    assert.matches("%[PASS%] strategy: ", out)
+    assert.matches("%[PASS%] panel: all tabs drawn", out)
+    assert.matches("Autotest terminado: %d+ bien, %d+ mal%.", out)
+    -- Every check reports, pass or fail, and nothing crashed.
+    local checks = 0
+    for _ in out:gmatch("%[[PF]A[SI][SL]%]") do
+      checks = checks + 1
+    end
+    assert.equals(16, checks)
+    assert.equals(planBefore, _G.TrailMateCharDB.plan)
+    assert.is_nil(_G.TrailMateCharDB.prefs.focusZone)
+  end)
+
   it("puts the icon and the compartment entry in the .toc", function()
     local toc = io.open("TrailMate/TrailMate.toc"):read("*a")
     assert.matches("## IconTexture: Interface\\Icons\\", toc)

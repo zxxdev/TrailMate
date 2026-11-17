@@ -272,7 +272,9 @@ local function offersHere(player, quests, names)
   return offers
 end
 
-function buildFromQuestLog(quiet)
+-- Works out the route from the quest log without loading it.
+-- Returns plan (or nil), report, quests.
+local function computeRoute()
   local quests = Api.questLog()
   local names = {}
   local player = playerPoint()
@@ -286,6 +288,11 @@ function buildFromQuestLog(quiet)
     zoneBonus = ns.Strategy.zoneBonus(player.level),
     focus = cdb.prefs.focusZone,
   })
+  return p, report, quests
+end
+
+function buildFromQuestLog(quiet)
+  local p, report = computeRoute()
   lastCounts = report.counts or {}
   if p and (not quiet or (report.zone and report.zone ~= cdb.lastZone)) then
     quiet = false
@@ -468,9 +475,9 @@ local function describeStep(s, name, hearth)
 end
 
 -- Plans the quickest way to a zone with what the game says (flight points
--- learned and seen connected, hearthstone, continent), tells the player the
--- steps and points the arrow at the first place to go.
-local function travelTo(mapID, name)
+-- learned and seen connected, hearthstone, continent). Changes nothing:
+-- returns the trip, the lines to show and the first place to go.
+local function planTrip(mapID, name)
   local p = playerPoint()
   local nodes = Api.flightNodes()
   local hearth = Api.hearth()
@@ -503,6 +510,13 @@ local function travelTo(mapID, name)
   else
     lines[1] = L["Travel to %s"]:format(name)
   end
+  return trip, lines, target
+end
+
+-- Applies a trip: tells the player the steps and points the arrow at the
+-- first place to go, until they arrive.
+local function travelTo(mapID, name)
+  local _, lines, target = planTrip(mapID, name)
   travelLines = lines
   detour = {
     target = target or { mapID = mapID, x = 0.5, y = 0.5 },
@@ -819,6 +833,155 @@ SlashCmdList.TRAILMATE = function(msg)
   local fn = COMMANDS[cmd] or COMMANDS.help
   fn(rest)
 end
+
+-- Self-test ---------------------------------------------------------------------
+
+local function count(t)
+  local n = 0
+  for _ in pairs(type(t) == "table" and t or {}) do
+    n = n + 1
+  end
+  return n
+end
+
+-- Checks everything that can be checked without the player doing anything,
+-- and writes PASS / FAIL lines to the log. It changes nothing: the route and
+-- the trip are computed but not applied, and the panel is left as it was.
+local function selfTest()
+  local passed, failed = 0, 0
+  local function check(name, fn)
+    local ok, good, detail = pcall(fn)
+    if ok and good then
+      passed = passed + 1
+      say(("[PASS] %s: %s"):format(name, tostring(detail)))
+    else
+      failed = failed + 1
+      say(("[FAIL] %s: %s"):format(name, tostring(ok and detail or good)))
+    end
+  end
+  say(L["Self-test started (nothing is changed)."])
+  local p = playerPoint()
+
+  check("client", function()
+    local client, build, _, toc = GetBuildInfo()
+    return true, ("%s build %s interface %s locale %s, TrailMate %s"):format(tostring(client), tostring(build),
+      tostring(toc), tostring(GetLocale()), version())
+  end)
+  check("character", function()
+    local xp, xpMax = Api.xp()
+    return Api.class() ~= nil, ("%s level %s %s, XP %s/%s"):format(tostring(Api.class()), tostring(p.level),
+      tostring(Api.faction()), tostring(xp), tostring(xpMax))
+  end)
+  check("position", function()
+    return p.mapID ~= nil and p.x ~= nil, ("map %s (%s) at %s, %s"):format(tostring(p.mapID),
+      tostring(p.mapID and Api.mapName(p.mapID)), tostring(p.x), tostring(p.y))
+  end)
+  check("map size and facing", function()
+    local w, h = Api.mapSize(p.mapID)
+    local facing = Api.facing()
+    return w ~= nil and facing ~= nil, ("%s x %s yards, facing %s"):format(tostring(w), tostring(h), tostring(facing))
+  end)
+  check("route", function()
+    local route, report, quests = computeRoute()
+    local fromGame, fromAtlas, unknown = 0, 0, 0
+    for _, q in ipairs(quests) do
+      if Api.questTarget(q.questID) then
+        fromGame = fromGame + 1
+      elseif q.target then
+        fromAtlas = fromAtlas + 1
+      else
+        unknown = unknown + 1
+      end
+    end
+    return true, ("%d quests (place from game %d, atlas %d, unknown %d); zone %s, %d steps, not now %d, later %d")
+      :format(#quests, fromGame, fromAtlas, unknown, tostring(report.zone), route and #route.steps or 0,
+        #report.notNow, #report.later)
+  end)
+  local zones
+  check("strategy", function()
+    zones = strategyList()
+    local names = {}
+    for i, z in ipairs(zones) do
+      names[#names + 1] = ("%d.%s %s"):format(i, z.label, z.difficulty)
+    end
+    return #zones > 0, table.concat(names, ", ")
+  end)
+  check("flight points", function()
+    local nodes, known = Api.flightNodes(), 0
+    for _, n in ipairs(nodes) do
+      known = known + (n.known and 1 or 0)
+    end
+    return #nodes > 0, ("%d known of %d shown on the map; routes seen at %d flight masters"):format(known, #nodes,
+      count(atlas.flights))
+  end)
+  check("hearthstone", function()
+    local h = Api.hearth()
+    return h ~= nil, h and ("%s, %s"):format(h.name, h.ready and "ready" or ("%d s left"):format(h.cooldown))
+      or "no bind location"
+  end)
+  check("travel", function()
+    local z
+    for _, candidate in ipairs(zones or {}) do
+      if candidate.mapID ~= p.mapID then
+        z = candidate
+        break
+      end
+    end
+    if not z then
+      return true, "no other zone to test"
+    end
+    local trip, lines = planTrip(z.mapID, z.label)
+    return trip ~= nil, table.concat(lines, " ")
+  end)
+  check("atlas", function()
+    local npcs, known = Atlas.counts(atlas)
+    local finds = {}
+    for _, role in ipairs({ "trainer", "vendor", "repair", "flight" }) do
+      local _, name = Atlas.findNpc(atlas, role, role == "trainer" and Api.class() or nil, Api.faction(), p)
+      finds[#finds + 1] = ("%s=%s"):format(role, tostring(name))
+    end
+    return true, ("%d npcs, %d quests, %d binds; nearest %s"):format(npcs, known, count(atlas.binds),
+      table.concat(finds, " "))
+  end)
+  check("trainer memory", function()
+    return true, ("%d spells remembered, %d ignored"):format(count(cdb.trainerMemory), count(cdb.prefs.ignored))
+  end)
+  check("bags", function()
+    local results = ns.Bags.advise(Api.bagItems(), { prefs = cdb.prefs }, L)
+    local verdicts = { sell = 0, keep = 0, auction = 0 }
+    for _, r in ipairs(results) do
+      verdicts[r.verdict] = verdicts[r.verdict] + 1
+    end
+    local free, total = Api.bagSpace()
+    return #results > 0, ("%d items: sell %d, keep %d, auction %d; %d of %d slots free"):format(#results,
+      verdicts.sell, verdicts.keep, verdicts.auction, free, total)
+  end)
+  check("arrow", function()
+    ns.Arrow.update()
+    return true, tostring(ns.Arrow.labelText)
+  end)
+  check("quest highlight", function()
+    local ok = C_SuperTrack ~= nil and type(C_SuperTrack.SetSuperTrackedQuestID) == "function"
+    return ok, ok and "available" or "missing"
+  end)
+  check("TomTom", function()
+    return true, TomTom and "installed (map marks)" or "not installed (game map pin)"
+  end)
+  check("panel", function()
+    local shown, tab = ns.Panel.frame:IsShown(), ns.Panel.current
+    for _, name in ipairs({ "Route", "Zones", "Trainer", "Bags", "Log" }) do
+      ns.Panel.show(name)
+    end
+    ns.Panel.show(tab or "Route")
+    if not shown then
+      ns.Panel.frame:Hide()
+    end
+    return true, "all tabs drawn"
+  end)
+  say(L["Self-test done: %d passed, %d failed. Copy the Log tab and send it."]:format(passed, failed))
+end
+
+alias({ "selftest", "test" }, selfTest)
 
 -- What the panel reads. It never changes state itself: its buttons run commands.
 local function routeLines()

@@ -62,6 +62,10 @@ local esES = {
   ["Commands"] = "Órdenes",
   ["Pick up: "] = "Coger: ",
   ["Travel"] = "Viaje",
+  ["Self-test"] = "Autotest",
+  ["Self-test started (nothing is changed)."] = "Autotest en marcha (no cambia nada).",
+  ["Self-test done: %d passed, %d failed. Copy the Log tab and send it."] =
+    "Autotest terminado: %d bien, %d mal. Copia la pestaña Registro y envíala.",
   ["Back to the quests: /tm plan"] = "Volver a las misiones: /tm plan",
   ["Route to %s (about %s):"] = "Viaje a %s (unos %s):",
   ["Use your hearthstone (%s)."] = "Usa tu piedra de hogar (%s).",
