@@ -10,7 +10,8 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 
 | Feature | How |
 |---|---|
-| Steps from your quest log | `/tm questlog` builds a route like a leveling guide: turn in what is complete, pick up the nearby quests the map shows, do everything nearest first, then turn it all in. Steps tick themselves off from game events, and the plan rebuilds itself when it ends or when you pick up a new quest. |
+| A route that decides | `/tm questlog` sorts your quests by level like the game colours them, picks **one zone** to work in (staying where you are wins ties), and routes it nearest first: pick up, do, turn in. It tells you what to leave for now (too hard, group or elite), what to consider abandoning (grey, little XP) and which zones come later. Steps tick themselves off from game events, and the plan rebuilds itself when the zone is done, when you pick up a new quest, and on login. |
+| Learns as you play | TrailMate keeps its own atlas, shared by your characters: who gave each quest and where, where it was turned in, where its objectives moved forward, and where trainers, vendors and flight masters stand. It only records what the game showed you. The route uses it for quests the game gives no location for, and offers quests you have seen before (for example, on an alt) when they fit. |
 | Arrow | TrailMate's own arrow points at the current step (quest giver, objective area or turn-in) with the distance, using your facing. It also marks the spot on the map, through [TomTom](https://www.curseforge.com/wow/addons/tomtom) when it is installed or the game's own map pin otherwise. |
 | Trainer advice | When you open a class trainer: a numbered list with *learn*, *skip* or *later* for each spell, and the reason. Ignore a spell once (`/tm ignore 3`) and it is never recommended again, in any rank. At each level-up it tells you only what just unlocked. Keeps a gold reserve you choose. |
 | Vendor advice | When you open a vendor: what to sell (and roughly for how much), what to keep, and what is worth the auction house. Warns when your bags are almost full. |
@@ -38,6 +39,8 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 | `/tm arrow on\|off` · `/tm flecha si\|no` | Show or hide the arrow |
 | `/tm auto on\|off` | Rebuild the plan by itself when it ends |
 | `/tm vendor` · `/tm vender` | What to sell, keep or auction |
+| `/tm find trainer\|vendor\|repair\|flight` · `/tm buscar instructor\|vendedor\|reparar\|vuelo` | Arrow to the nearest one TrailMate has seen |
+| `/tm plan` | Arrow back to the plan |
 | `/tm status` · `/tm estado` | Character summary |
 | `/tm tracking on\|off` · `/tm rastreos si\|no` | Learn or skip hunter tracking spells |
 | `/tm reserve <gold>` · `/tm reserva <oro>` | Gold the trainer advice never spends |
@@ -80,7 +83,7 @@ busted
 
 - Arrival at a place is approximate: zones have different sizes and the radius is in map units.
 - Trainer rules are generic plus hunter tracking; class-specific advice grows over time.
-- Without a data pack, TrailMate only knows what the game shows: your quest log, quest areas and the quest givers on the map. Trainer locations, race starting routes and item drops outside quests need the data pack planned for a later version.
+- TrailMate depends on no other addon. It knows what the game shows (your quest log and quest areas) and what its atlas has learned. A brand-new character in a zone nobody on the account has visited starts with little: the atlas fills in as you play. On WoW Forever the game does not tell addons about quests you have not picked up yet.
 - The vendor advice uses item level as a rough guide for gear, not stats.
 
 ## Related work
