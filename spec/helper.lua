@@ -3,7 +3,7 @@ local M = {}
 
 M.CORE = {
   "core/Locale.lua", "core/Plan.lua", "core/Builder.lua", "core/Throttle.lua",
-  "core/Trainer.lua", "core/Bags.lua", "core/State.lua", "core/Geo.lua",
+  "core/Trainer.lua", "core/Bags.lua", "core/State.lua", "core/Geo.lua", "core/Points.lua",
 }
 
 function M.load()

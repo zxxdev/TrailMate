@@ -61,6 +61,21 @@ function Api.xp()
   return safe(UnitXP, "player"), safe(UnitXPMax, "player")
 end
 
+-- Race and class as the bit quest databases use: 2 ^ (id - 1).
+function Api.raceBit()
+  local _, _, raceID = safe(UnitRace, "player")
+  return type(raceID) == "number" and raceID > 0 and 2 ^ (raceID - 1) or nil
+end
+
+function Api.classBit()
+  local _, _, classID = safe(UnitClass, "player")
+  return type(classID) == "number" and classID > 0 and 2 ^ (classID - 1) or nil
+end
+
+function Api.faction()
+  return (safe(UnitFactionGroup, "player"))
+end
+
 --- Quests in the log: { questID, title, complete }.
 function Api.questLog()
   local quests = {}

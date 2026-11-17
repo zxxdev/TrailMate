@@ -42,6 +42,7 @@ local function install()
   watched, superTracked = {}, nil
   -- Tests that add API pieces of their own must not leak them into the next.
   rawset(_G, "C_QuestLine", nil)
+  rawset(_G, "LibQuestieDB", nil)
   local env = {
     print = function(...)
       local parts = {}
@@ -259,6 +260,65 @@ describe("addon smoke test", function()
     fire("QUEST_ACCEPTED", 31)
     assert.are_not.equal(plan.id, _G.TrailMateCharDB.plan.id)
     quests[3] = nil
+  end)
+
+  it("uses QuestieDB when installed: places, quests to pick up and the nearest trainer", function()
+    local function entity(rows)
+      return {
+        Get = function(id, key)
+          local row = rows[id]
+          return row and row[key]
+        end,
+        GetAllIds = function()
+          local ids = {}
+          for id in pairs(rows) do
+            ids[#ids + 1] = id
+          end
+          table.sort(ids)
+          return ids
+        end,
+      }
+    end
+    rawset(_G, "LibQuestieDB", {
+      RequireContract = function(n) return n == 4 end,
+      Support = {
+        Get = function()
+          return { private = { areaIdToUiMapId = "return { [45] = 1429 }" } }
+        end,
+      },
+      Quest = entity({
+        [11] = { finishedBy = { { 500 } } },
+        [40] = { name = "Nueva cerca", requiredLevel = 5, questLevel = 8, startedBy = { { 501 } } },
+        [41] = { name = "Muy alta", requiredLevel = 20, questLevel = 25, startedBy = { { 501 } } },
+      }),
+      Npc = entity({
+        [500] = { spawns = { [45] = { { 70, 70 } } } },
+        [501] = { spawns = { [45] = { { 55, 50 } } }, friendlyToFaction = "AH" },
+        [502] = { name = "Ormak", subName = "Hunter Trainer", npcFlags = 16 + 1, spawns = { [45] = { { 20, 80 } } } },
+      }),
+      Object = entity({}),
+    })
+    _G.SlashCmdList.TRAILMATE("diario")
+    local ids = {}
+    for _, s in ipairs(_G.TrailMateCharDB.plan.steps) do
+      ids[#ids + 1] = s.id
+    end
+    -- Jabalies now has a turn-in place, and a fitting quest nearby is offered.
+    assert.equals("accept-40,complete-10,turnin-11,complete-40,turnin-10,turnin-40", table.concat(ids, ","))
+    assert.is_nil(output():find("Lugar desconocido", 1, true))
+
+    local arrow = named.TrailMateArrow
+    _G.SlashCmdList.TRAILMATE("buscar instructor")
+    assert.equals("Instructor: Ormak", arrow.label.shown_text)
+    tick()
+    assert.equals("Instructor: Ormak", arrow.label.shown_text)
+    fire("TRAINER_SHOW")
+    assert.equals("Coger: Nueva cerca", arrow.label.shown_text)
+  end)
+
+  it("says plainly when QuestieDB is missing", function()
+    _G.SlashCmdList.TRAILMATE("buscar instructor")
+    assert.matches("hace falta el addon QuestieDB", output())
   end)
 
   it("lets the player ignore a spell and announces only new ones at level up", function()

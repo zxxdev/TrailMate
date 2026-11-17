@@ -32,8 +32,18 @@ local function facts()
   return { level = Api.level(), mapID = mapID, x = x, y = y, questLog = log, turnedIn = Api.turnedIn }
 end
 
--- Where the current step wants you: its own point, or where the game points
--- for its quest right now (objective area, or the turn-in once complete).
+local function playerPoint()
+  local mapID, x, y = Api.position()
+  return { mapID = mapID, x = x, y = y, level = Api.level() }
+end
+
+-- Where to go for a quest: where the game points (objective area, or the
+-- turn-in once complete), or else where the quest database says.
+local function questTarget(questID, complete)
+  return Api.questTarget(questID) or ns.Data.questTarget(questID, complete, playerPoint())
+end
+
+-- Where the current step wants you: its own point, or its quest's place.
 local function stepTarget(step)
   if not step then
     return nil
@@ -42,13 +52,21 @@ local function stepTarget(step)
     return { mapID = step.mapID, x = step.x, y = step.y }
   end
   if step.questID then
-    return Api.questTarget(step.questID)
+    return questTarget(step.questID, step.type == "turnin")
   end
   return nil
 end
 
+-- A detour (like "go to your trainer") takes over the arrow until you get
+-- there, open the trainer, or ask for the plan again.
+local detour
+
 local function updateTarget(force)
   local step = current and plan and plan.steps[current] or nil
+  if detour then
+    ns.Arrow.setTarget(detour.target, detour.label)
+    return
+  end
   if step == arrowStep and not force then
     return
   end
@@ -137,20 +155,52 @@ local function sayReport(report)
   end
 end
 
-function buildFromQuestLog(quiet)
-  local quests = Api.questLog()
-  local zoneNames = {}
+local function zoneName(names, mapID)
+  names[mapID] = names[mapID] or Api.mapName(mapID) or ("map " .. mapID)
+  return names[mapID]
+end
+
+-- Quest givers near the player: the ones the game shows, plus the ones the
+-- quest database knows for this map, level, race and class.
+local function offersHere(player, quests, names)
+  local inLog = {}
   for _, q in ipairs(quests) do
-    q.target = Api.questTarget(q.questID)
-    local m = q.target and q.target.mapID
-    if m then
-      zoneNames[m] = zoneNames[m] or Api.mapName(m) or ("map " .. m)
-      q.zone = zoneNames[m]
+    inLog[q.questID] = true
+  end
+  local offers, seen = {}, {}
+  local function addAll(list)
+    for _, o in ipairs(list) do
+      if not seen[o.questID] then
+        seen[o.questID] = true
+        o.zone = o.target and zoneName(names, o.target.mapID)
+        offers[#offers + 1] = o
+      end
     end
   end
-  local mapID, x, y = Api.position()
-  local p, report = Builder.fromQuestLog(quests, { mapID = mapID, x = x, y = y, level = Api.level() }, L,
-    Api.availableQuests(mapID))
+  addAll(Api.availableQuests(player.mapID))
+  addAll(ns.Data.offers({
+    level = player.level or 1, raceBit = Api.raceBit(), classBit = Api.classBit(), faction = Api.faction(),
+    isDone = function(id)
+      return Api.turnedIn(id) == true
+    end,
+    inLog = function(id)
+      return inLog[id] == true
+    end,
+  }, player))
+  return offers
+end
+
+function buildFromQuestLog(quiet)
+  local quests = Api.questLog()
+  local names = {}
+  local player = playerPoint()
+  for _, q in ipairs(quests) do
+    q.target = questTarget(q.questID, q.complete)
+    if q.target then
+      q.zone = zoneName(names, q.target.mapID)
+    end
+  end
+  local p, report = Builder.fromQuestLog(quests, player, L, offersHere(player, quests, names))
   if p and (not quiet or (report.zone and report.zone ~= cdb.lastZone)) then
     quiet = false
   end
@@ -243,6 +293,34 @@ local function remindAtLevel(level)
   local names = Trainer.newAtLevel(cdb.trainerMemory, level, cdb.prefs.ignored)
   if #names > 0 then
     say(L["Level %d: your trainer now has %s."]:format(level, table.concat(names, ", ")))
+    if ns.Data.ready() then
+      say(L["Type /tm find trainer and the arrow takes you there."])
+    end
+  end
+end
+
+local function findTrainer()
+  if not ns.Data.ready() then
+    say(L["Finding trainers needs the QuestieDB addon."])
+    return
+  end
+  local point, name = ns.Data.findTrainer(Api.class(), Api.faction(), playerPoint())
+  if not point then
+    say(L["No trainer of your class found in the data."])
+    return
+  end
+  local label = L["Trainer: %s"]:format(tostring(name))
+  detour = { target = point, label = label }
+  Api.setArrow(point, label, false)
+  ns.Arrow.setTarget(point, label)
+  say(label .. " - " .. (Api.mapName(point.mapID) or ""))
+end
+
+local function backToPlan()
+  if detour then
+    detour = nil
+    arrowStep = false
+    refresh()
   end
 end
 
@@ -315,6 +393,8 @@ local HELP = {
   { "/tm auto on|off", "Rebuild the plan by itself when it ends" },
   { "/tm show | hide  (mostrar | ocultar)", "Show or hide the window" },
   { "/tm clear | borrar", "Remove the plan" },
+  { "/tm find trainer | buscar instructor", "Arrow to the nearest trainer of your class" },
+  { "/tm plan", "Arrow back to the plan" },
   { "/tm diag", "What this client exposes (for bug reports)" },
 }
 
@@ -412,6 +492,8 @@ alias({ "hide", "ocultar" }, function()
   ns.UI.setShown(false)
 end)
 alias({ "clear", "borrar" }, clearPlan)
+alias({ "find", "buscar" }, findTrainer)
+alias({ "plan" }, backToPlan)
 alias({ "diag" }, function()
   local lines = Api.diagnose()
   TrailMateDB.diag = lines
@@ -522,6 +604,7 @@ handlers.PLAYER_LEVEL_UP = function(level)
 end
 
 handlers.TRAINER_SHOW = function()
+  backToPlan()
   after(0.3, adviseTrainer)
 end
 handlers.MERCHANT_SHOW = function()
