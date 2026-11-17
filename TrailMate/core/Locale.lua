@@ -71,6 +71,8 @@ local esES = {
   ["Use your hearthstone (%s)."] = "Usa tu piedra de hogar (%s).",
   ["Fly from %s to %s."] = "Vuela de %s a %s.",
   ["(route not confirmed yet)"] = "(ruta aún sin confirmar)",
+  ["(open any flight master once so TrailMate knows your flight points)"] =
+    "(abre una vez cualquier maestro de vuelo para que TrailMate sepa tus vuelos)",
   ["%s is on another continent: take a zeppelin or a ship from a capital or port."] =
     "%s está en otro continente: coge un zepelín o un barco desde una capital o un puerto.",
   ["Nearest flight master you know: %s."] = "Maestro de vuelo conocido más cercano: %s.",

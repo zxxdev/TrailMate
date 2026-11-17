@@ -328,12 +328,22 @@ describe("addon smoke test", function()
           return {}
         end
         return {
-          { name = "Hammerfall", position = vec(0.506, 0.505), state = 1 },
-          { name = "Grom'gol", position = vec(0.505, 0.386), state = 1 },
-          { name = "Unlearned", position = vec(0.5, 0.4), state = 2 },
+          { name = "Hammerfall", position = vec(0.506, 0.505), state = 1, faction = 1 },
+          { name = "Grom'gol", position = vec(0.505, 0.386), state = 1, faction = 1 },
+          { name = "Alliance only", position = vec(0.505, 0.39), state = 1, faction = 2 },
+        }
+      end,
+      GetAllTaxiNodes = function()
+        return {
+          { name = "Hammerfall", state = 0 },
+          { name = "Grom'gol", state = 1 },
         }
       end,
     })
+    rawset(_G, "Enum", { FlightPathFaction = { Neutral = 0, Horde = 1, Alliance = 2 },
+      FlightPathState = { Current = 0, Reachable = 1, Unreachable = 2 } })
+    rawset(_G, "UnitFactionGroup", function() return "Horde" end)
+    rawset(_G, "GetTaxiMapID", function() return 1415 end)
     _G.SlashCmdList.TRAILMATE("diario")
     _G.SlashCmdList.TRAILMATE("estrategia")
     local index = output():match("%[(%d)%] Stranglethorn Vale")
@@ -342,9 +352,16 @@ describe("addon smoke test", function()
     local window = named.TrailMateFrame
     assert.equals("Viaje", window.counter.shown_text)
     assert.equals("Ve al maestro de vuelo: Hammerfall.", window.step.shown_text)
-    assert.matches("Vuela de Hammerfall a Grom'gol%. %(ruta aún sin confirmar%)", output())
+    -- Before any flight master is opened, TrailMate says it is not sure.
+    assert.matches("Vuela de Hammerfall a Grom'gol%. %(abre una vez cualquier maestro de vuelo", output())
     assert.matches("Viaje a Stranglethorn Vale %(unos %d+ min%)", output())
-    assert.is_nil(output():find("Unlearned", 1, true))
+    assert.is_nil(output():find("Alliance only", 1, true))
+    -- Opening a flight master teaches it this character's flight points and open routes.
+    fire("TAXIMAP_OPENED")
+    assert.is_true(_G.TrailMateCharDB.learnedFlights[1415]["Grom'gol"])
+    printed = {}
+    _G.SlashCmdList.TRAILMATE("zona " .. index)
+    assert.matches("Vuela de Hammerfall a Grom'gol%.$", output():match("[^\n]*Vuela[^\n]*"))
     _G.SlashCmdList.TRAILMATE("plan")
     assert.equals("Hacer: Lobos", window.step.shown_text)
     rawset(_G, "C_TaxiMap", nil)

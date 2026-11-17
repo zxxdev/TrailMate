@@ -97,24 +97,45 @@ local function nodeXY(n)
   return nil
 end
 
---- Flight points the world map shows for the player (their faction only):
---- { name, known, cont, x, y (world), mapID, mx, my (for the arrow) }.
-function Api.flightNodes()
+-- The other faction's flight path faction value, or nil if unknown.
+local function enemyFaction()
+  local F = Enum and Enum.FlightPathFaction
+  local mine = Api.faction()
+  if not F then
+    return nil
+  end
+  if mine == "Horde" then
+    return F.Alliance
+  elseif mine == "Alliance" then
+    return F.Horde
+  end
+  return nil
+end
+
+--- Flight points on the world map, without the other faction's:
+--- { name, known, sure, cont, x, y (world), mapID, mx, my (for the arrow) }.
+--- learned[contMap] = { [name] = true } are the ones this character was seen
+--- to have at a flight master; with it, known is exact (sure = true).
+--- Without it, every point of the player's faction counts as known but
+--- not sure: the world map does not say which ones the character has.
+function Api.flightNodes(learned)
   local out = {}
   local T = C_TaxiMap
   if not (T and T.GetTaxiNodesForMap) then
     return out
   end
-  local unreachable = Enum and Enum.FlightPathState and Enum.FlightPathState.Unreachable or 2
+  local enemy = enemyFaction()
   for _, contMap in ipairs(Api.CONTINENTS) do
+    local mine = type(learned) == "table" and learned[contMap] or nil
     local nodes = safe(T.GetTaxiNodesForMap, contMap)
     for _, n in ipairs(type(nodes) == "table" and nodes or {}) do
       local mx, my = nodeXY(n)
       local w = type(mx) == "number" and Api.worldPos(contMap, mx, my)
-      if w and type(n.name) == "string" then
+      if w and type(n.name) == "string" and (enemy == nil or n.faction ~= enemy) then
         out[#out + 1] = {
-          name = n.name, known = n.state ~= unreachable, cont = w.cont, x = w.x, y = w.y,
-          mapID = contMap, mx = mx, my = my,
+          name = n.name, known = mine == nil or mine[n.name] == true, sure = mine ~= nil,
+          cont = w.cont, x = w.x, y = w.y, mapID = contMap, mx = mx, my = my,
+          state = n.state, faction = n.faction,
         }
       end
     end
@@ -122,7 +143,9 @@ function Api.flightNodes()
   return out
 end
 
---- At an open flight map: the current node's name and the names it can reach.
+--- At an open flight map: the continent map, the current node's name, the
+--- names it can reach, and every node shown (the flight map only shows the
+--- ones this character has discovered).
 function Api.taxiReach()
   local T = C_TaxiMap
   local mapID = safe(GetTaxiMapID)
@@ -135,15 +158,18 @@ function Api.taxiReach()
   end
   local states = Enum and Enum.FlightPathState or {}
   local currentState, reachableState = states.Current or 0, states.Reachable or 1
-  local current, reachable = nil, {}
+  local current, reachable, all = nil, {}, {}
   for _, n in ipairs(nodes) do
-    if n.state == currentState then
-      current = n.name
-    elseif n.state == reachableState then
-      reachable[#reachable + 1] = n.name
+    if type(n.name) == "string" then
+      all[#all + 1] = n.name
+      if n.state == currentState then
+        current = n.name
+      elseif n.state == reachableState then
+        reachable[#reachable + 1] = n.name
+      end
     end
   end
-  return current, reachable
+  return current, reachable, all, mapID
 end
 
 --- The hearthstone: { name, ready, cooldown (seconds left), have } or nil.

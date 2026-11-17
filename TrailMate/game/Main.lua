@@ -463,8 +463,13 @@ local function describeStep(s, name, hearth)
   if s.kind == "hearth" then
     return L["Use your hearthstone (%s)."]:format(hearth.name)
   elseif s.kind == "fly" then
-    return L["Fly from %s to %s."]:format(s.from.name, s.to.name)
-      .. (s.confirmed and "" or (" " .. L["(route not confirmed yet)"]))
+    local note = ""
+    if not (s.from.sure and s.to.sure) then
+      note = " " .. L["(open any flight master once so TrailMate knows your flight points)"]
+    elseif not s.confirmed then
+      note = " " .. L["(route not confirmed yet)"]
+    end
+    return L["Fly from %s to %s."]:format(s.from.name, s.to.name) .. note
   elseif s.kind == "ship" then
     return L["%s is on another continent: take a zeppelin or a ship from a capital or port."]:format(name)
       .. (s.via and (" " .. L["Nearest flight master you know: %s."]:format(s.via.name)) or "")
@@ -479,7 +484,7 @@ end
 -- returns the trip, the lines to show and the first place to go.
 local function planTrip(mapID, name)
   local p = playerPoint()
-  local nodes = Api.flightNodes()
+  local nodes = Api.flightNodes(cdb.learnedFlights)
   local hearth = Api.hearth()
   if hearth then
     hearthPlace(hearth, nodes)
@@ -907,12 +912,25 @@ local function selfTest()
     return #zones > 0, table.concat(names, ", ")
   end)
   check("flight points", function()
-    local nodes, known = Api.flightNodes(), 0
+    local nodes, known, sure = Api.flightNodes(cdb.learnedFlights), 0, 0
+    local states, factions = {}, {}
     for _, n in ipairs(nodes) do
       known = known + (n.known and 1 or 0)
+      sure = sure + (n.sure and 1 or 0)
+      states[tostring(n.state)] = (states[tostring(n.state)] or 0) + 1
+      factions[tostring(n.faction)] = (factions[tostring(n.faction)] or 0) + 1
     end
-    return #nodes > 0, ("%d known of %d shown on the map; routes seen at %d flight masters"):format(known, #nodes,
-      count(atlas.flights))
+    local function show(t)
+      local parts = {}
+      for k, v in pairs(t) do
+        parts[#parts + 1] = k .. "=" .. v
+      end
+      table.sort(parts)
+      return table.concat(parts, " ")
+    end
+    return #nodes > 0, ("%d of your faction, %d known (%d checked at a flight master); routes seen at %d flight "
+      .. "masters; states {%s} factions {%s}"):format(#nodes, known, sure, count(atlas.flights), show(states),
+      show(factions))
   end)
   check("hearthstone", function()
     local h = Api.hearth()
@@ -1200,10 +1218,20 @@ handlers.PLAYER_XP_UPDATE = function()
 end
 handlers.TAXIMAP_OPENED = function()
   learnNpc("flight")
-  -- Learn which flights are open from here, for the travel planner.
-  local node, reachable = Api.taxiReach()
+  -- Learn which flights are open from here, and which flight points this
+  -- character has on this continent (the flight map shows only those).
+  local node, reachable, all, mapID = Api.taxiReach()
   if node then
     Atlas.recordFlights(atlas, node, reachable)
+  end
+  if all and mapID then
+    local cont = Api.continentOf(mapID) or mapID
+    local set = {}
+    for _, name in ipairs(all) do
+      set[name] = true
+    end
+    cdb.learnedFlights = cdb.learnedFlights or {}
+    cdb.learnedFlights[cont] = set
   end
 end
 handlers.BAG_UPDATE_DELAYED = function()
