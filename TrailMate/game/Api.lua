@@ -529,5 +529,9 @@ function Api.diagnose()
   end
   lines[#lines + 1] = ("facing %s map size %s x %s available quests on map %d"):format(
     tostring(Api.facing()), tostring(w), tostring(h), #Api.availableQuests(mapID))
+  -- Optional data source: QuestieDB's public API, read at runtime (never copied).
+  local lib = rawget(_G, "LibQuestieDB")
+  lines[#lines + 1] = ("data: Questie %s, LibQuestieDB %s"):format(
+    tostring(rawget(_G, "Questie") ~= nil), type(lib) == "table" and "yes" or "no")
   return lines
 end
