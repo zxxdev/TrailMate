@@ -192,13 +192,13 @@ local function loadPlan(p, quiet)
 end
 
 local function joinNames(list, limit)
-  local out = {}
+  local parts = {}
   for i, e in ipairs(list) do
     if i > limit then
-      out[#out + 1] = "..."
+      parts[#parts + 1] = "..."
       break
     end
-    out[#out + 1] = e.title and ("%s (%s)"):format(e.title, e.reason) or ("%s (%d)"):format(e.zone, e.count)
+    parts[#parts + 1] = e.title and ("%s (%s)"):format(e.title, e.reason) or ("%s (%d)"):format(e.zone, e.count)
   end
   return table.concat(out, ", ")
 end
