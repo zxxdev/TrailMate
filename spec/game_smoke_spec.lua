@@ -360,6 +360,7 @@ describe("addon smoke test", function()
   end)
 
   it("plans the trip to a chosen zone by flight and shows it in the step window", function()
+    _G.SlashCmdList.TRAILMATE("guia off") -- this test is about the quest log plan
     local function vec(x, y)
       return { x = x, y = y, GetXY = function(self) return self.x, self.y end }
     end
@@ -594,6 +595,7 @@ describe("addon smoke test", function()
     finally(function()
       rawset(_G, "UnitLevel", function() return 8 end)
     end)
+    _G.SlashCmdList.TRAILMATE("guia off") -- the hubs serve the quest log plan
     _G.SlashCmdList.TRAILMATE("estrategia")
     local index = output():match("%[(%d+)%] Stranglethorn Vale")
     assert.is_not_nil(index)
@@ -604,6 +606,31 @@ describe("addon smoke test", function()
     assert.equals("- Coger: Bloody Bone Necklaces", window.rows[1].label.shown_text)
     -- A name the game has not loaded yet still gives a step.
     assert.equals("- Coger: Misión 638", window.rows[2].label.shown_text)
+  end)
+
+  it("follows the Stranglethorn guide from Grom'gol, with the arrow on each quest giver (the user's case)", function()
+    rawset(_G, "UnitLevel", function() return 34 end)
+    rawset(_G, "UnitFactionGroup", function() return "Horde" end)
+    finally(function()
+      rawset(_G, "UnitLevel", function() return 8 end)
+    end)
+    _G.C_Map.GetBestMapForUnit = function() return 1434 end
+    -- Standing at Grom'gol, by the flight master.
+    _G.C_Map.GetPlayerMapPosition = function()
+      return { GetXY = function() return 0.326, 0.29 end }
+    end
+    _G.SlashCmdList.TRAILMATE("diario")
+    assert.matches("Guía: 33%-34 Stranglethorn Vale", output())
+    local window = named.TrailMateFrame
+    -- "Take the zeppelin" and "get the flight path" are behind: already here.
+    assert.equals("Coger: Hunt for Yenniku", window.step.shown_text)
+    assert.equals("Te la da Nimboya", window.why.shown_text)
+    assert.equals("- Coger: Bloody Bone Necklaces", window.rows[1].label.shown_text)
+    -- The guide list, and back to the quest log plan.
+    _G.SlashCmdList.TRAILMATE("guia")
+    assert.matches("%[%d+%] 33%-34 Stranglethorn Vale  |cffffd100<%- ahora", output())
+    _G.SlashCmdList.TRAILMATE("guia off")
+    assert.is_nil(window.step.shown_text:find("Yenniku", 1, true))
   end)
 
   it("lets the player ignore a spell and announces only new ones at level up", function()
@@ -725,7 +752,7 @@ describe("addon smoke test", function()
     for _ in out:gmatch("%[[PF]A[SI][SL]%]") do
       checks = checks + 1
     end
-    assert.equals(18, checks)
+    assert.equals(19, checks)
     assert.equals(planBefore, _G.TrailMateCharDB.plan)
     assert.is_nil(_G.TrailMateCharDB.prefs.focusZone)
   end)

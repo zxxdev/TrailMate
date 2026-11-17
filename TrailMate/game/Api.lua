@@ -809,6 +809,19 @@ function Api.npcOffers()
   return out
 end
 
+--- The player's race in English capitals (ORC, SCOURGE, NIGHTELF...).
+function Api.race()
+  local _, race = safe(UnitRace, "player")
+  return type(race) == "string" and race:upper() or nil
+end
+
+--- A quest's name if the game already has it, without asking for it.
+function Api.knownQuestTitle(questID)
+  local QL = C_QuestLog
+  local title = QL and QL.GetTitleForQuestID and safe(QL.GetTitleForQuestID, questID)
+  return type(title) == "string" and title ~= "" and title or nil
+end
+
 --- A quest's name from its id, or nil if the game has not loaded it yet
 --- (it is then asked for; QUEST_DATA_LOAD_RESULT says when it arrives).
 function Api.questTitle(questID)

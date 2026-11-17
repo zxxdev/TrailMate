@@ -178,6 +178,7 @@ end
 -- Plan --------------------------------------------------------------------------
 
 local buildFromQuestLog
+local advanceGuide -- a guide is finished: go on to the next one
 
 -- The step window shows the trip while travelling to a chosen zone.
 local function render()
@@ -203,6 +204,10 @@ local function refresh()
   local finishedNow = current ~= nil and cur == nil
   current, statuses = cur, st
   if finishedNow then
+    if ns.Guide.isGuide(plan) and advanceGuide then
+      advanceGuide()
+      return
+    end
     if Builder.isAuto(plan) and cdb.prefs.autoPlan ~= false then
       buildFromQuestLog(true)
       return
@@ -422,7 +427,105 @@ local function arrivalStepDone(step)
   end
 end
 
+-- Guides -------------------------------------------------------------------------
+
+local function who()
+  return { faction = Api.faction(), class = Api.class(), race = Api.race() }
+end
+
+local function guides()
+  return ns.Guide.list(ns.GUIDES, who())
+end
+
+local function guideFinished(g)
+  return ns.Guide.finished(g, who(), function(id)
+    return Api.turnedIn(id) == true
+  end)
+end
+
+-- Follows the guide for this character (chosen, or by level): returns false
+-- when there is none (guides off, or none for this faction), so the plan is
+-- built from the quest log instead.
+local function loadGuide(quiet)
+  if cdb.prefs.guide == false then
+    return false
+  end
+  local list = guides()
+  if #list == 0 then
+    return false
+  end
+  local g = ns.Guide.pick(list, Api.level() or 1, cdb.guideName, guideFinished)
+  local p = ns.Guide.toPlan(g, { who = who(), L = L, title = Api.knownQuestTitle })
+  local same = plan and plan.id == p.id
+  loadPlan(p, true)
+  if not (quiet or same) then
+    say(L["Guide: %s (%d steps). Other guides: /tm guide."]:format(g.name, #p.steps))
+  end
+  return true
+end
+
+-- The guide followed now (by its name, the plan's title), or nil.
+local function currentGuide(list)
+  for _, g in ipairs(list) do
+    if ns.Guide.isGuide(plan) and plan.title == g.name then
+      return g
+    end
+  end
+  return nil
+end
+
+function advanceGuide()
+  local list = guides()
+  local nextGuide = ns.Guide.after(list, currentGuide(list))
+  if not nextGuide then
+    say(L["Plan finished."])
+    return
+  end
+  cdb.guideName = nextGuide.name
+  say(L["Guide finished. Next: %s."]:format(nextGuide.name))
+  loadGuide(true)
+end
+
+-- /tm guide: list the guides, choose one by number, next, auto, on, off.
+local function guideCommand(rest)
+  local word = (rest or ""):lower()
+  local list = guides()
+  if word == "off" or word == "no" then
+    cdb.prefs.guide = false
+    say(L["Guides off: the plan comes from your quest log."])
+    buildFromQuestLog(false)
+    return
+  elseif word == "on" or word == "si" or word == "sí" or word == "auto" then
+    cdb.prefs.guide, cdb.guideName = nil, nil
+    buildFromQuestLog(false)
+    return
+  elseif word == "next" or word == "siguiente" then
+    local nextGuide = ns.Guide.after(list, currentGuide(list))
+    if nextGuide then
+      cdb.prefs.guide, cdb.guideName = nil, nextGuide.name
+      buildFromQuestLog(false)
+    end
+    return
+  elseif tonumber(word) and list[tonumber(word)] then
+    cdb.prefs.guide, cdb.guideName = nil, list[tonumber(word)].name
+    buildFromQuestLog(false)
+    return
+  end
+  if #list == 0 then
+    say(L["No guide for your faction yet."])
+    return
+  end
+  local now = currentGuide(list)
+  say(L["Guides (/tm guide <number>, next, auto, off):"])
+  for i, g in ipairs(list) do
+    out(("  [%d] %s%s"):format(i, g.name, g == now and ("  |cffffd100<- " .. L["now"] .. "|r") or ""))
+  end
+end
+
 function buildFromQuestLog(quiet)
+  if loadGuide(quiet) then
+    return
+  end
   local p, report = computeRoute()
   p = addArrivalSteps(p)
   lastCounts = report.counts or {}
@@ -945,6 +1048,7 @@ local HELP = {
   { "/tm reserve | reserva <gold>", "Gold the trainer advice never spends" },
   { "/tm arrow | flecha on|off", "Show or hide the arrow" },
   { "/tm trail | rastro on|off|show|export|clear", "Learn the ways you walk and follow them (dots on the map)" },
+  { "/tm guide | guia [number|next|auto|off]", "Quest guides: list, choose one, or plan from your quest log" },
   { "/tm talents | talentos", "Open your talents and say the next one" },
   { "/tm companion | compañero claude|chatgpt|none", "Icon colour of your AI companion" },
   { "/tm auto on|off", "Rebuild the plan by itself when it ends" },
@@ -1065,6 +1169,7 @@ alias({ "companion", "companero", "compañero" }, function(rest)
   cdb.prefs.companion = kind ~= "none" and kind or nil
   say(L["Companion: %s."]:format(kind == "none" and L["none"] or kind))
 end)
+alias({ "guide", "guia", "guía" }, guideCommand)
 alias({ "trail", "rastro" }, function(rest)
   local word = (rest or ""):lower()
   if word == "clear" or word == "borrar" then
@@ -1321,6 +1426,20 @@ local function selfTest()
       tostring(f and f:IsShown()), tostring(f and f.icon:IsShown()), tostring(f and f.distance:GetText()),
       tostring(ns.ItemButton.current()))
   end)
+  check("guide", function()
+    local list = guides()
+    local now = currentGuide(list)
+    local places, quests = 0, 0
+    for _, s in ipairs(plan and plan.steps or {}) do
+      if s.questID then
+        quests = quests + 1
+        places = places + (s.mapID and 1 or 0)
+      end
+    end
+    return true, ("%s; %d guides for you; now %s, %d quest steps with a place of %d; step %s"):format(
+      cdb.prefs.guide == false and "off" or "on", #list, now and now.name or "none (quest log plan)", places, quests,
+      tostring(current))
+  end)
   check("trails", function()
     local nodes, links = ns.Trails.counts(trails)
     local canvas, _, drawn = ns.MapTrail.state()
@@ -1484,7 +1603,11 @@ handlers.PLAYER_ENTERING_WORLD = function(isLogin, isReload)
   if cdb then
     arrowStep = false
     updateAlerts()
-    if (isLogin or isReload or isLogin == nil) and plan and Builder.isAuto(plan) and cdb.prefs.autoPlan ~= false then
+    -- A guide is reloaded too (the guide data may be newer), and with no
+    -- plan at all the guide for the character starts by itself.
+    local guided = (plan == nil or ns.Guide.isGuide(plan)) and cdb.prefs.guide ~= false
+    if (isLogin or isReload or isLogin == nil) and (guided or (plan and Builder.isAuto(plan)))
+      and cdb.prefs.autoPlan ~= false then
       rebuildPending = true
     end
     questThrottle:mark()

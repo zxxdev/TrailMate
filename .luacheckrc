@@ -28,9 +28,12 @@ read_globals = {
   "UnitCharacterPoints", "GetUnspentTalentPoints", "GetNumTalentTabs", "GetTalentTabInfo", "GetNumTalents",
   "GetTalentInfo", "GetTalentPrereqs", "InCombatLockdown", "ToggleTalentFrame", "RaidNotice_AddMessage",
   "PlaySound", "SOUNDKIT", "C_ClassTalents", "C_Traits", "C_Spell", "GetSpellInfo", "GetNumSpecializations",
-  "GetSpecializationInfo", "C_SpecializationInfo", "UnitOnTaxi", "C_GossipInfo", "GetNumAvailableQuests",
+  "GetSpecializationInfo", "C_SpecializationInfo", "UnitOnTaxi", "UnitRace", "C_GossipInfo", "GetNumAvailableQuests",
   "GetAvailableQuestInfo", "GetAvailableTitle", "GetAvailableLevel", "GetQuestID", "GetTitleText", "GetRealZoneText",
   "GetZoneText", "GetSubZoneText", "GetMinimapZoneText", "C_QuestLog", "GetQuestLogSpecialItemInfo", "GetItemIcon", "GameTooltip", "CreateColor", "C_Texture", "C_TaxiMap", "Enum", "GetBindLocation", "GetItemCooldown", "GetItemCount", "GetTaxiMapID", "GetTime",
 }
 
 files["spec/"] = { std = "+busted" }
+
+-- Generated data (tools/build_guides.lua): long lines are fine there.
+files["TrailMate/data/Guides.lua"] = { max_line_length = false }

@@ -211,6 +211,17 @@ local esES = {
   ["Walked trails cleared."] = "Rastros borrados.",
   ["Pick up the quests here first"] = "Primero coge las misiones de aquí",
   ["Quest %d"] = "Misión %d",
+  ["From %s"] = "Te la da %s",
+  ["To %s"] = "Se entrega a %s",
+  ["Optional: elite or group quest"] = "Opcional: misión élite o de grupo",
+  ["Guide: %s (%d steps). Other guides: /tm guide."] = "Guía: %s (%d pasos). Otras guías: /tm guia.",
+  ["Guide finished. Next: %s."] = "Guía terminada. Siguiente: %s.",
+  ["Guides off: the plan comes from your quest log."] = "Guías desactivadas: el plan sale de tu diario.",
+  ["No guide for your faction yet."] = "Aún no hay guía para tu facción.",
+  ["Guides (/tm guide <number>, next, auto, off):"] = "Guías (/tm guia <número>, siguiente, auto, off):",
+  ["now"] = "ahora",
+  ["Quest guides: list, choose one, or plan from your quest log"] =
+    "Guías de misiones: ver, elegir una o planificar desde tu diario",
   ["%s - optional: elite or group quest"] = "%s - opcional: misión élite o de grupo",
   ["New area: talk to the quest givers marked ! around you before heading out. TrailMate remembers them for next "
     .. "time."] = "Zona nueva: habla con los que tienen ! a tu alrededor antes de salir. TrailMate los recordará "

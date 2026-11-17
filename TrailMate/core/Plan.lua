@@ -10,9 +10,10 @@ local Plan = {}
 ns.Plan = Plan
 
 Plan.FORMAT_VERSION = 1
-Plan.MAX_STEPS = 200
+Plan.MAX_STEPS = 400 -- a whole guide (the longest has 224)
 Plan.MAX_TEXT = 200
 Plan.MAX_ID = 64
+Plan.NEAR = 0.1 -- a tenth of the map: "already there" for a guide's travel hints
 Plan.MAX_DEPTH = 6
 -- Arrival radius for "goto" steps, in map units (0..1 of the zone map).
 -- Zones have different sizes, so this is approximate until zone sizes exist.
@@ -207,11 +208,30 @@ end
 --- changed.
 function Plan.evaluate(plan, progress, facts)
   local statuses, current, changed = {}, nil, false
+  -- Soft steps (a guide's travel hints and notes) count as passed once any
+  -- later step is done, or when the player already stands near the place
+  -- of the next step with one ("Take the zeppelin" while at Grom'gol).
+  local lastDone = 0
+  for i, step in ipairs(plan.steps) do
+    if not step.soft and (progress.done[step.id] or stateDone(step, facts)) then
+      lastDone = i
+    end
+  end
+  local function nearNext(i)
+    for k = i + 1, #plan.steps do
+      local s = plan.steps[k]
+      if s.mapID then
+        return facts.mapID == s.mapID and type(facts.x) == "number" and type(facts.y) == "number"
+          and distance(facts.x, facts.y, s.x, s.y) <= Plan.NEAR
+      end
+    end
+    return false
+  end
   for i, step in ipairs(plan.steps) do
     local status
     if progress.skipped[step.id] then
       status = "skipped"
-    elseif progress.done[step.id] or stateDone(step, facts) then
+    elseif progress.done[step.id] or stateDone(step, facts) or (step.soft and (i < lastDone or nearNext(i))) then
       status = "done"
     elseif current == nil and step.type == "goto" and Plan.isAt(step, facts) then
       progress.done[step.id] = true
