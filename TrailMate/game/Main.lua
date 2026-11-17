@@ -437,6 +437,21 @@ local function guides()
   return ns.Guide.list(ns.GUIDES, who())
 end
 
+-- Where this character's account saw a guide step's quest giver (picked up
+-- or handed in there), checked in the game: it replaces the data's place.
+local function guidePlace(s)
+  local q = atlas and atlas.quests[s.q]
+  if not q then
+    return nil
+  end
+  if s.t == "accept" then
+    return q.start
+  elseif s.t == "turnin" then
+    return q.finish
+  end
+  return nil
+end
+
 local function guideFinished(g)
   return ns.Guide.finished(g, who(), function(id)
     return Api.turnedIn(id) == true
@@ -455,7 +470,7 @@ local function loadGuide(quiet)
     return false
   end
   local g = ns.Guide.pick(list, Api.level() or 1, cdb.guideName, guideFinished)
-  local p = ns.Guide.toPlan(g, { who = who(), L = L, title = Api.knownQuestTitle })
+  local p = ns.Guide.toPlan(g, { who = who(), L = L, title = Api.knownQuestTitle, place = guidePlace })
   local same = plan and plan.id == p.id
   loadPlan(p, true)
   if not (quiet or same) then

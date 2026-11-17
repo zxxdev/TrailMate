@@ -94,8 +94,10 @@ local function slug(text)
   return (text:lower():gsub("[^%w]+", "-"):gsub("^%-+", ""):gsub("%-+$", ""))
 end
 
---- A TrailMate plan from a guide. ctx = { who, L, title(questID) }: title
---- gives the game's (localized) quest name, falling back to the guide's.
+--- A TrailMate plan from a guide. ctx = { who, L, title(questID), place(step) }:
+--- title gives the game's (localized) quest name, falling back to the
+--- guide's; place gives where the player saw that quest giver ({ mapID, x,
+--- y }), which replaces the data's position.
 function Guide.toPlan(guide, ctx)
   local L, who = ctx.L, ctx.who
   local steps = {}
@@ -125,7 +127,11 @@ function Guide.toPlan(guide, ctx)
       if s.opt then
         step.why = L["Optional: elite or group quest"] .. (step.why and (" - " .. step.why) or "")
       end
-      if s.m and s.x and s.y then
+      -- Where the game showed the quest giver wins over the data.
+      local seen = ctx.place and ctx.place(s)
+      if seen then
+        step.mapID, step.x, step.y = seen.mapID, seen.x, seen.y
+      elseif s.m and s.x and s.y then
         step.mapID, step.x, step.y = s.m, s.x, s.y
       end
       step.text = cut(step.text or "")

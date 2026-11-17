@@ -37,6 +37,12 @@ describe("Guide", function()
     -- The game's own (localized) name wins when it has it.
     local named = Guide.toPlan(small, { who = hunter, L = L, title = function() return "Caza de Yenniku" end })
     assert.equals("Pick up: Caza de Yenniku", named.steps[2].text)
+    -- Where the player saw the quest giver wins over the data's place.
+    local seen = Guide.toPlan(small, { who = hunter, L = L, place = function(s)
+      return s.q == 581 and s.t == "accept" and { mapID = 1434, x = 0.4, y = 0.5 } or nil
+    end })
+    assert.same({ 1434, 0.4, 0.5 }, { seen.steps[2].mapID, seen.steps[2].x, seen.steps[2].y })
+    assert.equals(0.322, seen.steps[6].x) -- the turn-in keeps the data's place
   end)
 
   it("passes the guide's notes once something after them is done", function()
