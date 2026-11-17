@@ -1815,9 +1815,11 @@ handlers.TAXIMAP_OPENED = function()
     Atlas.recordFlights(atlas, node, reachable)
   end
   if all and mapID then
-    -- The flight map's own id is not always the continent (Forever): use
-    -- the continent the player stands on, which is the one the map shows.
-    local cont = Api.continentOf((Api.position())) or Api.continentOf(mapID) or mapID
+    -- Saved under the world's continent the player stands on (0 Eastern
+    -- Kingdoms, 1 Kalimdor): continent map ids differ between clients
+    -- (Forever's are 1463 and 1464, classic's 1414 and 1415).
+    local here = Api.playerWorld()
+    local cont = here and here.cont or Api.continentOf(mapID) or mapID
     local set = {}
     for _, name in ipairs(all) do
       set[name] = true

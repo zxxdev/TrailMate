@@ -415,7 +415,8 @@ describe("addon smoke test", function()
     assert.is_nil(output():find("Alliance only", 1, true))
     -- Opening a flight master teaches it this character's flight points and open routes.
     fire("TAXIMAP_OPENED")
-    assert.is_true(_G.TrailMateCharDB.learnedFlights[1415]["Grom'gol"])
+    -- Saved by the world's continent (0, Eastern Kingdoms), not by map id.
+    assert.is_true(_G.TrailMateCharDB.learnedFlights[0]["Grom'gol"])
     printed = {}
     _G.SlashCmdList.TRAILMATE("zona " .. index)
     assert.equals("Ve al maestro de vuelo: Hammerfall.", window.step.shown_text)

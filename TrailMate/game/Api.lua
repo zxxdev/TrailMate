@@ -133,8 +133,10 @@ local function specNames()
       names[#names + 1] = name
     end
   end
-  if #names == 0 then
-    names = ns.Talents.TREE_NAMES[Api.class()] or {}
+  -- Forever answers one name (the class) for three trees: then the class's
+  -- tree names are used.
+  if #names < 2 then
+    names = ns.Talents.TREE_NAMES[Api.class()] or names
   end
   return names
 end
@@ -511,11 +513,12 @@ function Api.flightNodes(learned)
   end
   local enemy = enemyFaction()
   for _, contMap in ipairs(Api.CONTINENTS) do
-    local mine = type(learned) == "table" and learned[contMap] or nil
     local nodes = safe(T.GetTaxiNodesForMap, contMap)
     for _, n in ipairs(type(nodes) == "table" and nodes or {}) do
       local mx, my = nodeXY(n)
       local w = type(mx) == "number" and Api.worldPos(contMap, mx, my)
+      -- The flights seen at a flight master, by the world's continent.
+      local mine = w and type(learned) == "table" and learned[w.cont] or nil
       if w and type(n.name) == "string" and (enemy == nil or n.faction ~= enemy) then
         out[#out + 1] = {
           -- Not checked at a flight master on this continent yet: not assumed known.
