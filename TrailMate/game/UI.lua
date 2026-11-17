@@ -22,6 +22,17 @@ local function run(cmd)
   SlashCmdList.TRAILMATE(cmd)
 end
 
+local NEXT_ROWS = 3
+
+-- lines: texts; indices: the plan step of each (nil: not clickable).
+local function setNext(f, lines, indices)
+  for i, b in ipairs(f.rows) do
+    b.label:SetText(lines[i] or "")
+    b.index = indices and indices[i] or nil
+    b:SetShown(lines[i] ~= nil)
+  end
+end
+
 -- Reminders hang under the window as bars: icon, text and a button that
 -- takes the player there (trainer, vendor) or opens the talents.
 local CHIPS, CHIP_HEIGHT = 3, 28
@@ -92,8 +103,25 @@ function UI.create(saved)
   f.step = text(f, "GameFontHighlight", 36, -42)
   f.why = text(f, "GameFontNormalSmall", 36, -62)
   f.why:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.warning))
-  f.next = text(f, "GameFontHighlightSmall", 16, -82)
-  f.next:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.muted))
+  -- The next steps: click one to do it now instead.
+  f.rows = {}
+  for i = 1, NEXT_ROWS do
+    local b = CreateFrame("Button", nil, f)
+    b:SetSize(WIDTH - 28, 14)
+    b:SetPoint("TOPLEFT", 14, -82 - (i - 1) * 14)
+    b.label = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    b.label:SetPoint("LEFT", 2, 0)
+    b.label:SetWidth(WIDTH - 32)
+    b.label:SetJustifyH("LEFT")
+    b.label:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.muted))
+    b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+    b:SetScript("OnClick", function(self)
+      if self.index then
+        run("pick " .. self.index)
+      end
+    end)
+    f.rows[i] = b
+  end
 
   f.arrow = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   f.arrow:SetPoint("BOTTOMLEFT", 16, 14)
@@ -187,7 +215,7 @@ function UI.renderTravel(lines, L)
   for i = 3, math.min(#lines, 5) do
     rest[#rest + 1] = lines[i]
   end
-  f.next:SetText(table.concat(rest, "\n"))
+  setNext(f, rest)
   f.arrow:SetText(L["Back to the quests: /tm plan"])
   setButtons(f, L, false)
 end
@@ -206,7 +234,7 @@ function UI.render(plan, current, statuses, L, arrowMethod)
     setStepLook(f, "note")
     f.step:SetText(plan and L["Plan finished."] or empty)
     f.why:SetText("")
-    f.next:SetText("")
+    setNext(f, {})
     f.arrow:SetText("")
     setButtons(f, L, false)
     return
@@ -216,16 +244,18 @@ function UI.render(plan, current, statuses, L, arrowMethod)
   setStepLook(f, step.type)
   f.step:SetText(step.text)
   f.why:SetText(step.why or "")
-  local upcoming = {}
-  for i = current + 1, #plan.steps do
-    if statuses[i] == "pending" then
+  -- The other pending steps, in plan order (a chosen step may lead).
+  local upcoming, indices = {}, {}
+  for i = 1, #plan.steps do
+    if i ~= current and statuses[i] == "pending" then
       upcoming[#upcoming + 1] = "- " .. plan.steps[i].text
-      if #upcoming == 3 then
+      indices[#indices + 1] = i
+      if #upcoming == NEXT_ROWS then
         break
       end
     end
   end
-  f.next:SetText(table.concat(upcoming, "\n"))
-  f.arrow:SetText(L["Arrow: %s"]:format(arrowMethod or L["no arrow available"]))
+  setNext(f, upcoming, indices)
+  f.arrow:SetText(L["Map mark: %s"]:format(arrowMethod or L["none"]))
   setButtons(f, L, true)
 end

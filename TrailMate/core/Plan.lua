@@ -226,7 +226,33 @@ function Plan.evaluate(plan, progress, facts)
     end
     statuses[i] = status
   end
+  -- The player picked another step to do first: it leads while it is pending.
+  if progress.chosen then
+    local picked
+    for i, step in ipairs(plan.steps) do
+      if step.id == progress.chosen and statuses[i] == "pending" then
+        picked = i
+      end
+    end
+    if picked then
+      current = picked
+    else
+      progress.chosen = nil
+    end
+  end
   return current, statuses, changed
+end
+
+--- The player chooses which pending step to do now (the others stay in the
+--- plan). Returns the step, or nil if that step is not pending.
+function Plan.choose(plan, progress, facts, index)
+  local step = plan.steps[index]
+  local _, statuses = Plan.evaluate(plan, progress, facts)
+  if not step or statuses[index] ~= "pending" then
+    return nil
+  end
+  progress.chosen = step.id
+  return step
 end
 
 local function markCurrent(plan, progress, facts, field)

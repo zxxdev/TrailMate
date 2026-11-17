@@ -65,14 +65,113 @@ function Api.faction()
   return (safe(UnitFactionGroup, "player"))
 end
 
+-- Modern talents (WoW Forever) ------------------------------------------------
+--
+-- Forever has no GetTalentInfo: its classic-looking trees are built on the
+-- modern system (C_ClassTalents and C_Traits), a list of nodes with
+-- positions. These read it; core/Talents.lua turns it into trees.
+
+local function traitsConfig()
+  if not (C_ClassTalents and C_Traits) then
+    return nil
+  end
+  local configID = safe(C_ClassTalents.GetActiveConfigID)
+  local info = configID and safe(C_Traits.GetConfigInfo, configID)
+  if type(info) ~= "table" or type(info.treeIDs) ~= "table" then
+    return nil
+  end
+  return configID, info.treeIDs
+end
+
+local function spellName(spellID)
+  if C_Spell and C_Spell.GetSpellName then
+    return safe(C_Spell.GetSpellName, spellID), safe(C_Spell.GetSpellTexture, spellID)
+  end
+  local name, _, icon = safe(GetSpellInfo, spellID)
+  return name, icon
+end
+
+-- One node as core/Talents.lua wants it, or nil (hidden, no name).
+local function traitNode(configID, nodeID)
+  local n = safe(C_Traits.GetNodeInfo, configID, nodeID)
+  if type(n) ~= "table" or n.isVisible == false or type(n.posX) ~= "number" then
+    return nil
+  end
+  local entryID = (n.activeEntry and n.activeEntry.entryID) or (n.entryIDs and n.entryIDs[1])
+  local entry = entryID and safe(C_Traits.GetEntryInfo, configID, entryID)
+  local def = entry and entry.definitionID and safe(C_Traits.GetDefinitionInfo, entry.definitionID)
+  if type(def) ~= "table" then
+    return nil
+  end
+  local name, icon = def.overrideName, def.overrideIcon
+  if def.spellID then
+    local sname, sicon = spellName(def.spellID)
+    name, icon = name or sname, icon or sicon
+  end
+  if type(name) ~= "string" then
+    return nil
+  end
+  local targets = {}
+  for _, edge in ipairs(n.visibleEdges or {}) do
+    targets[#targets + 1] = edge.targetNode
+  end
+  return {
+    nodeID = nodeID, name = name, icon = icon, posX = n.posX, posY = n.posY,
+    rank = n.currentRank or n.ranksPurchased or 0, maxRank = n.maxRanks or (entry and entry.maxRanks) or 1,
+    subTreeID = n.subTreeID, targets = targets, available = n.canPurchaseRank or n.isAvailable,
+  }
+end
+
+--- The class's specialisation names, left to right (Beast Mastery, ...).
+local function specNames()
+  local names = {}
+  for i = 1, safe(GetNumSpecializations) or 0 do
+    local _, name = safe(GetSpecializationInfo, i)
+    names[#names + 1] = name
+  end
+  return names
+end
+
+--- All visible talent nodes of the active loadout, or nil on older clients.
+function Api.talentNodes()
+  local configID, treeIDs = traitsConfig()
+  if not configID then
+    return nil
+  end
+  local nodes = {}
+  for _, treeID in ipairs(treeIDs) do
+    for _, nodeID in ipairs(safe(C_Traits.GetTreeNodes, treeID) or {}) do
+      nodes[#nodes + 1] = traitNode(configID, nodeID)
+    end
+  end
+  return nodes, specNames()
+end
+
+local function traitsPoints()
+  local configID, treeIDs = traitsConfig()
+  if not configID then
+    return nil
+  end
+  local best
+  for _, treeID in ipairs(treeIDs) do
+    for _, c in ipairs(safe(C_Traits.GetTreeCurrencyInfo, configID, treeID, false) or {}) do
+      if type(c.quantity) == "number" and (best == nil or c.quantity > best) then
+        best = c.quantity
+      end
+    end
+  end
+  return best
+end
+
 --- Unspent talent points, or nil if the client does not say. Clients with
---- dual specs (like this one) answer through GetUnspentTalentPoints, while
---- UnitCharacterPoints may exist and say 0: take the highest answer.
+--- dual specs answer through GetUnspentTalentPoints, while UnitCharacterPoints
+--- may exist and say 0; Forever answers through its talent currency. Take
+--- the highest answer.
 function Api.talentPoints()
   local best
   -- pairs, not ipairs: a missing function leaves a hole in this list.
   for _, n in pairs({ safe(GetUnspentTalentPoints, false, false), (safe(GetUnspentTalentPoints)),
-    (safe(UnitCharacterPoints, "player")) }) do
+    (safe(UnitCharacterPoints, "player")), traitsPoints() }) do
     if type(n) == "number" and (best == nil or n > best) then
       best = n
     end
@@ -83,6 +182,12 @@ end
 --- The player's talent trees, for core/Talents.lua, and the points already
 --- placed but not applied yet ("Apply Changes"), which count as taken.
 function Api.talentTree()
+  local nodes, names = Api.talentNodes()
+  if nodes and #nodes > 0 then
+    -- Points placed before "Apply Changes" are already left out of the
+    -- talent currency, so nothing is pending here.
+    return ns.Talents.fromNodes(nodes, names), 0
+  end
   local tabs, pending = {}, 0
   for tab = 1, safe(GetNumTalentTabs) or 0 do
     -- Classic answers name, icon, ...; later clients id, name, description, icon, ...
@@ -125,6 +230,17 @@ end
 --- The visible button of this talent in the game's talent window, or nil
 --- (another tab is open). Matched by talent number and, if known, icon.
 function Api.talentButton(tab, talent)
+  if talent.nodeID then
+    -- Modern window: it can hand out the button of a node.
+    for _, holder in ipairs(Api.talentWindows()) do
+      local b = type(holder.GetTalentButtonByNodeID) == "function"
+        and safe(holder.GetTalentButtonByNodeID, holder, talent.nodeID)
+      if type(b) == "table" and safe(b.IsVisible, b) then
+        return b
+      end
+    end
+    return nil
+  end
   for _, prefix in ipairs(TALENT_BUTTONS) do
     local base = prefix:find("%%d") and prefix:format(tab) or prefix
     for i = 1, 60 do
@@ -143,10 +259,41 @@ function Api.talentButton(tab, talent)
   return nil
 end
 
+--- The game's talent window, whichever this client has, or nil.
+function Api.talentHost()
+  return rawget(_G, "PlayerTalentFrame") or rawget(_G, "TalentFrame") or rawget(_G, "PlayerSpellsFrame")
+    or rawget(_G, "ClassTalentFrame")
+end
+
+--- Frames that may hold the modern talent buttons (window and its tab).
+function Api.talentWindows()
+  local list = {}
+  for _, name in ipairs({ "PlayerSpellsFrame", "ClassTalentFrame", "PlayerTalentFrame", "TalentFrame" }) do
+    local f = rawget(_G, name)
+    if type(f) == "table" then
+      list[#list + 1] = f
+      for _, child in ipairs({ "TalentsFrame", "TalentsTab", "talentsFrame" }) do
+        if type(rawget(f, child)) == "table" then
+          list[#list + 1] = rawget(f, child)
+        end
+      end
+    end
+  end
+  return list
+end
+
 --- Opens the game's talent window (not in combat). Returns true if it could.
 function Api.openTalents()
   if safe(InCombatLockdown) then
     return false
+  end
+  local util = rawget(_G, "PlayerSpellsUtil")
+  if type(util) == "table" then
+    for _, fn in ipairs({ "ToggleClassTalentFrame", "ToggleClassTalentOrSpecFrame", "TogglePlayerSpellsFrame" }) do
+      if type(util[fn]) == "function" and pcall(util[fn]) then
+        return true
+      end
+    end
   end
   if type(ToggleTalentFrame) == "function" then
     return (pcall(ToggleTalentFrame))
@@ -171,10 +318,55 @@ function Api.talentReport()
   local present = {}
   for _, name in ipairs({ "GetUnspentTalentPoints", "UnitCharacterPoints", "GetNumTalentTabs", "GetTalentTabInfo",
     "GetNumTalents", "GetTalentInfo", "GetActiveTalentGroup", "LearnTalent", "C_ClassTalents", "C_Traits",
-    "PlayerTalentFrame", "TalentFrame" }) do
+    "PlayerTalentFrame", "TalentFrame", "PlayerSpellsFrame", "ClassTalentFrame", "PlayerSpellsUtil",
+    "GetSpecializationInfo" }) do
     present[#present + 1] = ("%s=%s"):format(name, type(rawget(_G, name)))
   end
   local lines = { table.concat(present, " ") }
+  -- The modern talent system: how the nodes are laid out.
+  local configID, treeIDs = traitsConfig()
+  if configID then
+    lines[#lines + 1] = ("config %s trees %s points %s"):format(tostring(configID), table.concat(treeIDs, ","),
+      tostring(traitsPoints()))
+    local nodes, names = Api.talentNodes()
+    local xs, ys, subs = {}, {}, {}
+    for _, n in ipairs(nodes) do
+      xs[n.posX], ys[n.posY] = true, true
+      if n.subTreeID then
+        subs[tostring(n.subTreeID)] = true
+      end
+    end
+    local function keys(t)
+      local out = {}
+      for k in pairs(t) do
+        out[#out + 1] = k
+      end
+      table.sort(out, function(a, b)
+        return tostring(a) < tostring(b)
+      end)
+      for i, k in ipairs(out) do
+        out[i] = tostring(k)
+      end
+      return table.concat(out, ",")
+    end
+    lines[#lines + 1] = ("nodes %d specs [%s] subtrees [%s] x [%s] y [%s]"):format(#nodes,
+      table.concat(names, ","), keys(subs), keys(xs), keys(ys))
+    for i, tab in ipairs(ns.Talents.fromNodes(nodes, names)) do
+      local parts = {}
+      for _, t in ipairs(tab.talents) do
+        parts[#parts + 1] = ("%s[%d,%d]%d/%d%s"):format(t.name, t.tier, t.column, t.rank, t.maxRank,
+          t.prereq and ("<" .. t.prereq.tier .. "," .. t.prereq.column) or "")
+      end
+      lines[#lines + 1] = ("tree %d %s: %s"):format(i, tab.name, table.concat(parts, "; "))
+    end
+    local buttons = 0
+    for _, holder in ipairs(Api.talentWindows()) do
+      if type(holder.GetTalentButtonByNodeID) == "function" then
+        buttons = buttons + 1
+      end
+    end
+    lines[#lines + 1] = ("talent windows %d, with node buttons %d"):format(#Api.talentWindows(), buttons)
+  end
   local tabs = safe(GetNumTalentTabs) or 0
   for tab = 1, tabs do
     local r = pack(try(GetTalentTabInfo, tab))
@@ -198,6 +390,18 @@ end
 -- Continent maps of the classic world (Kalimdor, Eastern Kingdoms).
 Api.CONTINENTS = { 1414, 1415 }
 local HEARTHSTONE = 6948
+Api.HEARTHSTONE = HEARTHSTONE
+
+--- The item a quest asks you to use (shown on the quest in the log), as an
+--- item id, or nil.
+function Api.questItem(questID)
+  local index = questID and C_QuestLog and safe(C_QuestLog.GetLogIndexForQuestID, questID)
+  if not index then
+    return nil
+  end
+  local link = safe(GetQuestLogSpecialItemInfo, index)
+  return type(link) == "string" and tonumber(link:match("item:(%d+)")) or nil
+end
 
 --- World position of a map point: continent id, x, y in yards; or nil.
 function Api.worldPos(mapID, x, y)
@@ -261,7 +465,8 @@ function Api.flightNodes(learned)
       local w = type(mx) == "number" and Api.worldPos(contMap, mx, my)
       if w and type(n.name) == "string" and (enemy == nil or n.faction ~= enemy) then
         out[#out + 1] = {
-          name = n.name, known = mine == nil or mine[n.name] == true, sure = mine ~= nil,
+          -- Not checked at a flight master on this continent yet: not assumed known.
+          name = n.name, known = mine ~= nil and mine[n.name] == true, sure = mine ~= nil,
           cont = w.cont, x = w.x, y = w.y, mapID = contMap, mx = mx, my = my,
           state = n.state, faction = n.faction,
         }
@@ -276,7 +481,8 @@ end
 --- ones this character has discovered).
 function Api.taxiReach()
   local T = C_TaxiMap
-  local mapID = safe(GetTaxiMapID)
+  -- Some clients have no GetTaxiMapID: the continent you stand on is the one shown.
+  local mapID = safe(GetTaxiMapID) or Api.continentOf((Api.position()))
   if not (T and T.GetAllTaxiNodes and mapID) then
     return nil
   end

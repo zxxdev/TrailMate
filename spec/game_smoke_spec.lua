@@ -208,6 +208,14 @@ describe("addon smoke test", function()
     assert.equals("Hacer: Lobos", window.step.shown_text)
     assert.matches("Ruta: map 1429, 2 pasos%.", output())
     assert.matches("Después: Lugar desconocido %(1%)", output())
+    -- Clicking a next step does it first; the other one stays in the plan.
+    local row = window.rows[1]
+    assert.equals("- Entregar: Lobos", row.label.shown_text)
+    row.scripts.OnClick(row)
+    assert.equals("Entregar: Lobos", window.step.shown_text)
+    assert.equals("- Hacer: Lobos", window.rows[1].label.shown_text)
+    window.rows[1].scripts.OnClick(window.rows[1])
+    assert.equals("Hacer: Lobos", window.step.shown_text)
     _G.SlashCmdList.TRAILMATE("salta")
     assert.equals("Entregar: Lobos", window.step.shown_text)
     _G.SlashCmdList.TRAILMATE("salta")
@@ -218,7 +226,7 @@ describe("addon smoke test", function()
     _G.SlashCmdList.TRAILMATE("diario")
     assert.equals(10, superTracked)
     assert.equals(0, watched[10])
-    assert.matches("Flecha: quest", named.TrailMateFrame.arrow.shown_text)
+    assert.matches("Marca en el mapa: quest", named.TrailMateFrame.arrow.shown_text)
     _G.SlashCmdList.TRAILMATE("borrar")
     assert.is_nil(watched[10])
   end)
@@ -333,6 +341,10 @@ describe("addon smoke test", function()
         return 0, vec(v.x * 100000 - 50000, v.y * 100000 - 50000)
       elseif mapID == 1434 then
         return 0, vec(v.x * 1000, v.y * 1000 - 12000)
+      elseif mapID == 1420 then -- Tirisfal, far north: its zeppelin is no shortcut here
+        return 0, vec(v.x * 1000, v.y * 1000 + 40000)
+      elseif mapID == 1411 or mapID == 1413 then -- Kalimdor
+        return 1, vec(v.x * 1000, v.y * 1000)
       end
       return 0, vec(v.x * 1000, v.y * 1000)
     end
@@ -365,9 +377,9 @@ describe("addon smoke test", function()
     _G.SlashCmdList.TRAILMATE("zona " .. index)
     local window = named.TrailMateFrame
     assert.equals("Viaje", window.counter.shown_text)
-    assert.equals("Ve al maestro de vuelo: Hammerfall.", window.step.shown_text)
-    -- Before any flight master is opened, TrailMate says it is not sure.
-    assert.matches("Vuela de Hammerfall a Grom'gol%. %(abre una vez cualquier maestro de vuelo", output())
+    -- Before any flight master is opened, flights are not assumed: it says so.
+    assert.is_nil(output():find("Vuela de", 1, true))
+    assert.matches("Abre una vez un maestro de vuelo allí", output())
     assert.matches("Viaje a Stranglethorn Vale %(unos %d+ min%)", output())
     assert.is_nil(output():find("Alliance only", 1, true))
     -- Opening a flight master teaches it this character's flight points and open routes.
@@ -375,7 +387,9 @@ describe("addon smoke test", function()
     assert.is_true(_G.TrailMateCharDB.learnedFlights[1415]["Grom'gol"])
     printed = {}
     _G.SlashCmdList.TRAILMATE("zona " .. index)
+    assert.equals("Ve al maestro de vuelo: Hammerfall.", window.step.shown_text)
     assert.matches("Vuela de Hammerfall a Grom'gol%.$", output():match("[^\n]*Vuela[^\n]*"))
+    assert.is_nil(output():find("Abre una vez un maestro de vuelo allí", 1, true))
     _G.SlashCmdList.TRAILMATE("plan")
     assert.equals("Hacer: Lobos", window.step.shown_text)
     rawset(_G, "C_TaxiMap", nil)

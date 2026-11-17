@@ -82,6 +82,56 @@ describe("Talents", function()
     assert.same({}, Talents.plan(full, auto, 3))
   end)
 
+  describe("modern node lists (WoW Forever)", function()
+    -- Three trees of four columns side by side, 100 units apart, with a
+    -- one-column gap between trees; rows 150 units apart.
+    local function node(id, name, treeIndex, column, row, rank, targets)
+      local x = (treeIndex - 1) * 500 + (column - 1) * 100 + 1000
+      return { nodeID = id, name = name, posX = x, posY = 2000 + (row - 1) * 150, rank = rank or 0, maxRank = 5,
+        targets = targets }
+    end
+    local nodes = {
+      node(1, "Improved Aspect of the Hawk", 1, 2, 1, 0, { 3 }),
+      node(2, "Endurance Training", 1, 3, 1),
+      node(3, "Focused Fire", 1, 2, 3), -- row 2 is empty in this tree
+      node(4, "Lethal Shots", 2, 2, 1, 2),
+      node(5, "Improved Tracking", 3, 1, 1),
+      node(6, "Savage Strikes", 3, 4, 1),
+      node(7, "Entrapment", 3, 2, 2), -- row 2 exists in another tree
+    }
+
+    it("splits them into trees, rows and columns", function()
+      local tabs = Talents.fromNodes(nodes, { "Beast Mastery", "Marksmanship", "Survival" })
+      assert.equals(3, #tabs)
+      assert.equals("Beast Mastery", tabs[1].name)
+      local focused = tabs[1].talents[3]
+      assert.equals("Focused Fire", focused.name)
+      assert.same({ 3, 1 }, { focused.tier, focused.column }) -- the tree starts at column 2
+      assert.same({ tier = 1, column = 1 }, focused.prereq)
+      assert.equals(2, tabs[2].talents[1].rank)
+      assert.same({ 1, 4 }, { tabs[3].talents[2].tier, tabs[3].talents[2].column })
+    end)
+
+    it("uses the game's sub-trees when it gives them", function()
+      local list = {
+        { nodeID = 1, name = "a", posX = 0, posY = 0, maxRank = 1, subTreeID = 77 },
+        { nodeID = 2, name = "b", posX = 100, posY = 0, maxRank = 1, subTreeID = 55 },
+      }
+      local tabs = Talents.fromNodes(list, {})
+      assert.equals(2, #tabs)
+      assert.equals("a", tabs[1].talents[1].name) -- ordered left to right
+    end)
+
+    it("plans on the nodes like on a classic tree", function()
+      local tabs = Talents.fromNodes(nodes, { "Beast Mastery", "Marksmanship", "Survival" })
+      local bm = Talents.templates("HUNTER", tabs)[1]
+      local picks = Talents.plan(tabs, bm, 6)
+      assert.equals("Improved Aspect of the Hawk", picks[1].talent.name)
+      assert.equals("Endurance Training", picks[6].talent.name)
+      assert.same({}, Talents.fromNodes({}, {}))
+    end)
+  end)
+
   it("says how many template names the tree has and picks the busiest tree", function()
     local tabs = tree({ ["Savage Strikes"] = 2 })
     local list = Talents.templates("HUNTER", tabs)

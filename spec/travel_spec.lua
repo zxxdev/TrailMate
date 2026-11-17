@@ -80,6 +80,26 @@ describe("Travel", function()
     assert.equals("Hammerfall, Arathi", trip.steps[1].via.name)
   end)
 
+  it("takes the zeppelin from Orgrimmar to Grom'gol (the user's real case)", function()
+    -- In Orgrimmar, hearthstone bound in Hammerfall (far from Stranglethorn),
+    -- no flights known on the other continent.
+    local tower = { name = "Durotar tower", cont = 1, x = 5000, y = 5300, dock = true }
+    local gromDock = { name = "Grom'gol dock", cont = 0, x = 100, y = -11700, dock = true }
+    local hearth = { name = "Hammerfall", cont = 0, x = 300, y = 100, ready = true }
+    local ships = { { kind = "zeppelin", a = tower, b = gromDock } }
+    local trip = T.plan({ here = { cont = 1, x = 5000, y = 5000 }, dest = stranglethorn, nodes = {},
+      hearth = hearth, ships = ships })
+    assert.equals("ship", trip.mode)
+    assert.equals("walk,ship,walk", kinds(trip))
+    assert.equals("Durotar tower", trip.steps[1].to.name)
+    assert.equals("Grom'gol dock", trip.steps[2].to.name)
+    assert.equals("zeppelin", trip.steps[2].ship)
+    -- Either way round.
+    local back = T.plan({ here = stranglethorn, dest = { cont = 1, x = 5000, y = 5000 }, nodes = {}, ships = ships })
+    assert.equals("ship", back.mode)
+    assert.equals("Durotar tower", back.steps[2].to.name)
+  end)
+
   it("takes the hearthstone across continents when it is bound there", function()
     local hearth = { name = "Orgrimmar", cont = 1, x = 5000, y = 5000, ready = true }
     local trip = T.plan({ here = arathi, dest = { cont = 1, x = 5200, y = 5000 }, nodes = {}, hearth = hearth })

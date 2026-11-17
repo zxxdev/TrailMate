@@ -27,7 +27,8 @@ read_globals = {
   "ChatFontNormal", "GameTooltip", "GetCursorPosition", "Minimap", "date",
   "UnitCharacterPoints", "GetUnspentTalentPoints", "GetNumTalentTabs", "GetTalentTabInfo", "GetNumTalents",
   "GetTalentInfo", "GetTalentPrereqs", "InCombatLockdown", "ToggleTalentFrame", "RaidNotice_AddMessage",
-  "PlaySound", "SOUNDKIT", "CreateColor", "C_Texture", "C_TaxiMap", "Enum", "GetBindLocation", "GetItemCooldown", "GetItemCount", "GetTaxiMapID", "GetTime",
+  "PlaySound", "SOUNDKIT", "C_ClassTalents", "C_Traits", "C_Spell", "GetSpellInfo", "GetNumSpecializations",
+  "GetSpecializationInfo", "GetQuestLogSpecialItemInfo", "GetItemIcon", "GameTooltip", "CreateColor", "C_Texture", "C_TaxiMap", "Enum", "GetBindLocation", "GetItemCooldown", "GetItemCount", "GetTaxiMapID", "GetTime",
 }
 
 files["spec/"] = { std = "+busted" }

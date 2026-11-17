@@ -18,7 +18,7 @@ function TalentPanel.init(saved, L)
 end
 
 local function host()
-  return rawget(_G, "PlayerTalentFrame") or rawget(_G, "TalentFrame")
+  return ns.Api.talentHost()
 end
 
 --- The advice without any window: chosen template, grouped picks, trees and

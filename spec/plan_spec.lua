@@ -183,6 +183,21 @@ describe("Plan", function()
       assert.equals(1, (Plan.evaluate(p, progress, f)))
       assert.is_nil(Plan.undo(progress))
     end)
+
+    it("lets the player choose which pending step to do now", function()
+      local p = sample()
+      local progress = Plan.newProgress(p)
+      local f = helper.facts()
+      assert.equals("c", Plan.choose(p, progress, f, 3).id)
+      assert.equals(3, (Plan.evaluate(p, progress, f)))
+      -- Once it is done, the plan goes back to its own order.
+      f.questLog[100] = { complete = true }
+      assert.equals(2, (Plan.evaluate(p, progress, f)))
+      assert.is_nil(progress.chosen)
+      -- A step that is not pending cannot be chosen.
+      assert.is_nil(Plan.choose(p, progress, f, 1))
+      assert.is_nil(Plan.choose(p, progress, f, 99))
+    end)
   end)
 
   describe("progress", function()

@@ -28,6 +28,7 @@ game\Api.lua
 game\Theme.lua
 game\UI.lua
 game\Arrow.lua
+game\ItemButton.lua
 game\MinimapButton.lua
 game\Panel.lua
 game\TalentPanel.lua

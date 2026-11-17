@@ -41,6 +41,27 @@ function Geo.arrowRotation(bearing, facing)
   return (bearing - facing) % TWO_PI
 end
 
+--- Bearing and distance to a point given in world units, for targets on
+--- another map. delta: target minus player; east, north: the world vectors
+--- of a small step east and north on the player's map. Returns bearing
+--- (counter-clockwise from north, like Geo.bearing) and distance, or nil.
+function Geo.worldBearing(delta, east, north)
+  local det = east.x * north.y - east.y * north.x
+  if det == 0 then
+    return nil
+  end
+  -- delta = a * east + b * north
+  local a = (delta.x * north.y - delta.y * north.x) / det
+  local b = (east.x * delta.y - east.y * delta.x) / det
+  local eastYards = a * math.sqrt(east.x * east.x + east.y * east.y)
+  local northYards = b * math.sqrt(north.x * north.x + north.y * north.y)
+  if eastYards == 0 and northYards == 0 then
+    return nil
+  end
+  local distance = math.sqrt(delta.x * delta.x + delta.y * delta.y)
+  return math.atan2(-eastYards, northYards) % TWO_PI, distance
+end
+
 --- Which cell of a picture holding the arrow drawn at `frames` angles shows
 --- this rotation: 0 to frames - 1, nearest angle.
 function Geo.arrowFrame(rotation, frames)

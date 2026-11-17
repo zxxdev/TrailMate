@@ -185,6 +185,179 @@ function Talents.plan(tabs, template, limit)
   return picks
 end
 
+-- Modern clients (WoW Forever) -------------------------------------------------
+--
+-- Forever draws classic-looking trees on the modern talent system: one list
+-- of nodes with a position (posX, posY) and arrows between them, not three
+-- numbered trees. These helpers turn the nodes back into trees, rows and
+-- columns, so the rest of this file works the same.
+--
+-- nodes = { { nodeID, name, icon, posX, posY, rank, maxRank, subTreeID,
+--   targets = { nodeID, ... } } }
+
+local function distinct(values)
+  local seen, out = {}, {}
+  for _, v in ipairs(values) do
+    if not seen[v] then
+      seen[v] = true
+      out[#out + 1] = v
+    end
+  end
+  table.sort(out)
+  return out
+end
+
+-- Smallest gap between neighbouring values (the grid step), or 1.
+local function step(sorted)
+  local best
+  for i = 2, #sorted do
+    local d = sorted[i] - sorted[i - 1]
+    if d > 0 and (not best or d < best) then
+      best = d
+    end
+  end
+  return best or 1
+end
+
+local function round(v)
+  return math.floor(v + 0.5)
+end
+
+-- Which tree each grid column belongs to: by sub-tree when the game says,
+-- else split where the columns have a wide gap, else in three equal bands.
+local function treeOfColumn(columns, wanted)
+  local groups, current = {}, 1
+  -- Knowing how many trees there are (the specialisations), cut at the
+  -- widest gaps: a tree may have an empty column, the gap between trees is wider.
+  if wanted and wanted >= 2 and #columns >= wanted then
+    local gaps = {}
+    for i = 2, #columns do
+      gaps[#gaps + 1] = { at = i, size = columns[i] - columns[i - 1] }
+    end
+    table.sort(gaps, function(a, b)
+      if a.size ~= b.size then
+        return a.size > b.size
+      end
+      return a.at < b.at
+    end)
+    local cut = {}
+    for i = 1, wanted - 1 do
+      cut[gaps[i].at] = true
+    end
+    for i, c in ipairs(columns) do
+      if cut[i] then
+        current = current + 1
+      end
+      groups[c] = current
+    end
+    return groups, current
+  end
+  for i, c in ipairs(columns) do
+    if i > 1 and c - columns[i - 1] > 1 then
+      current = current + 1
+    end
+    groups[c] = current
+  end
+  if current >= 2 and current <= 4 then
+    return groups, current
+  end
+  local count = columns[#columns] - columns[1] + 1
+  if count < 9 then
+    for _, c in ipairs(columns) do
+      groups[c] = 1
+    end
+    return groups, 1
+  end
+  local band = math.ceil(count / 3)
+  for _, c in ipairs(columns) do
+    groups[c] = math.floor((c - columns[1]) / band) + 1
+  end
+  return groups, 3
+end
+
+--- Trees (as Talents.plan wants them) from the modern node list.
+--- names: the trees' names left to right (the class's specialisations).
+function Talents.fromNodes(nodes, names)
+  if #nodes == 0 then
+    return {}
+  end
+  local xs, ys, subs = {}, {}, {}
+  for _, n in ipairs(nodes) do
+    xs[#xs + 1], ys[#ys + 1] = n.posX, n.posY
+    if n.subTreeID and n.subTreeID ~= 0 then
+      subs[#subs + 1] = n.subTreeID
+    end
+  end
+  xs, ys, subs = distinct(xs), distinct(ys), distinct(subs)
+  local xStep, yStep = step(xs), step(ys)
+  local function col(n)
+    return round((n.posX - xs[1]) / xStep)
+  end
+
+  local treeOf = {}
+  local count
+  if #subs >= 2 then
+    -- Sub-trees, ordered left to right by their first column.
+    local left = {}
+    for _, n in ipairs(nodes) do
+      local s = n.subTreeID
+      if s and s ~= 0 and (not left[s] or col(n) < left[s]) then
+        left[s] = col(n)
+      end
+    end
+    table.sort(subs, function(a, b)
+      return left[a] < left[b]
+    end)
+    local index = {}
+    for i, s in ipairs(subs) do
+      index[s] = i
+    end
+    for _, n in ipairs(nodes) do
+      treeOf[n] = index[n.subTreeID] or 1
+    end
+    count = #subs
+  else
+    local columns = {}
+    for _, n in ipairs(nodes) do
+      columns[#columns + 1] = col(n)
+    end
+    local groups
+    groups, count = treeOfColumn(distinct(columns), names and #names or nil)
+    for _, n in ipairs(nodes) do
+      treeOf[n] = groups[col(n)]
+    end
+  end
+
+  local tabs, firstCol, byID = {}, {}, {}
+  for i = 1, count do
+    tabs[i] = { name = names and names[i] or ("Tree " .. i), talents = {} }
+  end
+  for _, n in ipairs(nodes) do
+    local t = treeOf[n]
+    firstCol[t] = math.min(firstCol[t] or math.huge, col(n))
+  end
+  for _, n in ipairs(nodes) do
+    local t = treeOf[n]
+    local talent = {
+      nodeID = n.nodeID, name = n.name, icon = n.icon, rank = n.rank or 0, maxRank = n.maxRank,
+      tier = round((n.posY - ys[1]) / yStep) + 1, column = col(n) - firstCol[t] + 1,
+    }
+    byID[n.nodeID] = talent
+    local list = tabs[t].talents
+    list[#list + 1] = talent
+  end
+  -- An arrow from A to B means B needs A maxed.
+  for _, n in ipairs(nodes) do
+    for _, target in ipairs(n.targets or {}) do
+      local b, a = byID[target], byID[n.nodeID]
+      if b and a then
+        b.prereq = { tier = a.tier, column = a.column }
+      end
+    end
+  end
+  return tabs
+end
+
 --- Joins points in a row on the same talent: { talent, from, to }.
 function Talents.group(picks)
   local out = {}

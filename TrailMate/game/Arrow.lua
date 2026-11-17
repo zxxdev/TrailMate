@@ -63,8 +63,9 @@ function Arrow.create(saved, L)
 end
 
 --- Points the arrow at target ({ mapID, x, y }) with a label, or hides it.
-function Arrow.setTarget(target, label)
-  Arrow.target, Arrow.labelText = target, label
+--- note: what to say when there is no place to point at (nil: "not known").
+function Arrow.setTarget(target, label, note)
+  Arrow.target, Arrow.labelText, Arrow.note = target, label, note
   Arrow.update()
 end
 
@@ -83,6 +84,27 @@ local function aim(icon, rotation)
   icon:SetVertexColor(a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t)
 end
 
+-- A target on another map of the same continent (Orgrimmar and Durotar):
+-- compare world positions. Which way is north in world units is measured on
+-- the player's own map, so no axis convention has to be assumed.
+local function farAway(mapID, px, py, target)
+  local Api = ns.Api
+  local here = Api.worldPos(mapID, px, py)
+  local there = Api.worldPos(target.mapID, target.x, target.y)
+  if not (here and there) or here.cont ~= there.cont then
+    return nil
+  end
+  local north = Api.worldPos(mapID, px, py - 0.01)
+  local east = Api.worldPos(mapID, px + 0.01, py)
+  if not (north and east) then
+    return nil
+  end
+  local function minus(a)
+    return { x = a.x - here.x, y = a.y - here.y }
+  end
+  return ns.Geo.worldBearing(minus(there), minus(east), minus(north))
+end
+
 --- Recomputes direction and distance. Called a few times per second.
 function Arrow.update()
   local f, L = Arrow.frame, Arrow.L
@@ -90,12 +112,18 @@ function Arrow.update()
     return
   end
   local target = Arrow.target
-  if not target or Arrow.saved.disabled then
+  if Arrow.saved.disabled or not (target or Arrow.labelText) then
     f:Hide()
     return
   end
   f:Show()
   f.label:SetText(Arrow.labelText or "")
+  if not target then
+    -- A step with no known place yet: say so instead of vanishing.
+    f.icon:Hide()
+    f.distance:SetText(Arrow.note or L["Place not known yet"])
+    return
+  end
 
   local Api, Geo = ns.Api, ns.Geo
   local mapID, px, py = Api.position()
@@ -103,21 +131,25 @@ function Arrow.update()
   if mapID then
     tx, ty = Api.translate(target, mapID)
   end
-  if not (mapID and px and py and tx and ty) then
+  local yards, bearing
+  if mapID and px and py and tx and ty then
+    local w, h = Api.mapSize(mapID)
+    yards, bearing = Geo.distance(px, py, tx, ty, w, h), Geo.bearing(px, py, tx, ty, w, h)
+  elseif mapID and px and py then
+    bearing, yards = farAway(mapID, px, py, target)
+  end
+  if not bearing then
     f.icon:Hide()
     local name = Api.mapName(target.mapID)
     f.distance:SetText(name and L["In %s"]:format(name) or L["Position unknown here"])
     return
   end
-
-  local w, h = Api.mapSize(mapID)
-  local yards = Geo.distance(px, py, tx, ty, w, h)
   if yards and yards <= ARRIVED_YARDS then
     f.icon:Hide()
     f.distance:SetText(L["You are there"])
     return
   end
-  local rotation = Geo.arrowRotation(Geo.bearing(px, py, tx, ty, w, h), Api.facing())
+  local rotation = Geo.arrowRotation(bearing, Api.facing())
   if rotation then
     aim(f.icon, rotation)
     f.icon:Show()

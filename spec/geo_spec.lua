@@ -55,6 +55,19 @@ describe("Geo", function()
     assert.equals(127, Geo.arrowFrame(-2 * PI / 128, 128))
   end)
 
+  it("finds the way to a target on another map from world positions", function()
+    -- World axes as in the game (x north, y west): a step east is -y.
+    local east, north = { x = 0, y = -10 }, { x = 10, y = 0 }
+    local bearing, distance = Geo.worldBearing({ x = 300, y = 0 }, east, north)
+    near(0, bearing) -- straight north
+    near(300, distance)
+    near(3 * PI / 2, (Geo.worldBearing({ x = 0, y = -50 }, east, north))) -- east
+    near(PI / 2, (Geo.worldBearing({ x = 0, y = 50 }, east, north))) -- west
+    -- Any other axis convention gives the same answer.
+    near(PI, (Geo.worldBearing({ x = 0, y = -7 }, { x = 5, y = 0 }, { x = 0, y = 5 }))) -- south
+    assert.is_nil(Geo.worldBearing({ x = 1, y = 1 }, { x = 0, y = 0 }, { x = 0, y = 0 }))
+  end)
+
   it("says how far off course the target is", function()
     near(0, Geo.offCourse(0))
     near(0.5, Geo.offCourse(PI / 2))

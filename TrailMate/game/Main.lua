@@ -86,7 +86,8 @@ end
 
 local function updateTarget(force)
   if detour then
-    ns.Arrow.setTarget(detour.target, detour.label)
+    ns.Arrow.setTarget(detour.target, detour.label, detour.item and L["Click the item to use it"])
+    ns.ItemButton.set(detour.item)
     return
   end
   local step = current and plan and plan.steps[current] or nil
@@ -97,6 +98,8 @@ local function updateTarget(force)
   arrowStep = step
   local target = stepTarget(step)
   ns.Arrow.setTarget(target, step and step.text)
+  -- A quest that needs an item used: a button to click.
+  ns.ItemButton.set(step and step.type == "complete" and Api.questItem(step.questID) or nil)
   if changed then
     local focused = Api.focusQuest(step and step.questID)
     if target then
@@ -449,6 +452,7 @@ local function hearthPlace(hearth, nodes)
   for _, n in ipairs(nodes) do
     if n.name:find(hearth.name, 1, true) == 1 then
       hearth.cont, hearth.x, hearth.y = n.cont, n.x, n.y
+      n.known = true -- bound there, so its flight master was found too
       return
     end
   end
@@ -459,9 +463,32 @@ local function hearthPlace(hearth, nodes)
   end
 end
 
+-- Zeppelins and ships this character may take, with world positions.
+local function shipLinks()
+  local faction, links = Api.faction(), {}
+  local function dock(d)
+    local w = Api.worldPos(d.mapID, d.x, d.y)
+    return w and { name = L[d.name], cont = w.cont, x = w.x, y = w.y, mapID = d.mapID, mx = d.x, my = d.y,
+      dock = true }
+  end
+  for _, s in ipairs(ns.Travel.SHIPS) do
+    if s.faction == nil or s.faction == faction then
+      local a, b = dock(s.a), dock(s.b)
+      if a and b then
+        links[#links + 1] = { kind = s.kind, a = a, b = b }
+      end
+    end
+  end
+  return links
+end
+
 local function describeStep(s, name, hearth)
   if s.kind == "hearth" then
     return L["Use your hearthstone (%s)."]:format(hearth.name)
+  elseif s.kind == "ship" and s.from then
+    return L["Take the %s from %s to %s."]:format(L[s.ship], s.from.name, s.to.name)
+  elseif s.kind == "walk" and s.to and s.to.dock then
+    return L["Go to %s."]:format(s.to.name)
   elseif s.kind == "fly" then
     local note = ""
     if not (s.from.sure and s.to.sure) then
@@ -498,13 +525,17 @@ local function planTrip(mapID, name)
       return Atlas.reach(atlas, a.name, b.name)
     end,
     speed = (p.level or 1) >= 40 and ns.Travel.MOUNT or ns.Travel.RUN,
+    ships = shipLinks(),
   })
-  local lines, target = {}, nil
+  local lines, target, item = {}, nil, nil
   if trip then
     lines[1] = L["Route to %s (about %s):"]:format(name, ns.Travel.minutes(trip.cost))
+    if trip.steps[1] and trip.steps[1].kind == "hearth" then
+      item = Api.HEARTHSTONE -- first thing to do: a button to click
+    end
     for _, s in ipairs(trip.steps) do
       lines[#lines + 1] = "- " .. describeStep(s, name, hearth)
-      if not target then
+      if not target and not item then
         if s.kind == "walk" then
           target = s.to.name and nodeTarget(s.to) or { mapID = mapID, x = 0.5, y = 0.5 }
         elseif s.kind == "ship" and s.via then
@@ -512,24 +543,35 @@ local function planTrip(mapID, name)
         end
       end
     end
+    -- Flights on a continent never checked at a flight master are not used.
+    local dest = Api.worldPos(mapID, 0.5, 0.5)
+    local checked = false
+    for _, n in ipairs(nodes) do
+      checked = checked or (dest and n.cont == dest.cont and n.sure)
+    end
+    if dest and not checked then
+      lines[#lines + 1] = L["Open a flight master there once: TrailMate will then use your flights on that continent."]
+    end
   else
     lines[1] = L["Travel to %s"]:format(name)
   end
-  return trip, lines, target
+  return trip, lines, target, item
 end
 
 -- Applies a trip: tells the player the steps and points the arrow at the
 -- first place to go, until they arrive.
 local function travelTo(mapID, name)
-  local _, lines, target = planTrip(mapID, name)
+  local _, lines, target, item = planTrip(mapID, name)
   travelLines = lines
   detour = {
-    target = target or { mapID = mapID, x = 0.5, y = 0.5 },
+    -- First the hearthstone: no place to point at, a stone to click.
+    target = not item and (target or { mapID = mapID, x = 0.5, y = 0.5 }) or nil,
+    item = item,
     label = lines[2] and lines[2]:sub(3) or lines[1],
     zone = mapID,
     zoneName = name,
   }
-  ns.Arrow.setTarget(detour.target, detour.label)
+  updateTarget(true)
   for _, line in ipairs(lines) do
     say(line)
   end
@@ -794,6 +836,14 @@ alias({ "skip", "salta" }, function()
   end
   refresh()
 end)
+alias({ "pick", "elegir" }, function(rest)
+  local step = plan and Plan.choose(plan, progress, facts(), tonumber(rest) or 0)
+  if step then
+    say(L["Now: %s"]:format(step.text))
+    arrowStep = false
+  end
+  refresh()
+end)
 alias({ "done", "hecho" }, function()
   local step = plan and Plan.markDone(plan, progress, facts())
   if step then
@@ -1054,7 +1104,12 @@ local function selfTest()
   end)
   check("talents", function()
     local points = Api.talentPoints()
-    return points ~= nil, ("unspent %s || %s"):format(tostring(points), table.concat(Api.talentReport(), " || "))
+    local advice = ns.TalentPanel.advice()
+    local first = advice and advice.groups[1]
+    local summary = advice and ("template %s, next %s"):format(advice.chosen.id, first and first.talent.name or "none")
+      or "no trees read"
+    return points ~= nil and advice ~= nil, ("unspent %s, %s || %s"):format(tostring(points), summary,
+      table.concat(Api.talentReport(), " || "))
   end)
   check("trainer memory", function()
     return true, ("%d spells remembered, %d ignored"):format(count(cdb.trainerMemory), count(cdb.prefs.ignored))
@@ -1071,7 +1126,11 @@ local function selfTest()
   end)
   check("arrow", function()
     ns.Arrow.update()
-    return true, ("%s (art: %s)"):format(tostring(ns.Arrow.labelText), tostring(ns.Arrow.art))
+    local f, t = ns.Arrow.frame, ns.Arrow.target
+    return true, ("%s (art: %s) target %s shown %s icon %s says %s item %s"):format(
+      tostring(ns.Arrow.labelText), tostring(ns.Arrow.art), t and ("%s %.3f %.3f"):format(t.mapID, t.x, t.y) or "none",
+      tostring(f and f:IsShown()), tostring(f and f.icon:IsShown()), tostring(f and f.distance:GetText()),
+      tostring(ns.ItemButton.current()))
   end)
   check("quest highlight", function()
     local ok = C_SuperTrack ~= nil and type(C_SuperTrack.SetSuperTrackedQuestID) == "function"
@@ -1187,8 +1246,9 @@ handlers.ADDON_LOADED = function(name)
   cdb.talents = cdb.talents or {}
   TrailMateDB.log = TrailMateDB.log or {}
   ns.setLocale(GetLocale and GetLocale() or "enUS")
-  ns.UI.create(cdb.ui)
-  ns.Arrow.create(cdb.arrow, L)
+  local window = ns.UI.create(cdb.ui)
+  local arrow = ns.Arrow.create(cdb.arrow, L)
+  ns.ItemButton.create(window, arrow)
   ns.Panel.create(cdb.panel, L)
   ns.TalentPanel.init(cdb.talents, L)
   ns.TalentPanel.attach()
