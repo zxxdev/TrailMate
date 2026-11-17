@@ -15,6 +15,7 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 | Trainer advice | When you open a class trainer: a numbered list with *learn*, *skip* or *later* for each spell, and the reason. Ignore a spell once (`/tm ignore 3`) and it is never recommended again, in any rank. At each level-up it tells you only what just unlocked. Keeps a gold reserve you choose. |
 | Vendor advice | When you open a vendor: what to sell (and roughly for how much), what to keep, and what is worth the auction house. Warns when your bags are almost full. |
 | Character summary | `/tm status`: class, level, XP, gold, position, quests and bag space. No names are stored. |
+| More with QuestieDB (optional) | If the [QuestieDB](https://github.com/Questie/QuestieDB) addon is installed, TrailMate reads its public API while you play: places for quests the game gives no location for, nearby quests that fit your level, race and class as pick-up steps, and `/tm find trainer` to point the arrow at your class trainer. TrailMate never copies or ships QuestieDB's data. |
 
 ## Install
 
@@ -43,6 +44,8 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 | `/tm reserve <gold>` · `/tm reserva <oro>` | Gold the trainer advice never spends |
 | `/tm show` / `/tm hide` | Show or hide the window |
 | `/tm clear` · `/tm borrar` | Remove the plan |
+| `/tm find trainer` · `/tm buscar instructor` | Arrow to the nearest trainer of your class (needs QuestieDB) |
+| `/tm plan` | Arrow back to the plan |
 | `/tm diag` | What this client exposes, for bug reports (no personal data) |
 
 ## How it works
@@ -80,7 +83,8 @@ busted
 
 - Arrival at a place is approximate: zones have different sizes and the radius is in map units.
 - Trainer rules are generic plus hunter tracking; class-specific advice grows over time.
-- Without a data pack, TrailMate only knows what the game shows: your quest log, quest areas and the quest givers on the map. Trainer locations, race starting routes and item drops outside quests need the data pack planned for a later version.
+- Without QuestieDB, TrailMate only knows what the game shows: your quest log and quest areas. On WoW Forever the game does not tell addons about quests you have not picked up yet.
+- With QuestieDB, looking for nearby quests and for trainers reads the whole database, which can cause a short stutter when the plan is rebuilt.
 - The vendor advice uses item level as a rough guide for gear, not stats.
 
 ## Related work
