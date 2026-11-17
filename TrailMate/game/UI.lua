@@ -1,5 +1,5 @@
 -- The step window: current step, its reason and the next two steps.
--- Movable; its position is saved per character.
+-- Drag it with the left button; right-click opens the panel.
 
 local _, ns = ...
 
@@ -8,48 +8,38 @@ ns.UI = UI
 
 local WIDTH = 300
 
-local function text(parent, template, anchor, rel, y)
+local function text(parent, template, rel, y)
   local fs = parent:CreateFontString(nil, "OVERLAY", template)
-  fs:SetPoint("TOPLEFT", rel or parent, rel and "BOTTOMLEFT" or "TOPLEFT", rel and 0 or 10, y)
+  if rel then
+    fs:SetPoint("TOPLEFT", rel, "BOTTOMLEFT", 0, y)
+  else
+    fs:SetPoint("TOPLEFT", 10, y)
+  end
   fs:SetWidth(WIDTH - 20)
   fs:SetJustifyH("LEFT")
-  if anchor then
-    fs:SetText(anchor)
-  end
   return fs
 end
 
 function UI.create(saved)
   local template = BackdropTemplateMixin and "BackdropTemplate" or nil
   local f = CreateFrame("Frame", "TrailMateFrame", UIParent, template)
-  f:SetSize(WIDTH, 130)
+  f:SetSize(WIDTH, 132)
   f:SetPoint(saved.point or "RIGHT", UIParent, saved.relPoint or "RIGHT", saved.x or -40, saved.y or 120)
-  f:SetMovable(true)
-  f:EnableMouse(true)
-  f:RegisterForDrag("LeftButton")
-  f:SetClampedToScreen(true)
-  f:SetScript("OnDragStart", f.StartMoving)
-  f:SetScript("OnDragStop", function(self)
-    self:StopMovingOrSizing()
-    local point, _, relPoint, x, y = self:GetPoint()
-    saved.point, saved.relPoint, saved.x, saved.y = point, relPoint, x, y
-  end)
-  if f.SetBackdrop then
-    f:SetBackdrop({
-      bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-      edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-      edgeSize = 12,
-      insets = { left = 3, right = 3, top = 3, bottom = 3 },
-    })
-    f:SetBackdropColor(0, 0, 0, 0.75)
-  end
-  f.title = text(f, "GameFontNormal", "TrailMate", nil, -8)
+  ns.Theme.movable(f, saved)
+  ns.Theme.panel(f)
+  local _, title = ns.Theme.header(f, "TrailMate")
+  f.title = title
   f.counter = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  f.counter:SetPoint("TOPRIGHT", -10, -9)
-  f.step = text(f, "GameFontHighlight", nil, f.title, -6)
-  f.why = text(f, "GameFontDisableSmall", nil, f.step, -3)
-  f.next = text(f, "GameFontHighlightSmall", nil, f.why, -6)
-  f.arrow = text(f, "GameFontDisableSmall", nil, f.next, -6)
+  f.counter:SetPoint("TOPRIGHT", -10, -10)
+  f.step = text(f, "GameFontHighlight", nil, -32)
+  f.why = text(f, "GameFontDisableSmall", f.step, -3)
+  f.next = text(f, "GameFontHighlightSmall", f.why, -6)
+  f.arrow = text(f, "GameFontDisableSmall", f.next, -6)
+  f:SetScript("OnMouseUp", function(_, button)
+    if button == "RightButton" then
+      ns.Panel.toggle()
+    end
+  end)
   if saved.hidden then
     f:Hide()
   end
@@ -71,17 +61,10 @@ function UI.render(plan, current, statuses, L, arrowMethod)
   if not f then
     return
   end
-  if not plan then
+  if not plan or not current then
     f.counter:SetText("")
-    f.step:SetText(L["No plan loaded. Type /tm questlog to build one from your quest log."])
-    f.why:SetText("")
-    f.next:SetText("")
-    f.arrow:SetText("")
-    return
-  end
-  if not current then
-    f.counter:SetText("")
-    f.step:SetText(L["Plan finished."])
+    local empty = L["No plan loaded. Type /tm questlog to build one from your quest log."]
+    f.step:SetText(plan and L["Plan finished."] or empty)
     f.why:SetText("")
     f.next:SetText("")
     f.arrow:SetText("")

@@ -23,6 +23,8 @@ local function fakeObject(name)
         return function(self) rawset(self, "visible", true) end
       elseif key == "Hide" then
         return function(self) rawset(self, "visible", false) end
+      elseif key == "IsShown" then
+        return function(self) return rawget(self, "visible") == true end
       elseif key == "SetText" then
         return function(self, s) rawset(self, "shown_text", s) end
       elseif key == "GetPoint" then
@@ -385,9 +387,47 @@ describe("addon smoke test", function()
     assert.equals(2, #snap.quests)
   end)
 
-  it("shows the help for unknown commands", function()
-    _G.SlashCmdList.TRAILMATE("")
+  it("shows the help for /tm help and for unknown commands", function()
+    _G.SlashCmdList.TRAILMATE("ayuda")
     assert.matches("/tm questlog | diario", output())
     assert.matches("Crea un plan con tu diario de misiones", output())
+    printed = {}
+    _G.SlashCmdList.TRAILMATE("no-such-command")
+    assert.matches("/tm questlog | diario", output())
+  end)
+
+  it("opens the panel with /tm, and its buttons run the same actions", function()
+    local panel = named.TrailMatePanel
+    assert.is_false(panel.visible)
+    _G.SlashCmdList.TRAILMATE("")
+    assert.is_true(panel.visible)
+
+    -- Route tab: the "New route" button builds the plan and the text shows it.
+    panel.pages.Route.text.shown_text = nil
+    _G.SlashCmdList.TRAILMATE("diario")
+    assert.matches("Hacer: Lobos", panel.pages.Route.text.shown_text)
+
+    -- Trainer tab: rows with Ignore buttons that work.
+    fire("TRAINER_SHOW")
+    panel.tabs.Trainer.scripts.OnClick()
+    local row = panel.pages.Trainer.rows[1]
+    assert.is_true(row.visible)
+    row.buttons[2].scripts.OnClick()
+    assert.is_true(next(_G.TrailMateCharDB.prefs.ignored) ~= nil)
+
+    -- Log tab: everything said is kept and can be copied.
+    panel.tabs.Log.scripts.OnClick()
+    assert.matches("TrailMate: ", panel.pages.Log.text.shown_text)
+    assert.is_nil(panel.pages.Log.text.shown_text:find("|c", 1, true))
+
+    _G.SlashCmdList.TRAILMATE("")
+    assert.is_false(panel.visible)
+  end)
+
+  it("puts the icon and the compartment entry in the .toc", function()
+    local toc = io.open("TrailMate/TrailMate.toc"):read("*a")
+    assert.matches("## IconTexture: Interface\\Icons\\", toc)
+    assert.matches("## AddonCompartmentFunc: TrailMate_OnAddonCompartmentClick", toc)
+    assert.is_function(_G.TrailMate_OnAddonCompartmentClick)
   end)
 end)

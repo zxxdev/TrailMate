@@ -26,8 +26,19 @@ local COLORS = {
   learn = "|cff40c040", skip = "|cffc04040", later = "|cffd0a020",
 }
 
+local lastReportLines, lastVendorLines = {}, {}
+
+-- Every line TrailMate prints is also kept in the log (panel, Log tab).
+local function out(line)
+  print(line)
+  if TrailMateDB then
+    TrailMateDB.log = TrailMateDB.log or {}
+    ns.Log.add(TrailMateDB.log, line, date and date("%H:%M") or nil)
+  end
+end
+
 local function say(msg)
-  print("|cff9b7bd4TrailMate|r: " .. msg)
+  out("|cff9b7bd4TrailMate|r: " .. msg)
 end
 
 local function after(seconds, fn)
@@ -160,6 +171,7 @@ local function refresh()
   end
   updateTarget()
   ns.UI.render(plan, current, statuses, L, markMethod)
+  ns.Panel.refresh()
 end
 
 local function loadPlan(p, quiet)
@@ -193,17 +205,22 @@ end
 
 -- Tells the player what the route decided and what it left out.
 local function sayReport(report)
+  local lines = {}
   if report.zone then
-    say(L["Route: %s, %d steps."]:format(report.zone, plan and #plan.steps or 0))
+    lines[#lines + 1] = L["Route: %s, %d steps."]:format(report.zone, plan and #plan.steps or 0)
   end
   if #report.notNow > 0 then
-    say(L["Not now: %s"]:format(joinNames(report.notNow, 6)))
+    lines[#lines + 1] = L["Not now: %s"]:format(joinNames(report.notNow, 6))
   end
   if #report.abandon > 0 then
-    say(L["Consider abandoning: %s"]:format(joinNames(report.abandon, 6)))
+    lines[#lines + 1] = L["Consider abandoning: %s"]:format(joinNames(report.abandon, 6))
   end
   if #report.later > 0 then
-    say(L["Later: %s"]:format(joinNames(report.later, 5)))
+    lines[#lines + 1] = L["Later: %s"]:format(joinNames(report.later, 5))
+  end
+  lastReportLines = lines
+  for _, line in ipairs(lines) do
+    say(line)
   end
 end
 
@@ -356,10 +373,11 @@ local function zoneLine(i, z)
   return ("[%d] %s (%d-%d) - %s%s"):format(i, Api.mapName(z.mapID) or z.name, z.min, z.max, L[z.difficulty], quests)
 end
 
-local function sayStrategy()
+-- Works out the zone list (numbered for /tm zone) and the "coming up" text.
+local function strategyList()
   local level = Api.level()
   if type(level) ~= "number" then
-    return
+    return {}, "", false
   end
   local advice = ns.Strategy.advise(level, Api.faction(), playerPoint().mapID, lastCounts)
   lastZones = {}
@@ -369,19 +387,32 @@ local function sayStrategy()
   for i = 1, math.min(#advice.options, 5) do
     lastZones[#lastZones + 1] = advice.options[i]
   end
-  say(L["Strategy for level %d:"]:format(level))
-  for i, z in ipairs(lastZones) do
-    print("  " .. zoneLine(i, z))
+  for _, z in ipairs(lastZones) do
+    z.label = Api.mapName(z.mapID) or z.name
   end
-  if advice.leaveHere then
+  local soon = {}
+  for _, z in ipairs(advice.upcoming) do
+    soon[#soon + 1] = ("%s (%d)"):format(Api.mapName(z.mapID) or z.name, z.min)
+  end
+  local upcoming = #soon > 0 and L["Coming up: %s"]:format(table.concat(soon, ", ")) or ""
+  return lastZones, upcoming, advice.leaveHere
+end
+
+local function sayStrategy()
+  local level = Api.level()
+  if type(level) ~= "number" then
+    return
+  end
+  local zones, upcoming, leaveHere = strategyList()
+  say(L["Strategy for level %d:"]:format(level))
+  for i, z in ipairs(zones) do
+    out("  " .. zoneLine(i, z))
+  end
+  if leaveHere then
     say(L["This zone is too easy for you now: time to move on."])
   end
-  if #advice.upcoming > 0 then
-    local soon = {}
-    for _, z in ipairs(advice.upcoming) do
-      soon[#soon + 1] = ("%s (%d)"):format(Api.mapName(z.mapID) or z.name, z.min)
-    end
-    say(L["Coming up: %s"]:format(table.concat(soon, ", ")))
+  if upcoming ~= "" then
+    say(upcoming)
   end
   say(L["Want another zone? /tm zone <number>. Back to automatic: /tm zone auto."])
   if not ns.Zones.VERIFIED_IN_FOREVER then
@@ -429,11 +460,12 @@ local function adviseTrainer()
   end
   say(L["Trainer advice"] .. ":")
   for i, r in ipairs(results) do
-    print(("  [%d] %s%s|r %s (%s) - %s"):format(i, COLORS[r.verdict] or "", L[r.verdict], r.name,
+    out(("  [%d] %s%s|r %s (%s) - %s"):format(i, COLORS[r.verdict] or "", L[r.verdict], r.name,
       ns.formatMoney(r.cost), r.reason))
   end
   say(L["Total to learn now: %s"]:format(ns.formatMoney(spend)))
   say(L["Not interested in one? /tm ignore <number>. Already learned? /tm learned <number>."])
+  ns.Panel.refresh()
 end
 
 -- "3" means entry 3 of the last trainer list; anything else is a spell name.
@@ -486,15 +518,23 @@ local function adviseVendor()
       auction[#auction + 1] = label
     end
   end
-  say(L["Vendor advice"] .. ":")
+  local lines = { L["Vendor advice"] .. ":" }
   if #sell > 0 then
-    say(L["Sell for about %s: %s"]:format(ns.formatMoney(value), table.concat(sell, " ")))
+    lines[#lines + 1] = L["Sell for about %s: %s"]:format(ns.formatMoney(value), table.concat(sell, " "))
   else
-    say(L["Nothing to sell."])
+    lines[#lines + 1] = L["Nothing to sell."]
   end
   if #auction > 0 then
-    say(L["Worth taking to the auction house: %s"]:format(table.concat(auction, " ")))
+    lines[#lines + 1] = L["Worth taking to the auction house: %s"]:format(table.concat(auction, " "))
   end
+  for _, line in ipairs(lines) do
+    say(line)
+  end
+  for i, line in ipairs(lines) do
+    lines[i] = ns.Log.plain(line)
+  end
+  lastVendorLines = lines
+  ns.Panel.refresh()
 end
 
 local function checkBags()
@@ -657,19 +697,88 @@ local function version()
   return ok and v or "?"
 end
 
+alias({ "help", "ayuda" }, function()
+  say(("%s %s - %s"):format("TrailMate", version(), L["Commands"]))
+  for _, h in ipairs(HELP) do
+    out(("  %s  - %s"):format(h[1], L[h[2]]))
+  end
+end)
+alias({ "panel" }, function()
+  ns.Panel.toggle()
+end)
+
 SLASH_TRAILMATE1 = "/tm"
 SLASH_TRAILMATE2 = "/trailmate"
 SlashCmdList.TRAILMATE = function(msg)
   local cmd, rest = (msg or ""):match("^%s*(%S*)%s*(.-)%s*$")
-  local fn = COMMANDS[(cmd or ""):lower()]
-  if fn then
-    fn(rest)
+  cmd = (cmd or ""):lower()
+  if cmd == "" then
+    ns.Panel.toggle()
     return
   end
-  say(("%s %s - %s"):format("TrailMate", version(), L["Commands"]))
-  for _, h in ipairs(HELP) do
-    print(("  %s  - %s"):format(h[1], L[h[2]]))
+  local fn = COMMANDS[cmd] or COMMANDS.help
+  fn(rest)
+end
+
+-- What the panel reads. It never changes state itself: its buttons run commands.
+local function routeLines()
+  local lines = {}
+  if not plan then
+    lines[1] = L["No plan loaded. Type /tm questlog to build one from your quest log."]
+  elseif not current then
+    lines[1] = L["Plan finished."]
+  else
+    local step = plan.steps[current]
+    lines[#lines + 1] = L["Step %d of %d"]:format(current, #plan.steps) .. ": " .. step.text
+    if step.why then
+      lines[#lines + 1] = "   " .. step.why
+    end
+    local shown = 0
+    for i = current + 1, #plan.steps do
+      if statuses and statuses[i] == "pending" and shown < 6 then
+        lines[#lines + 1] = "- " .. plan.steps[i].text
+        shown = shown + 1
+      end
+    end
   end
+  if detour then
+    lines[#lines + 1] = L["Arrow: %s"]:format(detour.label)
+  end
+  lines[#lines + 1] = ""
+  for _, line in ipairs(lastReportLines) do
+    lines[#lines + 1] = line
+  end
+  return lines
+end
+
+ns.Main = {
+  routeLines = routeLines,
+  strategy = function()
+    local zones, upcoming = strategyList()
+    return zones, upcoming
+  end,
+  trainerAdvice = function()
+    return lastAdvice
+  end,
+  prefs = function()
+    return cdb and cdb.prefs or {}
+  end,
+  vendorLines = function()
+    return lastVendorLines
+  end,
+  logText = function()
+    return ns.Log.text(TrailMateDB and TrailMateDB.log)
+  end,
+  clearLog = function()
+    if TrailMateDB then
+      TrailMateDB.log = {}
+    end
+  end,
+}
+
+-- Click on TrailMate in the game's addon compartment (the minimap addons list).
+function TrailMate_OnAddonCompartmentClick()
+  ns.Panel.toggle()
 end
 
 -- Events ----------------------------------------------------------------------
@@ -690,9 +799,16 @@ handlers.ADDON_LOADED = function(name)
   cdb.trainerMemory = cdb.trainerMemory or {}
   cdb.ui = cdb.ui or {}
   cdb.arrow = cdb.arrow or {}
+  cdb.panel = cdb.panel or {}
+  cdb.minimap = cdb.minimap or {}
+  TrailMateDB.log = TrailMateDB.log or {}
   ns.setLocale(GetLocale and GetLocale() or "enUS")
   ns.UI.create(cdb.ui)
   ns.Arrow.create(cdb.arrow, L)
+  ns.Panel.create(cdb.panel, L)
+  ns.MinimapButton.create(cdb.minimap, L, ns.Panel.toggle, function()
+    ns.UI.setShown(cdb.ui.hidden == true)
+  end)
   if cdb.plan then
     loadPlan(cdb.plan, true)
   else

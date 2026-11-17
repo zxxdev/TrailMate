@@ -7,6 +7,7 @@ exclude_files = { ".luarocks/", "lua_modules/" }
 globals = {
   "TrailMateDB", "TrailMateCharDB",
   "SLASH_TRAILMATE1", "SLASH_TRAILMATE2", "SlashCmdList",
+  "TrailMate_OnAddonCompartmentClick", "UISpecialFrames",
 }
 
 -- Game API the addon reads. Listed one by one on purpose: a typo in a global
@@ -23,6 +24,7 @@ read_globals = {
   "NUM_REAGENTBAG_SLOTS", "QuestPOIGetIconInfo", "TomTom", "UIParent", "UiMapPoint",
   "UnitClass", "UnitLevel", "UnitXP", "UnitXPMax", "issecretvalue", "time",
   "CanMerchantRepair", "IsTradeskillTrainer", "UnitFactionGroup", "UnitGUID", "UnitName",
+  "ChatFontNormal", "GameTooltip", "GetCursorPosition", "Minimap", "date",
 }
 
 files["spec/"] = { std = "+busted" }
