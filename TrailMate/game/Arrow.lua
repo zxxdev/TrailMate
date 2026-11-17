@@ -13,18 +13,28 @@ local ARRIVED_YARDS = 8
 local ATLASES = { "Navigation-Tracked-Arrow", "MiniMap-QuestArrow" }
 local FALLBACK = "Interface\\Minimap\\MinimapArrow"
 
--- Returns the name of the art used, for the self-test.
+-- Returns the name of the art used (for the self-test) and its native size.
 local function setArrowArt(tex)
   if tex.SetAtlas and C_Texture and C_Texture.GetAtlasInfo then
     for _, atlas in ipairs(ATLASES) do
       local ok, info = pcall(C_Texture.GetAtlasInfo, atlas)
-      if ok and info and pcall(tex.SetAtlas, tex, atlas) then
-        return atlas
+      if ok and type(info) == "table" and pcall(tex.SetAtlas, tex, atlas) then
+        return atlas, info.width, info.height
       end
     end
   end
   tex:SetTexture(FALLBACK)
   return FALLBACK
+end
+
+-- Rotated textures look jagged when the game snaps them to the pixel grid.
+local function smooth(tex)
+  if tex.SetSnapToPixelGrid then
+    pcall(tex.SetSnapToPixelGrid, tex, false)
+  end
+  if tex.SetTexelSnappingBias then
+    pcall(tex.SetTexelSnappingBias, tex, 0)
+  end
 end
 
 function Arrow.create(saved, L)
@@ -43,10 +53,19 @@ function Arrow.create(saved, L)
   end)
 
   f.icon = f:CreateTexture(nil, "ARTWORK")
-  f.icon:SetSize(56, 56)
   f.icon:SetPoint("TOP", 0, -4)
-  Arrow.art = setArrowArt(f.icon)
-  if Arrow.art == FALLBACK then
+  local art, w, h = setArrowArt(f.icon)
+  Arrow.art = art
+  -- Never stretch the art beyond its own size: that is what makes it blurry.
+  if type(w) == "number" and type(h) == "number" and w > 0 and h > 0 then
+    local scale = math.min(1, 56 / math.max(w, h))
+    f.icon:SetSize(w * scale, h * scale)
+    Arrow.art = ("%s %dx%d"):format(art, w, h)
+  else
+    f.icon:SetSize(48, 48)
+  end
+  smooth(f.icon)
+  if art == FALLBACK then
     f.icon:SetVertexColor(1, 0.82, 0)
   end
 

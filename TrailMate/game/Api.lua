@@ -65,14 +65,47 @@ function Api.faction()
   return (safe(UnitFactionGroup, "player"))
 end
 
---- Unspent talent points, or nil if the client does not say.
+--- Unspent talent points, or nil if the client does not say. Clients with
+--- dual specs (like this one) answer through GetUnspentTalentPoints, while
+--- UnitCharacterPoints may exist and say 0: take the highest answer.
 function Api.talentPoints()
-  local n = safe(UnitCharacterPoints, "player")
-  if type(n) == "number" then
-    return n
+  local best
+  -- pairs, not ipairs: a missing function leaves a hole in this list.
+  for _, n in pairs({ safe(GetUnspentTalentPoints, false, false), (safe(GetUnspentTalentPoints)),
+    (safe(UnitCharacterPoints, "player")) }) do
+    if type(n) == "number" and (best == nil or n > best) then
+      best = n
+    end
   end
-  n = safe(GetUnspentTalentPoints)
-  return type(n) == "number" and n or nil
+  return best
+end
+
+--- What the client says about talents, for the self-test: which functions
+--- exist and the player's trees as the game reports them.
+function Api.talentReport()
+  local present = {}
+  for _, name in ipairs({ "GetUnspentTalentPoints", "UnitCharacterPoints", "GetNumTalentTabs", "GetTalentTabInfo",
+    "GetNumTalents", "GetTalentInfo", "GetActiveTalentGroup", "LearnTalent", "C_ClassTalents", "C_Traits",
+    "PlayerTalentFrame", "TalentFrame" }) do
+    present[#present + 1] = ("%s=%s"):format(name, type(rawget(_G, name)))
+  end
+  local lines = { table.concat(present, " ") }
+  local tabs = safe(GetNumTalentTabs) or 0
+  for tab = 1, tabs do
+    local r = pack(try(GetTalentTabInfo, tab))
+    local parts = {}
+    for i = 2, math.min(r.n, 8) do
+      parts[#parts + 1] = tostring(r[i])
+    end
+    local talents = {}
+    for index = 1, safe(GetNumTalents, tab) or 0 do
+      local name, _, tier, column, rank, maxRank = safe(GetTalentInfo, tab, index)
+      talents[#talents + 1] = ("%s[%s,%s]%s/%s"):format(tostring(name), tostring(tier), tostring(column),
+        tostring(rank), tostring(maxRank))
+    end
+    lines[#lines + 1] = ("tab %d: %s | %s"):format(tab, table.concat(parts, ", "), table.concat(talents, "; "))
+  end
+  return lines
 end
 
 -- Travel ---------------------------------------------------------------------

@@ -521,7 +521,7 @@ describe("addon smoke test", function()
     for _ in out:gmatch("%[[PF]A[SI][SL]%]") do
       checks = checks + 1
     end
-    assert.equals(16, checks)
+    assert.equals(17, checks)
     assert.equals(planBefore, _G.TrailMateCharDB.plan)
     assert.is_nil(_G.TrailMateCharDB.prefs.focusZone)
   end)
