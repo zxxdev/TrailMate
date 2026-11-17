@@ -256,7 +256,7 @@ describe("addon smoke test", function()
     _G.SlashCmdList.TRAILMATE("diario")
     assert.equals(10, superTracked)
     assert.equals(0, watched[10])
-    assert.matches("Marca en el mapa: quest", named.TrailMateFrame.arrow.shown_text)
+    assert.matches("Marca en el mapa: TrailMate", named.TrailMateFrame.arrow.shown_text)
     _G.SlashCmdList.TRAILMATE("borrar")
     assert.is_nil(watched[10])
   end)
@@ -282,6 +282,29 @@ describe("addon smoke test", function()
     _G.SlashCmdList.TRAILMATE("salta")
     _G.SlashCmdList.TRAILMATE("salta")
     assert.equals(0, watched[10])
+  end)
+
+  it("marks the target on the minimap by itself: a dot near, an arrow on the edge when far", function()
+    local zoom = 0
+    local map = fakeObject("Minimap")
+    rawset(map, "GetWidth", function() return 140 end)
+    rawset(map, "GetZoom", function() return zoom end)
+    rawset(_G, "Minimap", map)
+    finally(function()
+      rawset(_G, "Minimap", nil)
+    end)
+    _G.SlashCmdList.TRAILMATE("diario")
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.1)
+    local pin = named.TrailMateMinimapPin
+    -- 283 yards away: beyond the 233 yards the minimap shows around you.
+    assert.is_true(pin.edge.visible)
+    assert.is_false(pin.dot.visible)
+    -- A nearer quest (70 yards) is a dot inside the minimap.
+    _G.C_QuestLog.GetQuestsOnMap = function() return { { questID = 10, x = 0.45, y = 0.45 } } end
+    _G.SlashCmdList.TRAILMATE("diario")
+    eventFrame().scripts.OnUpdate(eventFrame(), 2)
+    assert.is_true(pin.dot.visible)
+    assert.is_false(pin.edge.visible)
   end)
 
   it("points its own arrow at the current quest with distance and direction", function()
@@ -689,7 +712,7 @@ describe("addon smoke test", function()
     local out = output()
     assert.matches("Clase HUNTER, nivel 8", out)
     assert.matches("interface 16001", out)
-    assert.matches("missing: .*TomTom.AddWaypoint", out)
+    assert.is_nil(out:find("TomTom", 1, true)) -- no other addon is looked for
     assert.is_nil(out:find("Cazador", 1, true))
   end)
 

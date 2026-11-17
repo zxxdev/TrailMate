@@ -1,7 +1,8 @@
 -- Wiring: saved variables, game events, slash commands.
 -- TrailMate advises and never plays: nothing here presses keys, moves the
 -- character, buys, sells or trains. It only reads the game and shows text.
--- It depends on no other addon; TomTom is used only if it is installed.
+-- It depends on no other addon and uses none: its arrow, minimap and world
+-- map marks are its own.
 
 local addonName, ns = ...
 local L = ns.L
@@ -1469,8 +1470,12 @@ local function selfTest()
     local ok = C_SuperTrack ~= nil and type(C_SuperTrack.SetSuperTrackedQuestID) == "function"
     return ok, ok and "available" or "missing"
   end)
-  check("TomTom", function()
-    return true, TomTom and "installed (map marks)" or "not installed (game map pin)"
+  check("map marks", function()
+    -- TrailMate's own marks: no other addon is used, even when installed.
+    local pin = ns.MinimapPin
+    return true, ("minimap %s%s; world map target %s"):format(tostring(pin.state or "hidden"),
+      pin.state and pin.state ~= "hidden" and (" at %.0f, %.0f"):format(pin.x or 0, pin.y or 0) or "",
+      ns.MapTrail.mark and ns.MapTrail.mark.dot:IsShown() and "shown" or "not drawn (open the map)")
   end)
   check("panel", function()
     local shown, tab = ns.Panel.frame:IsShown(), ns.Panel.current

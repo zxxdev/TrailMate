@@ -937,50 +937,16 @@ function Api.focusQuest(questID)
   return false
 end
 
-local tomtomUid, pinSet = nil, false
+--- Clears a map mark. TrailMate draws its own marks (game/MinimapPin.lua and
+--- game/MapTrail.lua), so there is nothing of another addon or of the game
+--- to remove: kept so callers need not know.
+function Api.clearArrow() end
 
-function Api.clearArrow()
-  if tomtomUid and TomTom and TomTom.RemoveWaypoint then
-    try(TomTom.RemoveWaypoint, TomTom, tomtomUid)
-  end
-  tomtomUid = nil
-  if pinSet and C_Map and C_Map.ClearUserWaypoint then
-    try(C_Map.ClearUserWaypoint)
-  end
-  pinSet = false
-end
-
---- Marks a target on the map. Uses TomTom when it is installed; otherwise the
---- game's own map pin, unless the quest is already highlighted (focused).
---- Returns the method used, or nil.
-function Api.setArrow(target, title, focused)
-  Api.clearArrow()
-  if TomTom and TomTom.AddWaypoint then
-    -- TomTom draws the map and minimap marks; TrailMate draws its own arrow.
-    local uid = safe(TomTom.AddWaypoint, TomTom, target.mapID, target.x, target.y,
-      { title = title, persistent = false, minimap = true, world = true, crazy = false })
-    if uid then
-      tomtomUid = uid
-      return "TomTom"
-    end
-  end
-  if focused then
-    return "quest"
-  end
-  if C_Map and C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates then
-    if C_Map.CanSetUserWaypointOnMap and not safe(C_Map.CanSetUserWaypointOnMap, target.mapID) then
-      return nil
-    end
-    local point = safe(UiMapPoint.CreateFromCoordinates, target.mapID, target.x, target.y)
-    if point and try(C_Map.SetUserWaypoint, point) then
-      pinSet = true
-      if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
-        try(C_SuperTrack.SetSuperTrackedUserWaypoint, true)
-      end
-      return "map pin"
-    end
-  end
-  return nil
+--- Marks a target on the map. TrailMate works on its own: its minimap and
+--- world map marks follow the arrow's target, with no other addon (not
+--- even TomTom when installed) and no game waypoint. Returns the method.
+function Api.setArrow()
+  return "TrailMate"
 end
 
 -- Bags ---------------------------------------------------------------------
@@ -1158,7 +1124,7 @@ Api.PROBES = {
   "C_SuperTrack.SetSuperTrackedUserWaypoint", "UiMapPoint.CreateFromCoordinates",
   "C_Container.GetContainerItemInfo", "GetContainerItemInfo", "C_Item.GetItemInfo", "GetItemInfo",
   "GetTrainerServiceInfo", "GetTrainerServiceLevelReq", "C_TooltipInfo.GetTrainerService",
-  "issecretvalue", "C_AddOns.GetAddOnMetadata", "TomTom.AddWaypoint",
+  "issecretvalue", "C_AddOns.GetAddOnMetadata",
   "GetPlayerFacing", "C_Map.GetMapWorldSize", "C_Map.GetWorldPosFromMapPos",
   "C_Map.GetMapPosFromWorldPos", "CreateVector2D", "C_QuestLine.GetAvailableQuestLines",
   "IsSpellKnown", "IsPlayerSpell", "C_SuperTrack.SetSuperTrackedQuestID",

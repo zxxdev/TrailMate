@@ -6,7 +6,6 @@
 ## X-License: MIT
 ## IconTexture: Interface\AddOns\TrailMate\media\Icon
 ## AddonCompartmentFunc: TrailMate_OnAddonCompartmentClick
-## OptionalDeps: TomTom
 ## SavedVariables: TrailMateDB
 ## SavedVariablesPerCharacter: TrailMateCharDB
 
@@ -36,6 +35,7 @@ game\UI.lua
 game\Arrow.lua
 game\ItemButton.lua
 game\MapTrail.lua
+game\MinimapPin.lua
 game\MinimapButton.lua
 game\Panel.lua
 game\TalentPanel.lua

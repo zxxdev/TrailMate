@@ -66,6 +66,7 @@ end
 --- note: what to say when there is no place to point at (nil: "not known").
 function Arrow.setTarget(target, label, note)
   Arrow.target, Arrow.labelText, Arrow.note = target, label, note
+  ns.MapTrail.setTarget(target)
   Arrow.update()
 end
 
@@ -123,8 +124,10 @@ function Arrow.update()
     return
   end
   local target = Arrow.target
+  local pin = ns.MinimapPin
   if Arrow.saved.disabled or not (target or Arrow.labelText) then
     f:Hide()
+    pin.hide()
     return
   end
   f:Show()
@@ -132,6 +135,7 @@ function Arrow.update()
   if not target then
     -- A step with no known place yet: say so instead of vanishing.
     f.icon:Hide()
+    pin.hide()
     f.distance:SetText(Arrow.note or L["Place not known yet"])
     return
   end
@@ -151,10 +155,13 @@ function Arrow.update()
   end
   if not bearing then
     f.icon:Hide()
+    pin.hide()
     local name = Api.mapName(target.mapID)
     f.distance:SetText(name and L["In %s"]:format(name) or L["Position unknown here"])
     return
   end
+  -- The minimap mark shows the target itself (not the trail's next dot).
+  pin.update(bearing, yards, Api.facing())
   if yards and yards <= ARRIVED_YARDS then
     f.icon:Hide()
     f.distance:SetText(L["You are there"])

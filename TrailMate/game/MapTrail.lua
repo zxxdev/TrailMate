@@ -14,6 +14,7 @@ local GAP = 0.004 -- minimum distance between dots on the map (0 to 1)
 
 local layer, dots = nil, {}
 local path, version, drawn = nil, 0, nil
+local goal -- the arrow's target as a world point, marked on the map
 
 local function canvas()
   local map = rawget(_G, "WorldMapFrame")
@@ -50,16 +51,42 @@ function MapTrail.draw()
   end
   local mapID = map.GetMapID and map:GetMapID()
   drawn = (mapID or 0) .. ":" .. version
-  if not (path and mapID) then
-    hideFrom(1)
-    return
-  end
   local w, h = child:GetWidth(), child:GetHeight()
-  if not (w and h and w > 0 and h > 0) then
+  if not (mapID and w and h and w > 0 and h > 0) then
+    hideFrom(1)
     return
   end
   local size = math.max(4, w / 160)
   local gold = ns.Theme.GOLD
+  -- The arrow's target, always marked (TrailMate's own map pin).
+  local mark = MapTrail.mark
+  if not mark then
+    mark = { ring = layer:CreateTexture(nil, "OVERLAY", nil, 6), dot = layer:CreateTexture(nil, "OVERLAY", nil, 7) }
+    mark.ring:SetTexture(DOT)
+    mark.ring:SetVertexColor(0.1, 0.07, 0.02, 1)
+    mark.dot:SetTexture(DOT)
+    mark.dot:SetVertexColor(gold[1], gold[2], gold[3], 1)
+    MapTrail.mark = mark
+  end
+  local gx, gy
+  if goal then
+    gx, gy = ns.Api.mapPosFromWorld(goal.cont, goal.x, goal.y, mapID)
+  end
+  if gx and gx >= 0 and gx <= 1 and gy >= 0 and gy <= 1 then
+    for part, s in pairs({ ring = size * 3.2, dot = size * 2.4 }) do
+      mark[part]:ClearAllPoints()
+      mark[part]:SetPoint("CENTER", layer, "TOPLEFT", gx * w, -gy * h)
+      mark[part]:SetSize(s, s)
+      mark[part]:Show()
+    end
+  else
+    mark.ring:Hide()
+    mark.dot:Hide()
+  end
+  if not path then
+    hideFrom(1)
+    return
+  end
   local n, lastX, lastY = 0, nil, nil
   for i, p in ipairs(path) do
     local mx, my = ns.Api.mapPosFromWorld(p.cont, p.x, p.y, mapID)
@@ -113,6 +140,17 @@ end
 --- raw: draw the dots as they are (the learned dots, for checking).
 function MapTrail.show(points, raw)
   path = raw and points or densify(points)
+  version = version + 1
+  MapTrail.draw()
+end
+
+--- Marks the arrow's target on the world map ({ mapID, x, y }, or nil).
+function MapTrail.setTarget(target)
+  local w = target and ns.Api.worldPos(target.mapID, target.x, target.y) or nil
+  if (w and goal and w.x == goal.x and w.y == goal.y) or (not w and not goal) then
+    return
+  end
+  goal = w
   version = version + 1
   MapTrail.draw()
 end
