@@ -40,6 +40,8 @@ local quests = {
 local function install()
   frames, named, printed = {}, {}, {}
   watched, superTracked = {}, nil
+  -- Tests that add API pieces of their own must not leak them into the next.
+  rawset(_G, "C_QuestLine", nil)
   local env = {
     print = function(...)
       local parts = {}
