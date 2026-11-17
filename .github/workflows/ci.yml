@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lua:
+    name: Lint and test (Lua 5.1)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Lua 5.1 and LuaRocks
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lua5.1 liblua5.1-0-dev luarocks
+
+      - name: Install pinned tools
+        run: |
+          luarocks install --local busted 2.3.0-1
+          luarocks install --local luacheck 1.2.0-1
+          echo "$HOME/.luarocks/bin" >> "$GITHUB_PATH"
+
+      - name: Lint
+        run: luacheck .
+
+      - name: Test
+        run: busted
