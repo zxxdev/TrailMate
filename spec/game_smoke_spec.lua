@@ -544,6 +544,13 @@ describe("addon smoke test", function()
     assert.equals("Deadly Aspects", panel.name.shown_text)
     assert.equals("Gasta tu punto aquí (1 por gastar)", panel.heading.shown_text)
     assert.is_true(panel.glow.visible) -- lit in the game's window
+    -- Hovering a template shows its picture: the trees with the planned talents.
+    panel.choices[1].scripts.OnEnter(panel.choices[1])
+    local picture = named.TrailMateTalentPreview
+    assert.is_true(picture.visible)
+    assert.matches("^Build de subida   %d+/%d+/%d+", picture.title.shown_text)
+    panel.choices[1].scripts.OnLeave(panel.choices[1])
+    assert.is_false(picture.visible)
     assert.matches("^Endurance Training %(rangos 1%-5/5%)", panel.rows[1].text.shown_text)
     -- The reminder names the talent.
     fire("CHARACTER_POINTS_CHANGED")

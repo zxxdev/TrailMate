@@ -79,13 +79,11 @@ function TalentPanel.attach()
     b:SetPoint("TOPLEFT", 14, -44 - (i - 1) * 24)
     -- Hovering a template shows where it goes: by level, per tree, and
     -- the talents each tree ends with.
-    b:SetScript("OnEnter", function(self)
-      TalentPanel.showPreview(i, self)
+    b:SetScript("OnEnter", function()
+      TalentPanel.showPreview(i)
     end)
     b:SetScript("OnLeave", function()
-      if GameTooltip then
-        GameTooltip:Hide()
-      end
+      ns.TalentPreview.hide()
     end)
     b:Hide()
     f.choices[i] = b
@@ -169,77 +167,64 @@ local function hex(i)
   return ("|cff%02x%02x%02x"):format(r * 255, g * 255, b * 255)
 end
 
---- The preview lines of template i, as { left, right, tree, done } rows,
---- for the tooltip (and the tests). nil when there is no such template.
-function TalentPanel.previewLines(i)
-  local L = TalentPanel.L
+--- Shows the picture of template i (game/TalentPreview.lua) next to the panel.
+function TalentPanel.showPreview(i)
   local a = TalentPanel.advice()
   local t = a and a.list[i]
-  if not t then
-    return nil
+  if t and TalentPanel.frame then
+    ns.TalentPreview.show(TalentPanel.frame, t, a.tabs, ns.Talents.preview(a.tabs, t, 51), TalentPanel.L)
   end
-  local p = ns.Talents.preview(a.tabs, t, 51)
+end
+
+-- Badges on the game's own talent window: over each talent the chosen
+-- template still takes, the level it is taken at.
+local badges = {}
+
+local function badge(button)
+  local b = badges[button]
+  if not b then
+    b = CreateFrame("Frame", nil, button)
+    b:SetSize(22, 14)
+    b:SetPoint("TOP", button, "TOP", 0, 6)
+    b:SetFrameLevel((button.GetFrameLevel and button:GetFrameLevel() or 1) + 5)
+    b.bg = b:CreateTexture(nil, "BACKGROUND")
+    b.bg:SetAllPoints()
+    b.bg:SetColorTexture(0, 0, 0, 0.75)
+    b.text = b:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
+    b.text:SetPoint("CENTER")
+    b.text:SetTextColor(1, 0.82, 0)
+    badges[button] = b
+  end
+  return b
+end
+
+local function hideBadges()
+  for _, b in pairs(badges) do
+    b:Hide()
+  end
+end
+
+-- The chosen template's next points, by talent: the level of the first one.
+local function markWindow(a)
+  hideBadges()
   local spent = 0
   for _, tab in ipairs(a.tabs) do
     for _, talent in ipairs(tab.talents) do
       spent = spent + (talent.rank or 0)
     end
   end
-  local rows = {}
-  local parts = {}
-  for k, tree in ipairs(p.trees) do
-    parts[#parts + 1] = hex(k) .. tree.name .. " " .. tree.points .. "|r"
-  end
-  rows[#rows + 1] = { L["Points"] .. ": " .. table.concat(parts, "  ") }
-  rows[#rows + 1] = { " " }
-  rows[#rows + 1] = { L["By level"], nil, nil, "heading" }
-  for _, g in ipairs(p.levels) do
-    local levels = g.from == g.to and tostring(g.from) or (g.from .. "-" .. g.to)
-    local ranks = g.rankFrom == g.rankTo and ("%d/%d"):format(g.rankTo, g.talent.maxRank)
-      or ("%d-%d/%d"):format(g.rankFrom, g.rankTo, g.talent.maxRank)
-    -- Levels already behind you show grey.
-    rows[#rows + 1] = { levels, g.talent.name .. " " .. ranks, g.tree, g.to - 9 <= spent }
-  end
-  rows[#rows + 1] = { " " }
-  rows[#rows + 1] = { L["Ends with"], nil, nil, "heading" }
-  for k, tree in ipairs(p.trees) do
-    local last = tree.taken[#tree.taken]
-    if last then
-      rows[#rows + 1] = { tree.name, ("%s %d/%d"):format(last.talent.name, last.rank, last.talent.maxRank), k }
-    end
-  end
-  return rows, t, p
-end
-
-function TalentPanel.showPreview(i, owner)
-  local tip = rawget(_G, "GameTooltip")
-  if not tip then
-    return
-  end
-  local rows, t, p = TalentPanel.previewLines(i)
-  if not rows then
-    return
-  end
-  local L = TalentPanel.L
-  tip:SetOwner(owner, "ANCHOR_RIGHT")
-  tip:AddLine(("%s  %s"):format(L[t.label], p.split), 1, 0.82, 0)
-  if t.note then
-    tip:AddLine(L[t.note], 0.9, 0.9, 0.9, true)
-  end
-  for _, row in ipairs(rows) do
-    if row[4] == "heading" then
-      tip:AddLine(row[1], 1, 0.82, 0)
-    elseif row[2] then
-      local r, g, b = treeColor(row[3])
-      if row[4] == true then
-        r, g, b = 0.5, 0.5, 0.5
+  local seen = {}
+  for i, p in ipairs(ns.Talents.plan(a.tabs, a.chosen, 60)) do
+    if not seen[p.talent] then
+      seen[p.talent] = true
+      local button = ns.Api.talentButton(p.tree or a.chosen.tree, p.talent)
+      if button then
+        local b = badge(button)
+        b.text:SetText(9 + spent + i)
+        b:Show()
       end
-      tip:AddDoubleLine(row[1], row[2], 0.8, 0.8, 0.8, r, g, b)
-    else
-      tip:AddLine(row[1], 0.9, 0.9, 0.9)
     end
   end
-  tip:Show()
 end
 
 function TalentPanel.pick(i)
@@ -332,6 +317,7 @@ function TalentPanel.refresh()
     showGlow(f, button)
     f.where:SetText(a.points > 0 and not button and L["Open the %s tab to see it lit up."]:format(tab.name) or "")
   end
+  markWindow(a)
   for i, row in ipairs(f.rows) do
     local g = a.groups[i + 1]
     if g then

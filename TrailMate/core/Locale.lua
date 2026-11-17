@@ -238,8 +238,8 @@ local esES = {
   ["Beast Mastery up to Bestial Wrath, then Marksmanship up to Trueshot Aura, then Survival."] =
     "Bestias hasta Cólera de las bestias, luego Puntería hasta Aura de disparo certero, luego Supervivencia.",
   ["Points"] = "Puntos",
-  ["By level"] = "Por nivel",
-  ["Ends with"] = "Acaba en",
+  ["Number: level the talent is taken at. Bottom: rank it ends at (green: you have it)."] =
+    "Número: nivel al que se coge. Abajo: rango final (en verde: ya lo tienes).",
   ["A suggested order, not an official guide: %d of %d talents found in your trees."] =
     "Orden sugerido, no una guía oficial: %d de %d talentos están en tus árboles.",
   ["Trails: %s, %d dots and %d joins learned."] = "Rastros: %s, %d puntos y %d uniones aprendidos.",
