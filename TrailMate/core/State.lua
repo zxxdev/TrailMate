@@ -48,7 +48,9 @@ function State.build(raw, now)
       break
     end
     if num(q.questID) then
-      snap.quests[#snap.quests + 1] = { questID = q.questID, title = str(q.title, 120), complete = q.complete == true }
+      snap.quests[#snap.quests + 1] = {
+        questID = q.questID, title = str(q.title, 120), complete = q.complete == true,
+      }
     end
   end
   for i, it in ipairs(raw.items or {}) do
