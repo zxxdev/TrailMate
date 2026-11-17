@@ -200,6 +200,9 @@ local esES = {
   ["Open your talents with the N key (not in combat)."] = "Abre tus talentos con la tecla N (fuera de combate).",
   ["Next talent: %s (%s)."] = "Siguiente talento: %s (%s).",
   ["Open your talents and say the next one"] = "Abre tus talentos y dice cuál toca",
+  ["Companion: %s."] = "Compañero: %s.",
+  ["none"] = "ninguno",
+  ["Icon colour of your AI companion"] = "Color del icono según tu compañero de IA",
   -- Talent plan.
   ["Talent plan"] = "Plan de talentos",
   ["Easiest to level: a strong pet takes the hits, little downtime."] =

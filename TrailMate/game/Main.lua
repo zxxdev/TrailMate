@@ -770,6 +770,7 @@ local HELP = {
   { "/tm reserve | reserva <gold>", "Gold the trainer advice never spends" },
   { "/tm arrow | flecha on|off", "Show or hide the arrow" },
   { "/tm talents | talentos", "Open your talents and say the next one" },
+  { "/tm companion | compañero claude|chatgpt|none", "Icon colour of your AI companion" },
   { "/tm auto on|off", "Rebuild the plan by itself when it ends" },
   { "/tm show | hide  (mostrar | ocultar)", "Show or hide the window" },
   { "/tm clear | borrar", "Remove the plan" },
@@ -869,6 +870,14 @@ alias({ "reserve", "reserva" }, function(rest)
   local gold = tonumber(rest) or 0
   cdb.prefs.reserve = math.max(0, math.floor(gold * 10000))
   say(L["Reserve set to %s."]:format(ns.formatMoney(cdb.prefs.reserve)))
+end)
+-- Which AI companion talks to the player: only changes the icon's glow for
+-- now; the chat bridge will set it by itself.
+local COMPANIONS = { claude = "claude", chatgpt = "chatgpt", gpt = "chatgpt", openai = "chatgpt" }
+alias({ "companion", "companero", "compañero" }, function(rest)
+  local kind = ns.Theme.setCompanion(COMPANIONS[(rest or ""):lower()])
+  cdb.prefs.companion = kind ~= "none" and kind or nil
+  say(L["Companion: %s."]:format(kind == "none" and L["none"] or kind))
 end)
 alias({ "arrow", "flecha" }, function(rest)
   cdb.arrow.disabled = not yes(rest)
@@ -1186,6 +1195,7 @@ handlers.ADDON_LOADED = function(name)
   ns.MinimapButton.create(cdb.minimap, L, ns.Panel.toggle, function()
     ns.UI.setShown(cdb.ui.hidden == true)
   end)
+  ns.Theme.setCompanion(cdb.prefs.companion)
   if cdb.plan then
     loadPlan(cdb.plan, true)
   else

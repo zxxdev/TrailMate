@@ -4,7 +4,7 @@
 ## Author: zxxdev
 ## Version: 0.1.0-dev
 ## X-License: MIT
-## IconTexture: Interface\Icons\Ability_Hunter_Pathfinding
+## IconTexture: Interface\AddOns\TrailMate\media\Icon
 ## AddonCompartmentFunc: TrailMate_OnAddonCompartmentClick
 ## OptionalDeps: TomTom
 ## SavedVariables: TrailMateDB

@@ -1,15 +1,39 @@
 -- TrailMate's look, in the style of the game: the gold border of Blizzard's
 -- dialogs, a deep blue gradient, a round emblem with a gold ring and gold
--- titles. Only textures that ship with the game are used, so the addon has
--- no image files of its own and nothing borrowed from other addons.
+-- titles. Besides the game's own textures, the addon has two pictures of its
+-- own, drawn by scripts in tools/: the arrow and the icon. Nothing is
+-- borrowed from other addons.
 
 local _, ns = ...
 
 local Theme = {}
 ns.Theme = Theme
 
--- A built-in game icon (Pathfinding: a boot on a trail).
-Theme.ICON = "Interface\\Icons\\Ability_Hunter_Pathfinding"
+-- The icon: a cosy stone with a glowing paw print (tools/make_icon.lua).
+-- The glow says who the companion is: gold with no AI, orange for Claude,
+-- white on black stone for ChatGPT.
+local MEDIA = "Interface\\AddOns\\TrailMate\\media\\"
+Theme.ICONS = { none = MEDIA .. "Icon", claude = MEDIA .. "Icon-claude", chatgpt = MEDIA .. "Icon-chatgpt" }
+Theme.ICON = Theme.ICONS.none
+local iconTextures = {}
+
+--- Shows the addon icon on a texture and keeps it in step with the companion.
+function Theme.useIcon(tex)
+  iconTextures[#iconTextures + 1] = tex
+  tex:SetTexture(Theme.ICON)
+end
+
+--- "claude", "chatgpt" or anything else for none. Returns the kind used.
+function Theme.setCompanion(kind)
+  if not Theme.ICONS[kind] then
+    kind = "none"
+  end
+  Theme.ICON = Theme.ICONS[kind]
+  for _, tex in ipairs(iconTextures) do
+    tex:SetTexture(Theme.ICON)
+  end
+  return kind
+end
 Theme.BORDER = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border"
 Theme.RING = "Interface\\Minimap\\MiniMap-TrackingBorder"
 Theme.ROUND_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
@@ -84,7 +108,7 @@ function Theme.emblem(f, size)
   local icon = holder:CreateTexture(nil, "ARTWORK")
   icon:SetPoint("TOPLEFT", size * 6 / 31, -size * 5 / 31)
   icon:SetSize(size * 20 / 31, size * 20 / 31)
-  icon:SetTexture(Theme.ICON)
+  Theme.useIcon(icon)
   if icon.SetMask then
     pcall(icon.SetMask, icon, Theme.ROUND_MASK)
   else
