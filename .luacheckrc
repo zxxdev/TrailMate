@@ -22,6 +22,7 @@ read_globals = {
   "GetTrainerServiceLevelReq", "IsQuestFlaggedCompleted", "NUM_BAG_SLOTS",
   "NUM_REAGENTBAG_SLOTS", "QuestPOIGetIconInfo", "TomTom", "UIParent", "UiMapPoint",
   "UnitClass", "UnitLevel", "UnitXP", "UnitXPMax", "issecretvalue", "time",
+  "CanMerchantRepair", "IsTradeskillTrainer", "UnitFactionGroup", "UnitGUID", "UnitName",
 }
 
 files["spec/"] = { std = "+busted" }

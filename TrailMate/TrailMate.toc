@@ -4,6 +4,7 @@
 ## Author: zxxdev
 ## Version: 0.1.0-dev
 ## X-License: MIT
+## OptionalDeps: TomTom
 ## SavedVariables: TrailMateDB
 ## SavedVariablesPerCharacter: TrailMateCharDB
 
@@ -15,6 +16,7 @@ core\Trainer.lua
 core\Bags.lua
 core\State.lua
 core\Geo.lua
+core\Atlas.lua
 game\Api.lua
 game\UI.lua
 game\Arrow.lua

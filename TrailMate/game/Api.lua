@@ -61,6 +61,52 @@ function Api.xp()
   return safe(UnitXP, "player"), safe(UnitXPMax, "player")
 end
 
+function Api.faction()
+  return (safe(UnitFactionGroup, "player"))
+end
+
+--- The creature you are talking to (quest giver, trainer, vendor):
+--- { id, name }, or nil. The id is the 6th field of its GUID
+--- ("Creature-0-server-instance-zone-ID-spawn").
+function Api.npc()
+  local guid = safe(UnitGUID, "npc")
+  if type(guid) ~= "string" or isSecret(guid) then
+    return nil
+  end
+  local tail = "%-%d+%-%d+%-%d+%-%d+%-(%d+)%-"
+  local id = guid:match("^Creature" .. tail) or guid:match("^Vehicle" .. tail)
+  if not id then
+    return nil
+  end
+  local name = safe(UnitName, "npc")
+  return { id = tonumber(id), name = type(name) == "string" and not isSecret(name) and name or nil }
+end
+
+--- True if the open trainer teaches a profession rather than your class.
+function Api.isProfessionTrainer()
+  return safe(IsTradeskillTrainer) == true
+end
+
+function Api.vendorRepairs()
+  return safe(CanMerchantRepair) == true
+end
+
+--- How far a quest's objectives have got, as one number that only grows
+--- while you make progress (sum of counts plus finished objectives).
+function Api.questProgress(questID)
+  local list = C_QuestLog and safe(C_QuestLog.GetQuestObjectives, questID)
+  if type(list) ~= "table" then
+    return nil
+  end
+  local total = 0
+  for _, o in ipairs(list) do
+    if type(o) == "table" then
+      total = total + (type(o.numFulfilled) == "number" and o.numFulfilled or 0) + (o.finished and 1 or 0)
+    end
+  end
+  return total
+end
+
 --- Quests in the log: { questID, title, complete }.
 function Api.questLog()
   local quests = {}
@@ -529,5 +575,9 @@ function Api.diagnose()
   end
   lines[#lines + 1] = ("facing %s map size %s x %s available quests on map %d"):format(
     tostring(Api.facing()), tostring(w), tostring(h), #Api.availableQuests(mapID))
+  local atlas = rawget(_G, "TrailMateDB") and TrailMateDB.atlas
+  if type(atlas) == "table" then
+    lines[#lines + 1] = ("atlas: %d npcs, %d quests learned"):format(ns.Atlas.counts(atlas))
+  end
   return lines
 end

@@ -1,15 +1,19 @@
 -- Wiring: saved variables, game events, slash commands.
 -- TrailMate advises and never plays: nothing here presses keys, moves the
 -- character, buys, sells or trains. It only reads the game and shows text.
+-- It depends on no other addon; TomTom is used only if it is installed.
 
 local addonName, ns = ...
 local L = ns.L
-local Api, Plan, Builder, Trainer = ns.Api, ns.Plan, ns.Builder, ns.Trainer
+local Api, Plan, Builder, Trainer, Atlas = ns.Api, ns.Plan, ns.Builder, ns.Trainer, ns.Atlas
 
 local cdb -- TrailMateCharDB, per character
+local atlas -- TrailMateDB.atlas, shared by the account's characters
 local plan, progress, current, statuses
 local arrowStep, markMethod
+local detour -- { target, label }: takes over the arrow for a moment
 local lastAdvice = {}
+local lastProgress = {}
 local warnedFull = false
 local questThrottle = ns.Throttle.new(0.3)
 local bagThrottle = ns.Throttle.new(1)
@@ -23,17 +27,35 @@ local function say(msg)
   print("|cff9b7bd4TrailMate|r: " .. msg)
 end
 
+local function after(seconds, fn)
+  if C_Timer and C_Timer.After then
+    C_Timer.After(seconds, fn)
+  else
+    fn()
+  end
+end
+
+local function playerPoint()
+  local mapID, x, y = Api.position()
+  return { mapID = mapID, x = x, y = y, level = Api.level() }
+end
+
 local function facts()
   local log = {}
   for _, q in ipairs(Api.questLog()) do
     log[q.questID] = { complete = q.complete }
   end
-  local mapID, x, y = Api.position()
-  return { level = Api.level(), mapID = mapID, x = x, y = y, questLog = log, turnedIn = Api.turnedIn }
+  local p = playerPoint()
+  return { level = p.level, mapID = p.mapID, x = p.x, y = p.y, questLog = log, turnedIn = Api.turnedIn }
 end
 
--- Where the current step wants you: its own point, or where the game points
--- for its quest right now (objective area, or the turn-in once complete).
+-- Where to go for a quest: where the game points (objective area, or the
+-- turn-in once complete), or else what the atlas learned before.
+local function questTarget(questID, complete)
+  return Api.questTarget(questID) or (atlas and Atlas.questTarget(atlas, questID, complete, playerPoint()))
+end
+
+-- Where the current step wants you: its own point, or its quest's place.
 local function stepTarget(step)
   if not step then
     return nil
@@ -42,12 +64,16 @@ local function stepTarget(step)
     return { mapID = step.mapID, x = step.x, y = step.y }
   end
   if step.questID then
-    return Api.questTarget(step.questID)
+    return questTarget(step.questID, step.type == "turnin")
   end
   return nil
 end
 
 local function updateTarget(force)
+  if detour then
+    ns.Arrow.setTarget(detour.target, detour.label)
+    return
+  end
   local step = current and plan and plan.steps[current] or nil
   if step == arrowStep and not force then
     return
@@ -67,12 +93,53 @@ local function updateTarget(force)
   end
 end
 
+-- Learning ------------------------------------------------------------------
+
+-- Records where quest objectives move forward, so next time (or on an alt)
+-- the arrow knows where a quest is done.
+local function learnProgress()
+  if not atlas then
+    return
+  end
+  local p
+  for _, q in ipairs(Api.questLog()) do
+    local now = Api.questProgress(q.questID)
+    local before = lastProgress[q.questID]
+    if now and before and now > before then
+      p = p or playerPoint()
+      Atlas.recordProgress(atlas, q.questID, p)
+    end
+    lastProgress[q.questID] = now
+  end
+end
+
+local function learnNpc(role, class)
+  local npc = Api.npc()
+  if npc and atlas then
+    npc.role, npc.class, npc.faction = role, class, Api.faction()
+    Atlas.recordNpc(atlas, npc, playerPoint())
+  end
+end
+
+local function questInfo(questID)
+  for _, q in ipairs(Api.questLog()) do
+    if q.questID == questID then
+      return q
+    end
+  end
+  return nil
+end
+
+-- Plan --------------------------------------------------------------------------
+
 local buildFromQuestLog
 
 local function refresh()
   if not plan then
     ns.UI.render(nil, nil, nil, L)
-    ns.Arrow.setTarget(nil)
+    if not detour then
+      ns.Arrow.setTarget(nil)
+    end
     return
   end
   local ok, cur, st = pcall(Plan.evaluate, plan, progress, facts())
@@ -137,20 +204,55 @@ local function sayReport(report)
   end
 end
 
-function buildFromQuestLog(quiet)
-  local quests = Api.questLog()
-  local zoneNames = {}
+local function zoneName(names, mapID)
+  names[mapID] = names[mapID] or Api.mapName(mapID) or ("map " .. mapID)
+  return names[mapID]
+end
+
+-- Quests to pick up nearby: the ones the game shows, plus the ones the atlas
+-- saw before (on this character or an alt) that fit the player now.
+local function offersHere(player, quests, names)
+  local inLog = {}
   for _, q in ipairs(quests) do
-    q.target = Api.questTarget(q.questID)
-    local m = q.target and q.target.mapID
-    if m then
-      zoneNames[m] = zoneNames[m] or Api.mapName(m) or ("map " .. m)
-      q.zone = zoneNames[m]
+    inLog[q.questID] = true
+  end
+  local offers, seen = {}, {}
+  local function addAll(list)
+    for _, o in ipairs(list) do
+      if not seen[o.questID] then
+        seen[o.questID] = true
+        o.zone = o.target and zoneName(names, o.target.mapID)
+        offers[#offers + 1] = o
+      end
     end
   end
-  local mapID, x, y = Api.position()
-  local p, report = Builder.fromQuestLog(quests, { mapID = mapID, x = x, y = y, level = Api.level() }, L,
-    Api.availableQuests(mapID))
+  addAll(Api.availableQuests(player.mapID))
+  if atlas then
+    addAll(Atlas.offers(atlas, {
+      level = player.level or 1,
+      faction = Api.faction(),
+      isDone = function(id)
+        return Api.turnedIn(id) == true
+      end,
+      inLog = function(id)
+        return inLog[id] == true
+      end,
+    }, player))
+  end
+  return offers
+end
+
+function buildFromQuestLog(quiet)
+  local quests = Api.questLog()
+  local names = {}
+  local player = playerPoint()
+  for _, q in ipairs(quests) do
+    q.target = questTarget(q.questID, q.complete)
+    if q.target then
+      q.zone = zoneName(names, q.target.mapID)
+    end
+  end
+  local p, report = Builder.fromQuestLog(quests, player, L, offersHere(player, quests, names))
   if p and (not quiet or (report.zone and report.zone ~= cdb.lastZone)) then
     quiet = false
   end
@@ -204,6 +306,42 @@ local function takeSnapshot()
   return snap
 end
 
+-- Finding NPCs the atlas knows ---------------------------------------------------
+
+local FIND = {
+  trainer = { role = "trainer", ownClass = true, label = "Trainer: %s" },
+  instructor = { role = "trainer", ownClass = true, label = "Trainer: %s" },
+  vendor = { role = "vendor", label = "Vendor: %s" },
+  vendedor = { role = "vendor", label = "Vendor: %s" },
+  repair = { role = "repair", label = "Repairs: %s" },
+  reparar = { role = "repair", label = "Repairs: %s" },
+  flight = { role = "flight", label = "Flight master: %s" },
+  vuelo = { role = "flight", label = "Flight master: %s" },
+}
+
+local function backToPlan()
+  if detour then
+    detour = nil
+    arrowStep = false
+    refresh()
+  end
+end
+
+local function findNpc(rest)
+  local what = FIND[(rest or ""):lower()] or FIND.trainer
+  local point, name = Atlas.findNpc(atlas, what.role, what.ownClass and Api.class() or nil, Api.faction(),
+    playerPoint())
+  if not point then
+    say(L["TrailMate has not seen one yet. Visit one and it will remember it."])
+    return
+  end
+  local label = L[what.label]:format(name or "?")
+  detour = { target = point, label = label }
+  Api.setArrow(point, label, false)
+  ns.Arrow.setTarget(point, label)
+  say(("%s - %s"):format(label, Api.mapName(point.mapID) or ""))
+end
+
 -- Trainer ---------------------------------------------------------------------
 
 local function adviseTrainer()
@@ -243,6 +381,9 @@ local function remindAtLevel(level)
   local names = Trainer.newAtLevel(cdb.trainerMemory, level, cdb.prefs.ignored)
   if #names > 0 then
     say(L["Level %d: your trainer now has %s."]:format(level, table.concat(names, ", ")))
+    if Atlas.findNpc(atlas, "trainer", Api.class(), Api.faction(), playerPoint()) then
+      say(L["Type /tm find trainer and the arrow takes you there."])
+    end
   end
 end
 
@@ -275,18 +416,14 @@ local function checkBags()
   if ns.Bags.shouldReturn(free, cdb.prefs) then
     if not warnedFull then
       say(L["Bags almost full (%d free): time to go back to a vendor."]:format(free))
+      local _, name = Atlas.findNpc(atlas, "vendor", nil, Api.faction(), playerPoint())
+      if name then
+        say(L["Nearest vendor you know: %s. Type /tm find vendor."]:format(name))
+      end
       warnedFull = true
     end
   else
     warnedFull = false
-  end
-end
-
-local function after(seconds, fn)
-  if C_Timer and C_Timer.After then
-    C_Timer.After(seconds, fn)
-  else
-    fn()
   end
 end
 
@@ -308,6 +445,8 @@ local HELP = {
   { "/tm unignore | recuperar <name>", "Recommend an ignored spell again" },
   { "/tm ignored | ignorados", "List ignored spells" },
   { "/tm vendor | vender", "What to sell, keep or auction" },
+  { "/tm find trainer|vendor|repair|flight", "Arrow to the nearest one TrailMate has seen" },
+  { "/tm plan", "Arrow back to the plan" },
   { "/tm status | estado", "Character summary" },
   { "/tm tracking on|off  (rastreos si|no)", "Skip hunter tracking spells" },
   { "/tm reserve | reserva <gold>", "Gold the trainer advice never spends" },
@@ -384,6 +523,8 @@ alias({ "learned", "aprendido" }, function(rest)
   end
 end)
 alias({ "vendor", "vender" }, adviseVendor)
+alias({ "find", "buscar" }, findNpc)
+alias({ "plan" }, backToPlan)
 alias({ "status", "estado" }, function()
   for _, line in ipairs(ns.State.summary(takeSnapshot(), L)) do
     say(line)
@@ -453,6 +594,7 @@ handlers.ADDON_LOADED = function(name)
   TrailMateDB = TrailMateDB or {}
   TrailMateCharDB = TrailMateCharDB or {}
   cdb = TrailMateCharDB
+  atlas = Atlas.ensure(TrailMateDB)
   cdb.prefs = cdb.prefs or {}
   cdb.prefs.ignored = cdb.prefs.ignored or {}
   cdb.trainerMemory = cdb.trainerMemory or {}
@@ -482,7 +624,11 @@ handlers.PLAYER_ENTERING_WORLD = function(isLogin, isReload)
   end
 end
 
-local function questChangedAfterLogin()
+local function questChanged()
+  questThrottle:mark()
+end
+
+handlers.QUEST_LOG_UPDATE = function()
   if rebuildPending then
     rebuildPending = false
     after(1, function()
@@ -490,42 +636,66 @@ local function questChangedAfterLogin()
       buildFromQuestLog(true)
     end)
   end
-end
-
-local function questChanged()
-  questThrottle:mark()
-end
-handlers.QUEST_LOG_UPDATE = function()
-  questChangedAfterLogin()
   questChanged()
 end
-handlers.QUEST_TURNED_IN = questChanged
 handlers.QUEST_REMOVED = questChanged
 handlers.ZONE_CHANGED_NEW_AREA = questChanged
 
--- A quest picked up outside the plan: rebuild an automatic plan so it joins.
 handlers.QUEST_ACCEPTED = function(a, b)
   local questID = b or a
+  -- Learn who gave it and where.
+  local q = questInfo(questID)
+  local npc = Api.npc()
+  Atlas.recordStart(atlas, questID, {
+    title = q and q.title, level = q and q.level, npcID = npc and npc.id, faction = Api.faction(),
+  }, playerPoint())
+  if npc then
+    learnNpc("quest")
+  end
+  -- A quest picked up outside the plan: rebuild an automatic plan so it joins.
   if plan and Builder.isAuto(plan) and cdb.prefs.autoPlan ~= false and not planHasQuest(questID) then
     after(0.5, function()
       buildFromQuestLog(true)
     end)
   end
-  questThrottle:mark()
+  questChanged()
+end
+
+handlers.QUEST_TURNED_IN = function(questID)
+  local npc = Api.npc()
+  Atlas.recordFinish(atlas, questID, { npcID = npc and npc.id }, playerPoint())
+  if npc then
+    learnNpc("quest")
+  end
+  lastProgress[questID] = nil
+  questChanged()
 end
 
 handlers.PLAYER_LEVEL_UP = function(level)
-  questThrottle:mark()
+  questChanged()
   if type(level) == "number" and cdb then
     remindAtLevel(level)
   end
 end
 
 handlers.TRAINER_SHOW = function()
+  backToPlan()
+  if Api.isProfessionTrainer() then
+    learnNpc("profession")
+  else
+    learnNpc("trainer", Api.class())
+  end
   after(0.3, adviseTrainer)
 end
 handlers.MERCHANT_SHOW = function()
+  learnNpc("vendor")
+  if Api.vendorRepairs() then
+    learnNpc("repair")
+  end
   after(0.3, adviseVendor)
+end
+handlers.TAXIMAP_OPENED = function()
+  learnNpc("flight")
 end
 handlers.BAG_UPDATE_DELAYED = function()
   bagThrottle:mark()
@@ -558,6 +728,7 @@ frame:SetScript("OnUpdate", function(_, elapsed)
     questThrottle:mark()
   end
   if questThrottle:tick(clock) then
+    pcall(learnProgress)
     refresh()
   end
   if bagThrottle:tick(clock) then
@@ -566,7 +737,7 @@ frame:SetScript("OnUpdate", function(_, elapsed)
   -- Quest objectives move (next area, turn-in): look again every two seconds.
   if sinceTarget >= 2 then
     sinceTarget = 0
-    if plan and current then
+    if detour or (plan and current) then
       updateTarget(true)
     end
   end

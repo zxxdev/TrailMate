@@ -5,6 +5,7 @@
 
 local frames, named, printed
 local watched, superTracked = {}, nil
+local npcGUID, objectives = nil, {}
 
 local function fakeObject(name)
   local o = { scripts = {}, events = {}, name = name }
@@ -40,6 +41,7 @@ local quests = {
 local function install()
   frames, named, printed = {}, {}, {}
   watched, superTracked = {}, nil
+  npcGUID, objectives = nil, {}
   -- Tests that add API pieces of their own must not leak them into the next.
   rawset(_G, "C_QuestLine", nil)
   local env = {
@@ -69,6 +71,8 @@ local function install()
     UnitClass = function() return "Cazador", "HUNTER" end,
     UnitLevel = function() return 8 end,
     GetPlayerFacing = function() return 0 end,
+    UnitGUID = function(unit) return unit == "npc" and npcGUID or nil end,
+    UnitName = function(unit) return unit == "npc" and npcGUID and "Captain Nials" or nil end,
     UnitXP = function() return 50 end,
     UnitXPMax = function() return 200 end,
     GetMoney = function() return 12345 end,
@@ -89,6 +93,9 @@ local function install()
       AddQuestWatch = function(id) watched[id] = 0 end,
       RemoveQuestWatch = function(id) watched[id] = nil end,
       SetSelectedQuest = function() end,
+      GetQuestObjectives = function(id)
+        return { { numFulfilled = objectives[id] or 0, finished = false } }
+      end,
     },
     C_Map = {
       GetBestMapForUnit = function() return 1429 end,
@@ -259,6 +266,43 @@ describe("addon smoke test", function()
     fire("QUEST_ACCEPTED", 31)
     assert.are_not.equal(plan.id, _G.TrailMateCharDB.plan.id)
     quests[3] = nil
+  end)
+
+  it("learns places while you play and uses them later, with no other addon", function()
+    npcGUID = "Creature-0-1465-0-12345-2700-0000ABCDEF"
+    local atlas = _G.TrailMateDB.atlas
+
+    -- Picking up a quest: who gave it and where.
+    quests[3] = { questID = 31, title = "Nueva", isHeader = false }
+    fire("QUEST_ACCEPTED", 31)
+    assert.equals(2700, atlas.quests[31].startNpc)
+    assert.equals("Nueva", atlas.quests[31].title)
+    quests[3] = nil
+
+    -- Objectives moving forward: where the quest is done.
+    fire("QUEST_LOG_UPDATE")
+    tick()
+    objectives[10] = 1
+    fire("QUEST_LOG_UPDATE")
+    tick()
+    assert.equals(1, #atlas.quests[10].areas)
+
+    -- Turning in: where it goes back. Then the route knows "Jabalies".
+    fire("QUEST_TURNED_IN", 11)
+    assert.same({ mapID = 1429, x = 0.5, y = 0.5 }, atlas.quests[11].finish)
+    _G.SlashCmdList.TRAILMATE("diario")
+    assert.is_nil(output():find("Lugar desconocido", 1, true))
+
+    -- A trainer seen once can be found again.
+    fire("TRAINER_SHOW")
+    local arrow = named.TrailMateArrow
+    _G.SlashCmdList.TRAILMATE("buscar instructor")
+    assert.equals("Instructor: Captain Nials", arrow.label.shown_text)
+    _G.SlashCmdList.TRAILMATE("plan")
+    assert.are_not.equal("Instructor: Captain Nials", arrow.label.shown_text)
+
+    _G.SlashCmdList.TRAILMATE("buscar vuelo")
+    assert.matches("aún no ha visto ninguno", output())
   end)
 
   it("lets the player ignore a spell and announces only new ones at level up", function()

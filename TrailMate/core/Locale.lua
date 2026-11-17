@@ -61,6 +61,17 @@ local esES = {
   ["Reserve set to %s."] = "Reserva fijada en %s.",
   ["Commands"] = "Órdenes",
   ["Pick up: "] = "Coger: ",
+  ["TrailMate has not seen one yet. Visit one and it will remember it."] =
+    "TrailMate aún no ha visto ninguno. Visita uno y lo recordará.",
+  ["Trainer: %s"] = "Instructor: %s",
+  ["Vendor: %s"] = "Vendedor: %s",
+  ["Repairs: %s"] = "Reparaciones: %s",
+  ["Flight master: %s"] = "Maestro de vuelo: %s",
+  ["Type /tm find trainer and the arrow takes you there."] = "Escribe /tm buscar instructor y la flecha te lleva.",
+  ["Nearest vendor you know: %s. Type /tm find vendor."] =
+    "Vendedor conocido más cercano: %s. Escribe /tm buscar vendedor.",
+  ["Arrow to the nearest one TrailMate has seen"] = "Flecha al más cercano que TrailMate haya visto",
+  ["Arrow back to the plan"] = "La flecha vuelve al plan",
   ["Route: %s, %d steps."] = "Ruta: %s, %d pasos.",
   ["Not now: %s"] = "Ahora no: %s",
   ["Consider abandoning: %s"] = "Plantéate abandonar: %s",
