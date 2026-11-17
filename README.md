@@ -1,8 +1,10 @@
 # TrailMate
 
-A leveling coach for **World of Warcraft: Forever** (game version 1.60, interface 16001). It turns your quest log into steps with an arrow, tells you what to learn at the class trainer and what to sell, keep or auction at a vendor, and explains why.
+A leveling coach for **World of Warcraft: Forever** (game version 1.60, interface 16001). It walks you through quest guides with its own arrow and a dotted path on the map, tells you what to learn at the class trainer, which talent to take next and what to sell, keep or auction at a vendor, and explains why.
 
-**It advises, it never plays.** TrailMate does not press keys, move your character, buy, sell or train anything. It reads the game and shows text and an arrow; every action is yours.
+**It advises, it never plays.** TrailMate does not press keys, move your character, buy, sell, train or spend talent points. It reads the game and shows text, an arrow and marks on the map; every action is yours.
+
+**It needs no other addon.** The arrow, the minimap and world map marks, the guides and the travel planner are all its own. Other addons can stay installed; TrailMate does not use them.
 
 > Status: early development. Screenshots arrive with version 0.1.0. Not affiliated with Blizzard Entertainment.
 
@@ -10,46 +12,63 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 
 | Feature | How |
 |---|---|
-| A route that decides | `/tm questlog` sorts your quests by level like the game colours them, picks **one zone** to work in (staying where you are wins ties), and routes it nearest first: pick up, do, turn in. It tells you what to leave for now (too hard, group or elite), what to consider abandoning (grey, little XP) and which zones come later. Steps tick themselves off from game events, and the plan rebuilds itself when the zone is done, when you pick up a new quest, and on login. |
-| Learns as you play | TrailMate keeps its own atlas, shared by your characters: who gave each quest and where, where it was turned in, where its objectives moved forward, and where trainers, vendors and flight masters stand. It only records what the game showed you. The route uses it for quests the game gives no location for, and offers quests you have seen before (for example, on an alt) when they fit. |
-| Arrow | TrailMate's own arrow points at the current step (quest giver, objective area or turn-in) with the distance, using your facing. It also marks the spot on the map, through [TomTom](https://www.curseforge.com/wow/addons/tomtom) when it is installed or the game's own map pin otherwise. |
-| Trainer advice | When you open a class trainer: a numbered list with *learn*, *skip* or *later* for each spell, and the reason. Ignore a spell once (`/tm ignore 3`) and it is never recommended again, in any rank. At each level-up it tells you only what just unlocked. Keeps a gold reserve you choose. |
-| Vendor advice | When you open a vendor: what to sell (and roughly for how much), what to keep, and what is worth the auction house. Warns when your bags are almost full. |
-| Leveling strategy | `/tm strategy` lists the zones that suit your level, each marked *easy*, *normal* or *hard*, and which zones open up next. Pick one (`/tm zone 2`) and TrailMate plans the trip; `/tm zone auto` lets it choose again. Zone level ranges are the classic ones and are not yet confirmed in Forever. |
-| Travel planner | The quickest way to a zone, comparing walking, flying between the flight points you have learned (your faction's), your hearthstone when it is ready, and ships or zeppelins across continents. Routes seen open at a flight master are remembered; others are marked unconfirmed. While travelling, the step window shows the trip. |
-| Self-test | The Log tab's *Self-test* button (`/tm selftest`) checks everything that can be checked without you doing anything and writes PASS or FAIL lines to the log, ready to copy. It changes nothing. |
-| Character summary | `/tm status`: class, level, XP, gold, position, quests and bag space. No names are stored. |
-| Panel and log | `/tm` or the minimap button opens a panel with Route, Zones, Trainer, Bags and Log tabs: every action is a button. Everything TrailMate says is kept in the log, which you can select and copy. |
+| Quest guides | 78 guides for both factions, from level 1 to 60, built into the addon (`/tm guide`). It picks the one for your level and race, and moves to the next when you finish. Every step is pick up, do or turn in, with the place of the quest giver, the objective or the turn-in. Optional quests are marked. Data sources are listed below. |
+| A route from your quest log | Without a guide, `/tm questlog` sorts your quests by level like the game colours them, picks **one zone** to work in, and routes it nearest first. It says what to leave for now (too hard, group or elite), what to consider abandoning and which zones come later. |
+| Choose your step | The window lists the next steps; click one (or `/tm pick 3`) to do it first. Steps tick themselves off from game events. |
+| Arrow | TrailMate's own arrow points at the current step with the distance, using your facing, and changes colour as you turn away from it. When a step needs an item (your hearthstone, a quest item), a button to use it appears next to the arrow and in the window. |
+| Map marks | A purple pin on the minimap with its tip on the target, so the game's quest marks underneath stay visible; when the target is off the minimap, a small purple arrow on its edge. The same pin on the world map. |
+| Dotted path | On the world map, dots along the way to the target, like a walked route. TrailMate learns the paths you walk (`/tm trail`) and the arrow follows them, so it goes round walls and up ramps instead of straight through a city. The addon can ship walked paths through the capitals; none are included yet. |
+| Arriving somewhere new | Reaching a quest hub (for example Grom'gol), it first lists the quests to pick up there and offers to set your hearthstone. |
+| Dungeons by level | `/tm dungeon` lists the dungeons that suit your level and faction, with the level of their enemies in Forever and how many quests to pick up before going in. `/tm dungeon 2` plans one: the quest givers first, then the entrance (the nearest one when there are two), then the hand-ins; afterwards you are back on your guide. |
+| Talents | Next to the game's talent window: templates per class (for hunters, a 31/16/4 leveling build and one per tree). Hovering a template shows a small picture of the three trees with the level each talent is taken at. The next talent glows in the game's window, and every talent still to come is labelled with its level. |
+| Reminders | A bar at the top of the window when your bags are full (go and sell), when you level up (visit the trainer) and when you have a talent point. Each one has a button that points the arrow at the right place. |
+| Trainer advice | When you open a class trainer: a numbered list with *learn*, *skip* or *later* for each spell, and the reason. Ignore a spell once (`/tm ignore 3`) and it is never recommended again, in any rank. Keeps a gold reserve you choose. |
+| Vendor advice | When you open a vendor: what to sell (and roughly for how much), what to keep, and what is worth the auction house. |
+| Leveling strategy | `/tm strategy` lists the zones that suit your level, each marked *easy*, *normal* or *hard*. Pick one (`/tm zone 2`) or let TrailMate choose (`/tm zone auto`). |
+| Travel planner | The quickest way to a zone, comparing walking, flights you have learned, your hearthstone when it is ready, and ships or zeppelins across continents (Orgrimmar to Grom'gol, for example). |
+| Learns as you play | Its own atlas, shared by your characters: quest givers, turn-ins, trainers, vendors, innkeepers and flight masters, from what the game showed you. |
+| Companion icon | The icon is a worn stone with a glowing paw. Its glow follows your AI companion (`/tm companion claude` or `chatgpt`). The chat itself is on the roadmap. |
+| Self-test | `/tm test` checks everything that can be checked without you doing anything and writes PASS or FAIL lines to the Log tab, ready to copy. It changes nothing. |
+| Panel and log | `/tm` or the minimap button opens a panel with Route, Zones, Trainer, Bags and Log tabs. Everything TrailMate says is kept in the log, which you can select and copy. |
 
 ## Install
 
 1. Copy the `TrailMate` folder into `World of Warcraft/_forever_/Interface/AddOns/`.
-2. Restart the game or type `/reload`.
-3. Click the TrailMate button on the minimap, or type `/tm`. `/tm help` lists the commands; English and Spanish both work (`/tm questlog` or `/tm diario`).
+2. Restart the game (after an update with new pictures, `/reload` is not enough).
+3. Click the TrailMate button on the minimap, or type `/tm`. `/tm help` lists the commands; English and Spanish both work (`/tm guide` or `/tm guía`).
 
 ## Commands
 
 | Command | What it does |
 |---|---|
+| `/tm guide [number\|next\|auto\|off]` · `/tm guía` | List the guides, choose one, go to the next, let TrailMate choose, or plan from your quest log |
+| `/tm dungeon [number]` · `/tm mazmorra` | Dungeons for your level, or a plan for one (quests first, then the entrance) |
 | `/tm questlog` · `/tm diario` | Build a plan from your quest log |
+| `/tm pick <n>` · `/tm elegir` | Do step n of the list now |
 | `/tm skip` · `/tm salta` | Skip the current step |
 | `/tm done` · `/tm hecho` | Mark the current step as done |
 | `/tm undo` · `/tm deshaz` | Undo the last mark |
+| `/tm talents` · `/tm talentos` | Open your talents and say the next one |
 | `/tm trainer` · `/tm instructor` | Advice at the open trainer |
 | `/tm ignore <n\|name>` · `/tm ignorar` | Never recommend that spell again (all ranks) |
 | `/tm learned <n\|name>` · `/tm aprendido` | Stop reminding a spell you already have |
 | `/tm unignore <name>` · `/tm recuperar` | Recommend an ignored spell again |
 | `/tm ignored` · `/tm ignorados` | List ignored spells |
-| `/tm arrow on\|off` · `/tm flecha si\|no` | Show or hide the arrow |
-| `/tm auto on\|off` | Rebuild the plan by itself when it ends |
 | `/tm vendor` · `/tm vender` | What to sell, keep or auction |
 | `/tm find trainer\|vendor\|repair\|flight` · `/tm buscar instructor\|vendedor\|reparar\|vuelo` | Arrow to the nearest one TrailMate has seen |
 | `/tm plan` | Arrow back to the plan |
+| `/tm strategy` · `/tm estrategia` | Best zones for your level, with difficulty |
+| `/tm zone <n>\|auto` · `/tm zona` | Choose the zone to level in, or let TrailMate choose |
+| `/tm trail on\|off\|show\|export\|clear` · `/tm rastro` | Learn the paths you walk and follow them |
+| `/tm arrow on\|off` · `/tm flecha si\|no` | Show or hide the arrow |
+| `/tm companion claude\|chatgpt\|none` · `/tm compañero` | Icon colour of your AI companion |
 | `/tm status` · `/tm estado` | Character summary |
 | `/tm tracking on\|off` · `/tm rastreos si\|no` | Learn or skip hunter tracking spells |
 | `/tm reserve <gold>` · `/tm reserva <oro>` | Gold the trainer advice never spends |
+| `/tm auto on\|off` | Rebuild the plan by itself when it ends |
 | `/tm show` / `/tm hide` | Show or hide the window |
 | `/tm clear` · `/tm borrar` | Remove the plan |
+| `/tm test` | Self-test, written to the log |
 | `/tm diag` | What this client exposes, for bug reports (no personal data) |
 
 ## How it works
@@ -58,13 +77,22 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 flowchart LR
   E[Game events] --> A[Adapter: game/]
   A -->|facts| C[Core: core/]
+  D[Data: guides, dungeons, routes, hubs] --> C
   C -->|current step, advice| A
-  A --> U[Window, arrow, chat]
+  A --> U[Window, arrow, map marks]
 ```
 
-- `TrailMate/core/` is plain Lua 5.1 with no game API: the plan format and its validator, the step engine, the quest-log planner and the trainer and bag advisors. It is fully tested outside the game.
-- `TrailMate/game/` is a thin adapter: it reads the game, turns events into facts and draws the window. Every game function is feature-detected, because this client is new.
-- A plan is **pure data** and is validated every time it is loaded. Later versions receive plans written by an external program, so a plan can never carry code.
+- `TrailMate/core/` is plain Lua 5.1 with no game API: the plan format and its validator, the step engine, the quest-log planner, the guides, talents, travel and path finding (Dijkstra over the walked dots), and the trainer and bag advisors. It is fully tested outside the game.
+- `TrailMate/game/` is a thin adapter: it reads the game, turns events into facts and draws the window, the arrow and the map marks. Every game function is feature-detected, because this client is new.
+- `TrailMate/data/` is generated by the scripts in `tools/` and never edited by hand.
+- A plan is **pure data** and is validated every time it is loaded, so a plan can never carry code.
+
+## Data sources
+
+- The quest guides follow the order of the community leveling guides for Forever written for [Guidelime](https://github.com/max-ri/Guidelime) (the TUGs guides), and were checked against Wowhead's Forever database for a sample of quests.
+- Quest giver, objective and turn-in places come from the quest database of [Questie](https://github.com/Questie/Questie) for Forever. TrailMate takes the most central spawn of each NPC or object.
+- Dungeon entrances (in Forever's coordinates), the level of the enemies inside and the dungeon quests come from the same database; `tools/build_dungeons.lua` writes `TrailMate/data/Dungeons.lua`. A dungeon's range runs from the level most of its enemies have to its strongest boss.
+- `tools/build_guides.lua` turns both into `TrailMate/data/Guides.lua`. When TrailMate sees a quest giver in the game, the place it saw wins.
 
 ## Development
 
@@ -77,17 +105,26 @@ luacheck .
 busted
 ```
 
+The pictures are drawn by code, so they can be checked by tests and rebuilt at any time:
+
+```bash
+lua tools/make_arrow.lua   # media/Arrow.tga: the arrow, 128 angles
+lua tools/make_icon.lua    # media/Icon*.tga: the stone with the paw, one per companion
+lua tools/make_pin.lua     # media/Pin.tga: the map pin
+```
+
 ## Roadmap
 
 - 0.1.0: installable release, screenshots.
-- Bridge program and Claude: a plan for the next hours prepared from your character's state, delivered to the game as validated data.
+- AI companion: a chat with Claude or ChatGPT through a small desktop program, which only sees your character's state and only gives advice.
 - Measured accuracy and cost of the advice.
 
 ## Limitations
 
 - Arrival at a place is approximate: zones have different sizes and the radius is in map units.
-- Trainer rules are generic plus hunter tracking; class-specific advice grows over time.
-- TrailMate depends on no other addon. It knows what the game shows (your quest log and quest areas) and what its atlas has learned. A brand-new character in a zone nobody on the account has visited starts with little: the atlas fills in as you play. On WoW Forever the game does not tell addons about quests you have not picked up yet.
+- Guide positions are the central spawn of each NPC; a few steps have no place yet and show only their text.
+- No walked paths ship yet: until you walk a path once, the arrow points straight at the target.
+- On WoW Forever the game does not tell addons about quests you have not picked up yet, nor where quest objectives are: guides and the atlas fill that gap.
 - The vendor advice uses item level as a rough guide for gear, not stats.
 
 ## Related work

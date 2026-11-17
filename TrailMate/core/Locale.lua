@@ -265,6 +265,23 @@ local esES = {
   ["Rut'theran Village (Teldrassil)"] = "Aldea Rut'theran (Teldrassil)",
   ["none"] = "ninguno",
   ["Icon colour of your AI companion"] = "Color del icono según tu compañero de IA",
+  ["Do step n of the list now"] = "Haz ahora el paso n de la lista",
+  -- Dungeons.
+  ["Go to the entrance of %s"] = "Ve a la entrada de %s",
+  ["Enemies of level %d-%d: go with a group."] = "Enemigos de nivel %d-%d: ve en grupo.",
+  ["Dungeons for your level (/tm dungeon <number> to go):"] =
+    "Mazmorras para tu nivel (/tm mazmorra <número> para ir):",
+  ["  [%d] %s, enemies %d-%d: %d quests to pick up first%s"] =
+    "  [%d] %s, enemigos %d-%d: %d misiones para coger antes%s",
+  [", %d start inside"] = ", %d empiezan dentro",
+  [", %d later"] = ", %d más adelante",
+  ["No dungeon suits your level right now."] = "Ahora mismo no hay mazmorra para tu nivel.",
+  ["Next dungeon: %s from level %d."] = "Siguiente mazmorra: %s desde el nivel %d.",
+  ["Dungeon: %s. %d quests to pick up before going in."] = "Mazmorra: %s. %d misiones para coger antes de entrar.",
+  ["Dungeons by level: list, or plan one (quests first, then the entrance)"] =
+    "Mazmorras por nivel: lista, o plan para una (misiones primero y luego la entrada)",
+  ["Dungeon finished: back to your guide."] = "Mazmorra terminada: vuelves a tu guía.",
+  ["Run the self-test and write it to the log"] = "Pasa el autotest y lo escribe en el registro",
   -- Talent plan.
   ["Talent plan"] = "Plan de talentos",
   ["Easiest to level: a strong pet takes the hits, little downtime."] =

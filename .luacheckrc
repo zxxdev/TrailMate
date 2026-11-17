@@ -35,5 +35,7 @@ read_globals = {
 
 files["spec/"] = { std = "+busted" }
 
--- Generated data (tools/build_guides.lua): long lines are fine there.
+-- Generated data (tools/build_guides.lua, tools/build_dungeons.lua): long
+-- lines are fine there.
 files["TrailMate/data/Guides.lua"] = { max_line_length = false }
+files["TrailMate/data/Dungeons.lua"] = { max_line_length = false }

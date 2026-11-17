@@ -209,6 +209,11 @@ local function refresh()
       advanceGuide()
       return
     end
+    if ns.Dungeons.isDungeon(plan) then
+      say(L["Dungeon finished: back to your guide."])
+      buildFromQuestLog(true)
+      return
+    end
     if Builder.isAuto(plan) and cdb.prefs.autoPlan ~= false then
       buildFromQuestLog(true)
       return
@@ -535,6 +540,50 @@ local function guideCommand(rest)
   say(L["Guides (/tm guide <number>, next, auto, off):"])
   for i, g in ipairs(list) do
     out(("  [%d] %s%s"):format(i, g.name, g == now and ("  |cffffd100<- " .. L["now"] .. "|r") or ""))
+  end
+end
+
+-- Dungeons -----------------------------------------------------------------------
+
+local function handedIn(id)
+  return Api.turnedIn(id) == true
+end
+
+-- Yards from the player to a map point, or nil when it cannot tell.
+local function yardsTo(p)
+  local here, there = Api.playerWorld(), Api.worldPos(p.m, p.x, p.y)
+  if not (here and there and here.cont == there.cont) then
+    return nil
+  end
+  return math.sqrt((here.x - there.x) ^ 2 + (here.y - there.y) ^ 2)
+end
+
+-- /tm dungeon: the dungeons for your level; with a number, plan that one.
+local function dungeonCommand(rest)
+  local level = Api.level() or 1
+  local now, nextOne = ns.Dungeons.forLevel(ns.DUNGEONS, who(), level)
+  local d = now[tonumber(rest or "") or 0]
+  if d then
+    local p = ns.Dungeons.toPlan(d, { who = who(), level = level, done = handedIn, L = L, distance = yardsTo })
+    if loadPlan(p, true) then
+      local ready = ns.Dungeons.quests(d, who(), level, handedIn)
+      say(L["Dungeon: %s. %d quests to pick up before going in."]:format(d.name, #ready))
+    end
+    return
+  end
+  if #now == 0 then
+    say(L["No dungeon suits your level right now."])
+  else
+    say(L["Dungeons for your level (/tm dungeon <number> to go):"])
+    for i, e in ipairs(now) do
+      local ready, inside, later = ns.Dungeons.quests(e, who(), level, handedIn)
+      local extra = (#inside > 0 and L[", %d start inside"]:format(#inside) or "")
+        .. (#later > 0 and L[", %d later"]:format(#later) or "")
+      out(L["  [%d] %s, enemies %d-%d: %d quests to pick up first%s"]:format(i, e.name, e.min, e.max, #ready, extra))
+    end
+  end
+  if nextOne then
+    out(L["Next dungeon: %s from level %d."]:format(nextOne.name, nextOne.min - ns.Dungeons.BELOW))
   end
 end
 
@@ -1047,6 +1096,7 @@ end
 local HELP = {
   { "/tm questlog | diario", "Build a plan from your quest log" },
   { "/tm skip | salta", "Skip the current step" },
+  { "/tm pick | elegir <n>", "Do step n of the list now" },
   { "/tm done | hecho", "Mark the current step as done" },
   { "/tm undo | deshaz", "Undo the last mark" },
   { "/tm trainer | instructor", "Advice at the open trainer" },
@@ -1065,12 +1115,14 @@ local HELP = {
   { "/tm arrow | flecha on|off", "Show or hide the arrow" },
   { "/tm trail | rastro on|off|show|export|clear", "Learn the ways you walk and follow them (dots on the map)" },
   { "/tm guide | guia [number|next|auto|off]", "Quest guides: list, choose one, or plan from your quest log" },
+  { "/tm dungeon | mazmorra [number]", "Dungeons by level: list, or plan one (quests first, then the entrance)" },
   { "/tm talents | talentos", "Open your talents and say the next one" },
   { "/tm companion | compañero claude|chatgpt|none", "Icon colour of your AI companion" },
   { "/tm auto on|off", "Rebuild the plan by itself when it ends" },
   { "/tm show | hide  (mostrar | ocultar)", "Show or hide the window" },
   { "/tm clear | borrar", "Remove the plan" },
   { "/tm diag", "What this client exposes (for bug reports)" },
+  { "/tm test | selftest", "Run the self-test and write it to the log" },
 }
 
 local COMMANDS = {}
@@ -1186,6 +1238,7 @@ alias({ "companion", "companero", "compañero" }, function(rest)
   say(L["Companion: %s."]:format(kind == "none" and L["none"] or kind))
 end)
 alias({ "guide", "guia", "guía" }, guideCommand)
+alias({ "dungeon", "dungeons", "mazmorra", "mazmorras" }, dungeonCommand)
 alias({ "trail", "rastro" }, function(rest)
   local word = (rest or ""):lower()
   if word == "clear" or word == "borrar" then
@@ -1455,6 +1508,18 @@ local function selfTest()
     return true, ("%s; %d guides for you; now %s, %d quest steps with a place of %d; step %s"):format(
       cdb.prefs.guide == false and "off" or "on", #list, now and now.name or "none (quest log plan)", places, quests,
       tostring(current))
+  end)
+  check("dungeons", function()
+    local level = Api.level() or 1
+    local now, nextOne = ns.Dungeons.forLevel(ns.DUNGEONS, who(), level)
+    local list = {}
+    for _, d in ipairs(now) do
+      local ready = ns.Dungeons.quests(d, who(), level, handedIn)
+      list[#list + 1] = ("%s %d-%d (%d quests)"):format(d.name, d.min, d.max, #ready)
+    end
+    return #(ns.DUNGEONS or {}) > 0, ("%d in data; for level %d: %s; next %s; plan is a dungeon: %s"):format(
+      #(ns.DUNGEONS or {}), level, #list > 0 and table.concat(list, ", ") or "none",
+      nextOne and nextOne.name or "none", tostring(ns.Dungeons.isDungeon(plan)))
   end)
   check("trails", function()
     local nodes, links = ns.Trails.counts(trails)

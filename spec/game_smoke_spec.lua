@@ -668,6 +668,27 @@ describe("addon smoke test", function()
     assert.is_nil(window.step.shown_text:find("Yenniku", 1, true))
   end)
 
+  it("lists the dungeons for level 34 and plans one: quests first, then the entrance", function()
+    rawset(_G, "UnitLevel", function() return 34 end)
+    rawset(_G, "UnitFactionGroup", function() return "Horde" end)
+    finally(function()
+      rawset(_G, "UnitLevel", function() return 8 end)
+    end)
+    _G.SlashCmdList.TRAILMATE("mazmorras")
+    local said = output()
+    assert.matches("%[1%] Gnomeregan, enemigos 25%-34: 2 misiones para coger antes", said)
+    assert.matches("%[4%] Razorfen Downs", said)
+    assert.matches("Siguiente mazmorra: Uldaman desde el nivel 35%.", said)
+    _G.SlashCmdList.TRAILMATE("mazmorra 1")
+    assert.matches("Mazmorra: Gnomeregan%. 2 misiones para coger antes de entrar%.", output())
+    assert.equals("dungeon-721", _G.TrailMateCharDB.plan.id)
+    local window = named.TrailMateFrame
+    assert.equals("Coger: Rig Wars", window.step.shown_text)
+    -- The guide on login does not replace a dungeon plan.
+    fire("PLAYER_ENTERING_WORLD")
+    assert.equals("dungeon-721", _G.TrailMateCharDB.plan.id)
+  end)
+
   it("lets the player ignore a spell and announces only new ones at level up", function()
     rawset(_G, "GetNumTrainerServices", function() return 3 end)
     rawset(_G, "GetTrainerServiceInfo", function(i)
@@ -787,7 +808,8 @@ describe("addon smoke test", function()
     for _ in out:gmatch("%[[PF]A[SI][SL]%]") do
       checks = checks + 1
     end
-    assert.equals(19, checks)
+    assert.equals(20, checks)
+    assert.matches("%[PASS%] dungeons: 19 in data", out)
     assert.equals(planBefore, _G.TrailMateCharDB.plan)
     assert.is_nil(_G.TrailMateCharDB.prefs.focusZone)
   end)
