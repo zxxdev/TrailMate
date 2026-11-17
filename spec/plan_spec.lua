@@ -127,7 +127,10 @@ describe("Plan", function()
       progress.done.g = true
       -- Gone from the log but not flagged: abandoned, not turned in.
       local f = helper.facts()
-      assert.equals(1, (Plan.evaluate(p, progress, f)))
+      local current, statuses = Plan.evaluate(p, progress, f)
+      assert.equals(1, current)
+      assert.equals("pending", statuses[3])
+      assert.equals("pending", statuses[4])
       f.turned[100] = true
       assert.equals(5, (Plan.evaluate(p, progress, f)))
     end)
