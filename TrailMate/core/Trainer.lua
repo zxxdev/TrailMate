@@ -49,10 +49,17 @@ local function isTracking(rules, service)
   return false
 end
 
---- Returns a list of { index, name, cost, verdict, reason } for every
+--- Key used to ignore a spell in all its ranks: its name without the rank.
+function Trainer.key(service)
+  return service.baseName or service.name
+end
+
+--- Returns a list of { index, name, key, cost, verdict, reason } for every
 --- service not already known, and the total cost of the "learn" ones.
+--- prefs.ignored[key] = true makes a spell "skip" for good, in every rank.
 function Trainer.advise(services, ctx, L)
   local prefs = ctx.prefs or {}
+  local ignored = prefs.ignored or {}
   local rules = Trainer.RULES[ctx.class]
   local budget = math.max(0, (ctx.money or 0) - (prefs.reserve or 0))
   local results, spend = {}, 0
@@ -61,7 +68,9 @@ function Trainer.advise(services, ctx, L)
     if s.status ~= "used" then
       local verdict, reason
       local cost = s.cost or 0
-      if s.status == "unavailable" then
+      if ignored[Trainer.key(s)] then
+        verdict, reason = "skip", L["You chose to ignore it"]
+      elseif s.status == "unavailable" then
         verdict = "later"
         if s.reqLevel and ctx.level and s.reqLevel > ctx.level then
           reason = L["Needs level %d"]:format(s.reqLevel)
@@ -76,8 +85,36 @@ function Trainer.advise(services, ctx, L)
         verdict, reason = "learn", L["Useful now and affordable"]
         spend = spend + cost
       end
-      results[#results + 1] = { index = s.index, name = s.name, cost = cost, verdict = verdict, reason = reason }
+      results[#results + 1] = {
+        index = s.index, name = s.name, key = Trainer.key(s), cost = cost, verdict = verdict, reason = reason,
+      }
     end
   end
   return results, spend
+end
+
+--- Remembers what a trainer offered, so a level-up can say what is new
+--- without a data pack. memory[name] = { key, reqLevel, cost }. Spells the
+--- trainer shows as learned are forgotten.
+function Trainer.remember(memory, services)
+  for _, s in ipairs(services) do
+    if s.status == "used" then
+      memory[s.name] = nil
+    elseif type(s.reqLevel) == "number" then
+      memory[s.name] = { key = Trainer.key(s), reqLevel = s.reqLevel, cost = s.cost or 0 }
+    end
+  end
+end
+
+--- Spells that unlock exactly at this level and are not ignored, sorted.
+--- Only the new ones: the advisor never nags about what you left behind.
+function Trainer.newAtLevel(memory, level, ignored)
+  local names = {}
+  for name, entry in pairs(memory) do
+    if entry.reqLevel == level and not (ignored and ignored[entry.key]) then
+      names[#names + 1] = name
+    end
+  end
+  table.sort(names)
+  return names
 end

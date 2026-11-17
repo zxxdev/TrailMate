@@ -43,6 +43,42 @@ describe("Trainer.advise", function()
     assert.equals("learn", r[2].verdict)
   end)
 
+  it("ignores a spell in every rank, even before it is available", function()
+    local list = {
+      { index = 1, name = "Aspect of the Monkey", baseName = "Aspect of the Monkey", cost = 10, status = "available" },
+      { index = 2, name = "Aspect of the Hawk (Rank 2)", baseName = "Aspect of the Hawk", cost = 10,
+        status = "available" },
+      { index = 3, name = "Aspect of the Hawk (Rank 3)", baseName = "Aspect of the Hawk", cost = 10,
+        status = "unavailable", reqLevel = 20 },
+    }
+    local results, spend = ns.Trainer.advise(list, {
+      class = "HUNTER", level = 12, money = 1000, prefs = { ignored = { ["Aspect of the Hawk"] = true } },
+    }, L)
+    local r = byIndex(results)
+    assert.equals("learn", r[1].verdict)
+    assert.equals("skip", r[2].verdict)
+    assert.equals("skip", r[3].verdict)
+    assert.matches("ignore", r[3].reason)
+    assert.equals(10, spend)
+  end)
+
+  it("remembers the trainer and only announces what unlocks at a new level", function()
+    local memory = {}
+    ns.Trainer.remember(memory, {
+      { name = "Serpent Sting (Rank 2)", baseName = "Serpent Sting", status = "unavailable", reqLevel = 10 },
+      { name = "Aspect of the Hawk (Rank 2)", baseName = "Aspect of the Hawk", status = "unavailable",
+        reqLevel = 18 },
+      { name = "Scorpid Sting", baseName = "Scorpid Sting", status = "unavailable", reqLevel = 10 },
+      { name = "Arcane Shot", baseName = "Arcane Shot", status = "available", reqLevel = 6 },
+    })
+    local ignored = { ["Scorpid Sting"] = true }
+    assert.same({ "Serpent Sting (Rank 2)" }, ns.Trainer.newAtLevel(memory, 10, ignored))
+    assert.same({}, ns.Trainer.newAtLevel(memory, 11, ignored))
+    -- Once the trainer shows it as learned, it is forgotten.
+    ns.Trainer.remember(memory, { { name = "Arcane Shot", status = "used" } })
+    assert.is_nil(memory["Arcane Shot"])
+  end)
+
   it("never spends the reserve", function()
     local r = byIndex((ns.Trainer.advise(services, {
       class = "HUNTER", level = 8, money = 160, prefs = { reserve = 50 },
