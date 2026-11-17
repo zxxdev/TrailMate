@@ -10,9 +10,9 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 
 | Feature | How |
 |---|---|
-| Steps from your quest log | `/tm questlog` orders your quests by distance and builds "do" and "turn in" steps. Steps tick themselves off from game events. |
-| Arrow | Points at the current quest. Uses [TomTom](https://www.curseforge.com/wow/addons/tomtom) when it is installed, and the game's own map pin otherwise. |
-| Trainer advice | When you open a class trainer: *learn*, *skip* or *later* for each spell, with the reason. Keeps a gold reserve you choose. Hunters can skip tracking spells. |
+| Steps from your quest log | `/tm questlog` builds a route like a leveling guide: turn in what is complete, pick up the nearby quests the map shows, do everything nearest first, then turn it all in. Steps tick themselves off from game events, and the plan rebuilds itself when it ends or when you pick up a new quest. |
+| Arrow | TrailMate's own arrow points at the current step (quest giver, objective area or turn-in) with the distance, using your facing. It also marks the spot on the map, through [TomTom](https://www.curseforge.com/wow/addons/tomtom) when it is installed or the game's own map pin otherwise. |
+| Trainer advice | When you open a class trainer: a numbered list with *learn*, *skip* or *later* for each spell, and the reason. Ignore a spell once (`/tm ignore 3`) and it is never recommended again, in any rank. At each level-up it tells you only what just unlocked. Keeps a gold reserve you choose. |
 | Vendor advice | When you open a vendor: what to sell (and roughly for how much), what to keep, and what is worth the auction house. Warns when your bags are almost full. |
 | Character summary | `/tm status`: class, level, XP, gold, position, quests and bag space. No names are stored. |
 
@@ -31,6 +31,12 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 | `/tm done` · `/tm hecho` | Mark the current step as done |
 | `/tm undo` · `/tm deshaz` | Undo the last mark |
 | `/tm trainer` · `/tm instructor` | Advice at the open trainer |
+| `/tm ignore <n\|name>` · `/tm ignorar` | Never recommend that spell again (all ranks) |
+| `/tm learned <n\|name>` · `/tm aprendido` | Stop reminding a spell you already have |
+| `/tm unignore <name>` · `/tm recuperar` | Recommend an ignored spell again |
+| `/tm ignored` · `/tm ignorados` | List ignored spells |
+| `/tm arrow on\|off` · `/tm flecha si\|no` | Show or hide the arrow |
+| `/tm auto on\|off` | Rebuild the plan by itself when it ends |
 | `/tm vendor` · `/tm vender` | What to sell, keep or auction |
 | `/tm status` · `/tm estado` | Character summary |
 | `/tm tracking on\|off` · `/tm rastreos si\|no` | Learn or skip hunter tracking spells |
@@ -74,6 +80,7 @@ busted
 
 - Arrival at a place is approximate: zones have different sizes and the radius is in map units.
 - Trainer rules are generic plus hunter tracking; class-specific advice grows over time.
+- Without a data pack, TrailMate only knows what the game shows: your quest log, quest areas and the quest givers on the map. Trainer locations, race starting routes and item drops outside quests need the data pack planned for a later version.
 - The vendor advice uses item level as a rough guide for gear, not stats.
 
 ## Related work
