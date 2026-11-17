@@ -200,7 +200,7 @@ local function joinNames(list, limit)
     end
     parts[#parts + 1] = e.title and ("%s (%s)"):format(e.title, e.reason) or ("%s (%d)"):format(e.zone, e.count)
   end
-  return table.concat(out, ", ")
+  return table.concat(parts, ", ")
 end
 
 -- Tells the player what the route decided and what it left out.
