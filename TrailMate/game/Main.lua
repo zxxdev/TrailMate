@@ -4,15 +4,16 @@
 
 local addonName, ns = ...
 local L = ns.L
-local Api, Plan = ns.Api, ns.Plan
+local Api, Plan, Builder, Trainer = ns.Api, ns.Plan, ns.Builder, ns.Trainer
 
 local cdb -- TrailMateCharDB, per character
 local plan, progress, current, statuses
-local arrowStep, arrowMethod
+local arrowStep, markMethod
+local lastAdvice = {}
 local warnedFull = false
 local questThrottle = ns.Throttle.new(0.3)
 local bagThrottle = ns.Throttle.new(1)
-local clock, sinceMove = 0, 0
+local clock, sinceMove, sinceTarget, sinceArrow = 0, 0, 0, 0
 
 local COLORS = {
   learn = "|cff40c040", skip = "|cffc04040", later = "|cffd0a020",
@@ -31,29 +32,46 @@ local function facts()
   return { level = Api.level(), mapID = mapID, x = x, y = y, questLog = log, turnedIn = Api.turnedIn }
 end
 
-local function updateArrow()
+-- Where the current step wants you: its own point, or where the game points
+-- for its quest right now (objective area, or the turn-in once complete).
+local function stepTarget(step)
+  if not step then
+    return nil
+  end
+  if step.mapID then
+    return { mapID = step.mapID, x = step.x, y = step.y }
+  end
+  if step.questID then
+    return Api.questTarget(step.questID)
+  end
+  return nil
+end
+
+local function updateTarget(force)
   local step = current and plan and plan.steps[current] or nil
-  if step == arrowStep then
+  if step == arrowStep and not force then
     return
   end
+  local changed = step ~= arrowStep
   arrowStep = step
-  local target
-  if step and step.mapID then
-    target = { mapID = step.mapID, x = step.x, y = step.y }
-  elseif step and step.questID then
-    target = Api.questTarget(step.questID)
-  end
-  if target then
-    arrowMethod = Api.setArrow(target, step.text)
-  else
-    Api.clearArrow()
-    arrowMethod = nil
+  local target = stepTarget(step)
+  ns.Arrow.setTarget(target, step and step.text)
+  if changed then
+    if target then
+      markMethod = Api.setArrow(target, step.text)
+    else
+      Api.clearArrow()
+      markMethod = nil
+    end
   end
 end
+
+local buildFromQuestLog
 
 local function refresh()
   if not plan then
     ns.UI.render(nil, nil, nil, L)
+    ns.Arrow.setTarget(nil)
     return
   end
   local ok, cur, st = pcall(Plan.evaluate, plan, progress, facts())
@@ -63,10 +81,14 @@ local function refresh()
   local finishedNow = current ~= nil and cur == nil
   current, statuses = cur, st
   if finishedNow then
+    if Builder.isAuto(plan) and cdb.prefs.autoPlan ~= false then
+      buildFromQuestLog(true)
+      return
+    end
     say(L["Plan finished."])
   end
-  updateArrow()
-  ns.UI.render(plan, current, statuses, L, arrowMethod)
+  updateTarget()
+  ns.UI.render(plan, current, statuses, L, markMethod)
 end
 
 local function loadPlan(p, quiet)
@@ -86,18 +108,34 @@ local function loadPlan(p, quiet)
   return true
 end
 
-local function buildFromQuestLog()
+function buildFromQuestLog(quiet)
   local quests = Api.questLog()
   for _, q in ipairs(quests) do
     q.target = Api.questTarget(q.questID)
   end
   local mapID, x, y = Api.position()
-  local p = ns.Builder.fromQuestLog(quests, { mapID = mapID, x = x, y = y }, L)
+  local p = Builder.fromQuestLog(quests, { mapID = mapID, x = x, y = y }, L, Api.availableQuests(mapID))
   if not p then
-    say(L["Your quest log is empty."])
+    plan, progress, current = nil, nil, nil
+    cdb.plan, cdb.progress = nil, nil
+    arrowStep = nil
+    Api.clearArrow()
+    refresh()
+    if not quiet then
+      say(L["Your quest log is empty."])
+    end
     return
   end
-  loadPlan(p)
+  loadPlan(p, quiet)
+end
+
+local function planHasQuest(questID)
+  for _, step in ipairs(plan and plan.steps or {}) do
+    if step.questID == questID then
+      return true
+    end
+  end
+  return false
 end
 
 local function clearPlan()
@@ -121,21 +159,49 @@ local function takeSnapshot()
   return snap
 end
 
+-- Trainer ---------------------------------------------------------------------
+
 local function adviseTrainer()
-  local results, spend = ns.Trainer.advise(Api.trainerServices(), {
+  local services = Api.trainerServices()
+  Trainer.remember(cdb.trainerMemory, services)
+  local results, spend = Trainer.advise(services, {
     class = Api.class(), level = Api.level(), money = Api.money(), prefs = cdb.prefs,
   }, L)
+  lastAdvice = results
   if #results == 0 then
     say(L["Nothing new to learn here."])
     return
   end
   say(L["Trainer advice"] .. ":")
-  for _, r in ipairs(results) do
-    print(("  %s%s|r %s (%s) - %s"):format(COLORS[r.verdict] or "", L[r.verdict], r.name,
+  for i, r in ipairs(results) do
+    print(("  [%d] %s%s|r %s (%s) - %s"):format(i, COLORS[r.verdict] or "", L[r.verdict], r.name,
       ns.formatMoney(r.cost), r.reason))
   end
   say(L["Total to learn now: %s"]:format(ns.formatMoney(spend)))
+  say(L["Not interested in one? /tm ignore <number>. Already learned? /tm learned <number>."])
 end
+
+-- "3" means entry 3 of the last trainer list; anything else is a spell name.
+local function pickSpell(rest)
+  local n = tonumber(rest)
+  if n then
+    local r = lastAdvice[n]
+    return r and r.key, r and r.name
+  end
+  if rest and rest ~= "" then
+    return rest, rest
+  end
+  return nil
+end
+
+local function remindAtLevel(level)
+  local names = Trainer.newAtLevel(cdb.trainerMemory, level, cdb.prefs.ignored)
+  if #names > 0 then
+    say(L["Level %d: your trainer now has %s."]:format(level, table.concat(names, ", ")))
+  end
+end
+
+-- Vendor ----------------------------------------------------------------------
 
 local function adviseVendor()
   local results, value = ns.Bags.advise(Api.bagItems(), { prefs = cdb.prefs }, L)
@@ -192,10 +258,16 @@ local HELP = {
   { "/tm done | hecho", "Mark the current step as done" },
   { "/tm undo | deshaz", "Undo the last mark" },
   { "/tm trainer | instructor", "Advice at the open trainer" },
+  { "/tm ignore | ignorar <n|name>", "Never recommend that spell again (all ranks)" },
+  { "/tm learned | aprendido <n|name>", "Stop reminding a spell you already have" },
+  { "/tm unignore | recuperar <name>", "Recommend an ignored spell again" },
+  { "/tm ignored | ignorados", "List ignored spells" },
   { "/tm vendor | vender", "What to sell, keep or auction" },
   { "/tm status | estado", "Character summary" },
   { "/tm tracking on|off  (rastreos si|no)", "Skip hunter tracking spells" },
   { "/tm reserve | reserva <gold>", "Gold the trainer advice never spends" },
+  { "/tm arrow | flecha on|off", "Show or hide the arrow" },
+  { "/tm auto on|off", "Rebuild the plan by itself when it ends" },
   { "/tm show | hide  (mostrar | ocultar)", "Show or hide the window" },
   { "/tm clear | borrar", "Remove the plan" },
   { "/tm diag", "What this client exposes (for bug reports)" },
@@ -208,7 +280,9 @@ local function alias(names, fn)
   end
 end
 
-alias({ "questlog", "diario" }, buildFromQuestLog)
+alias({ "questlog", "diario" }, function()
+  buildFromQuestLog(false)
+end)
 alias({ "skip", "salta" }, function()
   local step = plan and Plan.skip(plan, progress, facts())
   if step then
@@ -228,6 +302,42 @@ alias({ "undo", "deshaz" }, function()
   refresh()
 end)
 alias({ "trainer", "instructor" }, adviseTrainer)
+alias({ "ignore", "ignorar" }, function(rest)
+  local key, name = pickSpell(rest)
+  if not key then
+    say(L["Which one? Use the number from the trainer list or the spell name."])
+    return
+  end
+  cdb.prefs.ignored[key] = true
+  say(L["Ignored: %s. It will not be recommended again."]:format(name))
+end)
+alias({ "unignore", "recuperar" }, function(rest)
+  local key, name = pickSpell(rest)
+  if key and cdb.prefs.ignored[key] then
+    cdb.prefs.ignored[key] = nil
+    say(L["%s will be recommended again."]:format(name))
+  else
+    say(L["Not in your ignored list."])
+  end
+end)
+alias({ "ignored", "ignorados" }, function()
+  local names = {}
+  for key in pairs(cdb.prefs.ignored) do
+    names[#names + 1] = key
+  end
+  table.sort(names)
+  say(#names > 0 and table.concat(names, ", ") or L["Not in your ignored list."])
+end)
+alias({ "learned", "aprendido" }, function(rest)
+  local n = tonumber(rest)
+  local name = n and lastAdvice[n] and lastAdvice[n].name or rest
+  if name and cdb.trainerMemory[name] then
+    cdb.trainerMemory[name] = nil
+    say(L["Marked as learned: %s"]:format(name))
+  else
+    say(L["Which one? Use the number from the trainer list or the spell name."])
+  end
+end)
 alias({ "vendor", "vender" }, adviseVendor)
 alias({ "status", "estado" }, function()
   for _, line in ipairs(ns.State.summary(takeSnapshot(), L)) do
@@ -242,6 +352,13 @@ alias({ "reserve", "reserva" }, function(rest)
   local gold = tonumber(rest) or 0
   cdb.prefs.reserve = math.max(0, math.floor(gold * 10000))
   say(L["Reserve set to %s."]:format(ns.formatMoney(cdb.prefs.reserve)))
+end)
+alias({ "arrow", "flecha" }, function(rest)
+  cdb.arrow.disabled = not yes(rest)
+  ns.Arrow.update()
+end)
+alias({ "auto" }, function(rest)
+  cdb.prefs.autoPlan = yes(rest)
 end)
 alias({ "show", "mostrar" }, function()
   ns.UI.setShown(true)
@@ -292,9 +409,13 @@ handlers.ADDON_LOADED = function(name)
   TrailMateCharDB = TrailMateCharDB or {}
   cdb = TrailMateCharDB
   cdb.prefs = cdb.prefs or {}
+  cdb.prefs.ignored = cdb.prefs.ignored or {}
+  cdb.trainerMemory = cdb.trainerMemory or {}
   cdb.ui = cdb.ui or {}
+  cdb.arrow = cdb.arrow or {}
   ns.setLocale(GetLocale and GetLocale() or "enUS")
   ns.UI.create(cdb.ui)
+  ns.Arrow.create(cdb.arrow, L)
   if cdb.plan then
     loadPlan(cdb.plan, true)
   else
@@ -313,11 +434,27 @@ local function questChanged()
   questThrottle:mark()
 end
 handlers.QUEST_LOG_UPDATE = questChanged
-handlers.QUEST_ACCEPTED = questChanged
 handlers.QUEST_TURNED_IN = questChanged
 handlers.QUEST_REMOVED = questChanged
-handlers.PLAYER_LEVEL_UP = questChanged
 handlers.ZONE_CHANGED_NEW_AREA = questChanged
+
+-- A quest picked up outside the plan: rebuild an automatic plan so it joins.
+handlers.QUEST_ACCEPTED = function(a, b)
+  local questID = b or a
+  if plan and Builder.isAuto(plan) and cdb.prefs.autoPlan ~= false and not planHasQuest(questID) then
+    after(0.5, function()
+      buildFromQuestLog(true)
+    end)
+  end
+  questThrottle:mark()
+end
+
+handlers.PLAYER_LEVEL_UP = function(level)
+  questThrottle:mark()
+  if type(level) == "number" and cdb then
+    remindAtLevel(level)
+  end
+end
 
 handlers.TRAINER_SHOW = function()
   after(0.3, adviseTrainer)
@@ -348,6 +485,8 @@ frame:SetScript("OnUpdate", function(_, elapsed)
   end
   clock = clock + elapsed
   sinceMove = sinceMove + elapsed
+  sinceTarget = sinceTarget + elapsed
+  sinceArrow = sinceArrow + elapsed
   -- While the current step is a place to reach, look at the position every second.
   if sinceMove >= 1 and plan and current and plan.steps[current].type == "goto" then
     sinceMove = 0
@@ -358,5 +497,16 @@ frame:SetScript("OnUpdate", function(_, elapsed)
   end
   if bagThrottle:tick(clock) then
     checkBags()
+  end
+  -- Quest objectives move (next area, turn-in): look again every two seconds.
+  if sinceTarget >= 2 then
+    sinceTarget = 0
+    if plan and current then
+      updateTarget(true)
+    end
+  end
+  if sinceArrow >= 0.05 then
+    sinceArrow = 0
+    ns.Arrow.update()
   end
 end)

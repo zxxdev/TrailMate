@@ -32,6 +32,30 @@ describe("Builder.fromQuestLog", function()
     assert.is_true(ns.Plan.validate(plan))
   end)
 
+  it("picks up nearby quest givers first, then does and turns in everything", function()
+    local quests = { { questID = 1, title = "In log", complete = false, target = { mapID = 5, x = 0.5, y = 0.5 } } }
+    local available = {
+      { questID = 20, title = "Far giver", target = { mapID = 5, x = 0.9, y = 0.9 } },
+      { questID = 21, title = "Near giver", target = { mapID = 5, x = 0.2, y = 0.2 } },
+      { questID = 1, title = "Already in log", target = { mapID = 5, x = 0.1, y = 0.1 } },
+    }
+    local plan = ns.Builder.fromQuestLog(quests, { mapID = 5, x = 0.1, y = 0.1 }, L, available)
+    assert.equals("accept-21,accept-20,complete-1,complete-21,complete-20,turnin-1,turnin-21,turnin-20", ids(plan))
+    assert.equals(0.2, plan.steps[1].x)
+    assert.is_true(ns.Plan.validate(plan))
+    assert.is_true(ns.Builder.isAuto(plan))
+  end)
+
+  it("builds a plan from quest givers alone and caps how many it adds", function()
+    local available = {}
+    for i = 1, 15 do
+      available[i] = { questID = 100 + i, title = "Q" .. i, target = { mapID = 5, x = i / 20, y = 0.5 } }
+    end
+    local plan = ns.Builder.fromQuestLog({}, { mapID = 5, x = 0, y = 0.5 }, L, available)
+    assert.equals(ns.Builder.MAX_OFFERS * 3, #plan.steps)
+    assert.equals("accept-101", plan.steps[1].id)
+  end)
+
   it("gives the same id to the same quests in any order", function()
     local a = ns.Builder.planId({ { questID = 1 }, { questID = 2 } })
     local b = ns.Builder.planId({ { questID = 2 }, { questID = 1 } })

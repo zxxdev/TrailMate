@@ -149,6 +149,80 @@ function Api.questTarget(questID)
   return nil
 end
 
+--- Player facing in radians (0 north, counter-clockwise), or nil.
+function Api.facing()
+  local f = safe(GetPlayerFacing)
+  if type(f) ~= "number" or isSecret(f) then
+    return nil
+  end
+  return f
+end
+
+--- Width and height of a map in yards, or nil.
+function Api.mapSize(mapID)
+  if not (C_Map and C_Map.GetMapWorldSize) then
+    return nil
+  end
+  local w, h = safe(C_Map.GetMapWorldSize, mapID)
+  if type(w) == "number" and type(h) == "number" and w > 0 and h > 0 then
+    return w, h
+  end
+  return nil
+end
+
+function Api.mapName(mapID)
+  local info = C_Map and safe(C_Map.GetMapInfo, mapID)
+  return type(info) == "table" and info.name or nil
+end
+
+--- The target's coordinates on another map (usually the player's), so the
+--- arrow can point across zone borders. Returns x, y or nil.
+function Api.translate(target, mapID)
+  if target.mapID == mapID then
+    return target.x, target.y
+  end
+  if not (C_Map and C_Map.GetWorldPosFromMapPos and C_Map.GetMapPosFromWorldPos and CreateVector2D) then
+    return nil
+  end
+  local continent, world = safe(C_Map.GetWorldPosFromMapPos, target.mapID, CreateVector2D(target.x, target.y))
+  if not (continent and world) then
+    return nil
+  end
+  local _, pos = safe(C_Map.GetMapPosFromWorldPos, continent, world, mapID)
+  if not (pos and pos.GetXY) then
+    return nil
+  end
+  return safe(pos.GetXY, pos)
+end
+
+--- Quest givers ("!") the game shows on a map: { questID, title, target }.
+--- Only works if the client exposes them; returns an empty list otherwise.
+function Api.availableQuests(mapID)
+  local out = {}
+  local QL = C_QuestLine
+  if not (mapID and QL and QL.GetAvailableQuestLines) then
+    return out
+  end
+  if QL.RequestQuestLinesForMap then
+    try(QL.RequestQuestLinesForMap, mapID)
+  end
+  local lines = safe(QL.GetAvailableQuestLines, mapID)
+  if type(lines) ~= "table" then
+    return out
+  end
+  for _, info in ipairs(lines) do
+    if type(info) == "table" and type(info.questID) == "number" and not info.isHidden
+      and type(info.x) == "number" and type(info.y) == "number" then
+      out[#out + 1] = {
+        questID = info.questID,
+        title = info.questName or info.questLineName,
+        target = { mapID = mapID, x = info.x, y = info.y },
+      }
+    end
+  end
+  return out
+end
+
 local tomtomUid, pinSet = nil, false
 
 function Api.clearArrow()
@@ -167,8 +241,9 @@ end
 function Api.setArrow(target, title)
   Api.clearArrow()
   if TomTom and TomTom.AddWaypoint then
+    -- TomTom draws the map and minimap marks; TrailMate draws its own arrow.
     local uid = safe(TomTom.AddWaypoint, TomTom, target.mapID, target.x, target.y,
-      { title = title, persistent = false, minimap = true, world = true, crazy = true })
+      { title = title, persistent = false, minimap = true, world = true, crazy = false })
     if uid then
       tomtomUid = uid
       return "TomTom"
@@ -337,12 +412,14 @@ function Api.trainerServices()
   for i = 1, n do
     local name, rank, category = safe(GetTrainerServiceInfo, i)
     if name and category ~= "header" then
+      local baseName = name
       if type(rank) == "string" and rank ~= "" then
         name = name .. " (" .. rank .. ")"
       end
       services[#services + 1] = {
         index = i,
         name = name,
+        baseName = baseName,
         status = category,
         cost = safe(GetTrainerServiceCost, i) or 0,
         reqLevel = safe(GetTrainerServiceLevelReq, i),
@@ -364,6 +441,9 @@ Api.PROBES = {
   "C_Container.GetContainerItemInfo", "GetContainerItemInfo", "C_Item.GetItemInfo", "GetItemInfo",
   "GetTrainerServiceInfo", "GetTrainerServiceLevelReq", "C_TooltipInfo.GetTrainerService",
   "issecretvalue", "C_AddOns.GetAddOnMetadata", "TomTom.AddWaypoint",
+  "GetPlayerFacing", "C_Map.GetMapWorldSize", "C_Map.GetWorldPosFromMapPos",
+  "C_Map.GetMapPosFromWorldPos", "CreateVector2D", "C_QuestLine.GetAvailableQuestLines",
+  "IsSpellKnown", "IsPlayerSpell",
 }
 
 --- Lines describing what this client exposes. No names, nothing personal.
@@ -392,5 +472,11 @@ function Api.diagnose()
     ("%d %.3f %.3f"):format(target.mapID, target.x, target.y) or "none")
   local free, total = Api.bagSpace()
   lines[#lines + 1] = ("bags %d free of %d, items read %d"):format(free, total, #Api.bagItems())
+  local w, h
+  if mapID then
+    w, h = Api.mapSize(mapID)
+  end
+  lines[#lines + 1] = ("facing %s map size %s x %s available quests on map %d"):format(
+    tostring(Api.facing()), tostring(w), tostring(h), #Api.availableQuests(mapID))
   return lines
 end

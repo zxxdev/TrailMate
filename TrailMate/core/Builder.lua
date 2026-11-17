@@ -12,6 +12,9 @@ local _, ns = ...
 local Builder = {}
 ns.Builder = Builder
 
+-- Nearest quest givers added to a plan; the rest wait for the next rebuild.
+Builder.MAX_OFFERS = 10
+
 local function dist2(ax, ay, bx, by)
   local dx, dy = ax - bx, ay - by
   return dx * dx + dy * dy
@@ -74,17 +77,33 @@ function Builder.planId(quests)
   return ("questlog-%d-%d"):format(#ids, h)
 end
 
---- Returns a plan (format v1) built from the quest log, or nil when the log
---- has no quests. L is the locale table for the step texts.
-function Builder.fromQuestLog(quests, player, L)
-  local max = ns.Plan.MAX_TEXT - 20
-  local valid = {}
-  for _, q in ipairs(quests or {}) do
-    if type(q.questID) == "number" and q.questID > 0 then
-      valid[#valid + 1] = q
+local function validQuests(list, exclude)
+  local out = {}
+  for _, q in ipairs(list or {}) do
+    if type(q.questID) == "number" and q.questID > 0 and not (exclude and exclude[q.questID]) then
+      out[#out + 1] = q
     end
   end
-  if #valid == 0 then
+  return out
+end
+
+--- Returns a plan (format v1) built from the quest log, or nil when there is
+--- nothing to do. available (optional) are quest givers the game shows on the
+--- map: { questID, title, target }. Order, like a leveling route: turn in what
+--- is already complete, pick up the nearby quests, do everything nearest
+--- first, then turn it all in. L is the locale table for the step texts.
+function Builder.fromQuestLog(quests, player, L, available)
+  local max = ns.Plan.MAX_TEXT - 20
+  local valid = validQuests(quests)
+  local inLog = {}
+  for _, q in ipairs(valid) do
+    inLog[q.questID] = true
+  end
+  local offers = orderByDistance(validQuests(available, inLog), player)
+  for i = #offers, Builder.MAX_OFFERS + 1, -1 do
+    offers[i] = nil
+  end
+  if #valid == 0 and #offers == 0 then
     return nil
   end
 
@@ -96,26 +115,53 @@ function Builder.fromQuestLog(quests, player, L)
       todo[#todo + 1] = q
     end
   end
-  todo = orderByDistance(todo, player)
+  local last = offers[#offers]
+  local from = last and { mapID = last.target.mapID, x = last.target.x, y = last.target.y } or player
+  todo = orderByDistance(todo, from)
 
   local steps = {}
-  local function add(kind, q, text)
-    steps[#steps + 1] = { id = kind .. "-" .. q.questID, type = kind, questID = q.questID, text = text }
+  local function add(kind, q, text, target)
+    local step = { id = kind .. "-" .. q.questID, type = kind, questID = q.questID, text = text }
+    if target then
+      step.mapID, step.x, step.y = target.mapID, target.x, target.y
+    end
+    steps[#steps + 1] = step
   end
   for _, q in ipairs(done) do
     add("turnin", q, L["Turn in: "] .. clip(q.title, max))
   end
+  for _, q in ipairs(offers) do
+    add("accept", q, L["Pick up: "] .. clip(q.title, max), q.target)
+  end
   for _, q in ipairs(todo) do
+    add("complete", q, L["Do: "] .. clip(q.title, max))
+  end
+  for _, q in ipairs(offers) do
     add("complete", q, L["Do: "] .. clip(q.title, max))
   end
   for _, q in ipairs(todo) do
     add("turnin", q, L["Turn in: "] .. clip(q.title, max))
   end
+  for _, q in ipairs(offers) do
+    add("turnin", q, L["Turn in: "] .. clip(q.title, max))
+  end
 
+  local all = {}
+  for _, q in ipairs(valid) do
+    all[#all + 1] = q
+  end
+  for _, q in ipairs(offers) do
+    all[#all + 1] = q
+  end
   return {
     version = ns.Plan.FORMAT_VERSION,
-    id = Builder.planId(valid),
+    id = Builder.planId(all),
     title = L["Quest log"],
     steps = steps,
   }
+end
+
+--- True if the plan was built by this module (and can be rebuilt freely).
+function Builder.isAuto(plan)
+  return type(plan) == "table" and type(plan.id) == "string" and plan.id:find("^questlog%-") ~= nil
 end

@@ -13,8 +13,14 @@ local function fakeObject(name)
         return function(self, script, fn) self.scripts[script] = fn end
       elseif key == "RegisterEvent" then
         return function(self, event) self.events[event] = true end
-      elseif key == "CreateFontString" then
+      elseif key == "CreateFontString" or key == "CreateTexture" then
         return function() return fakeObject() end
+      elseif key == "SetRotation" then
+        return function(self, r) rawset(self, "rotation", r) end
+      elseif key == "Show" then
+        return function(self) rawset(self, "visible", true) end
+      elseif key == "Hide" then
+        return function(self) rawset(self, "visible", false) end
       elseif key == "SetText" then
         return function(self, s) rawset(self, "shown_text", s) end
       elseif key == "GetPoint" then
@@ -58,6 +64,7 @@ local function install()
     time = os.time,
     UnitClass = function() return "Cazador", "HUNTER" end,
     UnitLevel = function() return 8 end,
+    GetPlayerFacing = function() return 0 end,
     UnitXP = function() return 50 end,
     UnitXPMax = function() return 200 end,
     GetMoney = function() return 12345 end,
@@ -73,6 +80,7 @@ local function install()
       GetPlayerMapPosition = function()
         return { GetXY = function() return 0.5, 0.5 end }
       end,
+      GetMapWorldSize = function() return 1000, 1000 end,
       CanSetUserWaypointOnMap = function() return true end,
       SetUserWaypoint = function() end,
       ClearUserWaypoint = function() end,
@@ -165,6 +173,58 @@ describe("addon smoke test", function()
     assert.equals("Hacer: Lobos", window.step.shown_text)
     assert.matches("Flecha: map pin", window.arrow.shown_text)
     assert.is_true(_G.TrailMateCharDB.plan.steps[1] ~= nil)
+  end)
+
+  it("points its own arrow at the current quest with distance and direction", function()
+    _G.SlashCmdList.TRAILMATE("diario")
+    _G.SlashCmdList.TRAILMATE("salta")
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.1)
+    local arrow = named.TrailMateArrow
+    -- Player at 0.5,0.5 and the quest at 0.3,0.3 on a 1000-yard map:
+    -- 283 yards (259 m) to the north-west, a quarter of a right angle to the left.
+    assert.equals("259 m", arrow.distance.shown_text)
+    assert.is_true(math.abs(arrow.icon.rotation - math.pi / 4) < 1e-9)
+    assert.equals("Hacer: Lobos", arrow.label.shown_text)
+    _G.SlashCmdList.TRAILMATE("flecha no")
+    assert.is_false(arrow.visible)
+  end)
+
+  it("adds quest givers shown on the map and rebuilds when a new quest is accepted", function()
+    rawset(_G, "C_QuestLine", {
+      GetAvailableQuestLines = function()
+        return { { questID = 30, questName = "Cartas", x = 0.45, y = 0.5 } }
+      end,
+    })
+    _G.SlashCmdList.TRAILMATE("diario")
+    local plan = _G.TrailMateCharDB.plan
+    assert.equals("accept-30", plan.steps[2].id)
+    -- Picking up a quest that is not in the plan rebuilds it.
+    quests[3] = { questID = 31, title = "Nueva", isHeader = false }
+    fire("QUEST_ACCEPTED", 31)
+    assert.are_not.equal(plan.id, _G.TrailMateCharDB.plan.id)
+    quests[3] = nil
+  end)
+
+  it("lets the player ignore a spell and announces only new ones at level up", function()
+    rawset(_G, "GetNumTrainerServices", function() return 3 end)
+    rawset(_G, "GetTrainerServiceInfo", function(i)
+      if i == 1 then
+        return "Aspect of the Monkey", "", "available"
+      elseif i == 2 then
+        return "Aspect of the Hawk", "", "unavailable"
+      end
+      return "Serpent Sting", "Rank 2", "unavailable"
+    end)
+    rawset(_G, "GetTrainerServiceLevelReq", function(i) return i == 1 and 4 or 10 end)
+    fire("TRAINER_SHOW")
+    assert.matches("%[2%] .*Aspect of the Hawk", output())
+    _G.SlashCmdList.TRAILMATE("ignorar 2")
+    assert.is_true(_G.TrailMateCharDB.prefs.ignored["Aspect of the Hawk"])
+    fire("PLAYER_LEVEL_UP", 10)
+    assert.matches("Nivel 10: tu instructor ya tiene Serpent Sting %(Rank 2%)%.", output())
+    assert.is_nil(output():find("ya tiene Aspect", 1, true))
+    _G.SlashCmdList.TRAILMATE("recuperar Aspect of the Hawk")
+    assert.is_nil(_G.TrailMateCharDB.prefs.ignored["Aspect of the Hawk"])
   end)
 
   it("restores a saved plan after a reload", function()
