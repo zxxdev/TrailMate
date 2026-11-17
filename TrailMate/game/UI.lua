@@ -74,9 +74,9 @@ function UI.create(saved)
 end
 
 --- A standing reminder (trainer, talents) until it is done.
-function UI.setAlert(text)
+function UI.setAlert(message)
   if UI.frame then
-    UI.frame.alert:SetText(text or "")
+    UI.frame.alert:SetText(message or "")
   end
 end
 
