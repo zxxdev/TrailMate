@@ -42,6 +42,27 @@ local function say(msg)
   out("|cff9b7bd4TrailMate|r: " .. msg)
 end
 
+-- A failure in one part (the talent panel, say) must not take the rest of
+-- the addon down with it: each part runs guarded, and the error is shown
+-- once in the chat and kept in the log so it can be sent.
+local reported = {}
+local function reportError(where, err)
+  local msg = ("%s: %s"):format(where, tostring(err))
+  if not reported[msg] then
+    reported[msg] = true
+    pcall(say, "|cffff5050" .. L["Error"] .. "|r " .. msg)
+  end
+end
+
+local function guard(where, fn, ...)
+  local ok, a, b = pcall(fn, ...)
+  if not ok then
+    reportError(where, a)
+    return nil
+  end
+  return a, b
+end
+
 local function after(seconds, fn)
   if C_Timer and C_Timer.After then
     C_Timer.After(seconds, fn)
@@ -973,11 +994,16 @@ SlashCmdList.TRAILMATE = function(msg)
   local cmd, rest = (msg or ""):match("^%s*(%S*)%s*(.-)%s*$")
   cmd = (cmd or ""):lower()
   if cmd == "" then
-    ns.Panel.toggle()
+    if ns.Panel.frame then
+      guard("panel", ns.Panel.toggle)
+    else
+      say(L["The panel could not be built: type /tm test and send the log."])
+      COMMANDS.help()
+    end
     return
   end
   local fn = COMMANDS[cmd] or COMMANDS.help
-  fn(rest)
+  guard("/tm " .. cmd, fn, rest)
 end
 
 -- Self-test ---------------------------------------------------------------------
@@ -1246,20 +1272,21 @@ handlers.ADDON_LOADED = function(name)
   cdb.talents = cdb.talents or {}
   TrailMateDB.log = TrailMateDB.log or {}
   ns.setLocale(GetLocale and GetLocale() or "enUS")
-  local window = ns.UI.create(cdb.ui)
-  local arrow = ns.Arrow.create(cdb.arrow, L)
-  ns.ItemButton.create(window, arrow)
-  ns.Panel.create(cdb.panel, L)
-  ns.TalentPanel.init(cdb.talents, L)
-  ns.TalentPanel.attach()
-  ns.MinimapButton.create(cdb.minimap, L, ns.Panel.toggle, function()
+  -- Each part on its own: one failing leaves the others working.
+  local window = guard("window", ns.UI.create, cdb.ui)
+  local arrow = guard("arrow", ns.Arrow.create, cdb.arrow, L)
+  guard("item button", ns.ItemButton.create, window, arrow)
+  guard("panel", ns.Panel.create, cdb.panel, L)
+  guard("minimap button", ns.MinimapButton.create, cdb.minimap, L, ns.Panel.toggle, function()
     ns.UI.setShown(cdb.ui.hidden == true)
   end)
-  ns.Theme.setCompanion(cdb.prefs.companion)
+  guard("icon", ns.Theme.setCompanion, cdb.prefs.companion)
+  guard("talent plan", ns.TalentPanel.init, cdb.talents, L)
+  guard("talent plan", ns.TalentPanel.attach)
   if cdb.plan then
-    loadPlan(cdb.plan, true)
+    guard("plan", loadPlan, cdb.plan, true)
   else
-    refresh()
+    guard("plan", refresh)
   end
 end
 
@@ -1424,8 +1451,15 @@ for event in pairs(handlers) do
 end
 
 frame:SetScript("OnEvent", function(_, event, ...)
-  handlers[event](...)
+  guard(event, handlers[event], ...)
 end)
+
+local function talentTick()
+  local panel = ns.TalentPanel.attach()
+  if panel and panel:IsVisible() then
+    ns.TalentPanel.refresh()
+  end
+end
 
 frame:SetScript("OnUpdate", function(_, elapsed)
   if not cdb then
@@ -1442,10 +1476,10 @@ frame:SetScript("OnUpdate", function(_, elapsed)
   end
   if questThrottle:tick(clock) then
     pcall(learnProgress)
-    refresh()
+    guard("plan", refresh)
   end
   if bagThrottle:tick(clock) then
-    checkBags()
+    guard("bags", checkBags)
   end
   -- Quest objectives move (next area, turn-in): look again every two seconds.
   if sinceTarget >= 2 then
@@ -1456,20 +1490,17 @@ frame:SetScript("OnUpdate", function(_, elapsed)
       buildFromQuestLog(false)
     end
     if detour or (plan and current) then
-      updateTarget(true)
+      guard("arrow", updateTarget, true)
     end
   end
   -- The talent window may switch tabs: keep the lit talent right.
   sinceTalents = sinceTalents + elapsed
   if sinceTalents >= 1 then
     sinceTalents = 0
-    local panel = ns.TalentPanel.attach()
-    if panel and panel:IsVisible() then
-      ns.TalentPanel.refresh()
-    end
+    guard("talent plan", talentTick)
   end
   if sinceArrow >= 0.05 then
     sinceArrow = 0
-    ns.Arrow.update()
+    guard("arrow", ns.Arrow.update)
   end
 end)

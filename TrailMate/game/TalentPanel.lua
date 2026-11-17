@@ -54,13 +54,15 @@ end
 
 --- Docks the panel to the talent window once the game has created it.
 function TalentPanel.attach()
-  if TalentPanel.frame then
+  if TalentPanel.frame or TalentPanel.failed then
     return TalentPanel.frame
   end
   local parent = host()
   if not (parent and TalentPanel.saved) then
     return nil
   end
+  -- If building it fails half way, do not try again every second.
+  TalentPanel.failed = true
   local Theme, L = ns.Theme, TalentPanel.L
   local template = BackdropTemplateMixin and "BackdropTemplate" or nil
   local f = CreateFrame("Frame", "TrailMateTalents", parent, template)
@@ -139,7 +141,7 @@ function TalentPanel.attach()
   if parent.HookScript then
     parent:HookScript("OnShow", TalentPanel.refresh)
   end
-  TalentPanel.frame = f
+  TalentPanel.frame, TalentPanel.failed = f, nil
   TalentPanel.refresh()
   return f
 end

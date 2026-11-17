@@ -193,6 +193,35 @@ describe("addon smoke test", function()
     fire("ADDON_LOADED", "TrailMate")
   end)
 
+  it("keeps working when one part fails to build, and shows the error", function()
+    -- The user's case: the window appeared, but nothing after it did.
+    install()
+    rawset(_G, "TrailMateDB", nil)
+    rawset(_G, "TrailMateCharDB", nil)
+    local create = _G.CreateFrame
+    rawset(_G, "Minimap", fakeObject("Minimap"))
+    finally(function()
+      rawset(_G, "Minimap", nil)
+    end)
+    rawset(_G, "CreateFrame", function(kind, name, parent, template)
+      if template == "SecureActionButtonTemplate" then
+        error("blocked by this client")
+      end
+      return create(kind, name, parent, template)
+    end)
+    loadAddon()
+    fire("ADDON_LOADED", "TrailMate")
+    assert.matches("Error|r item button: .*blocked by this client", output())
+    assert.is_table(named.TrailMatePanel) -- the panel was still built
+    assert.is_table(named.TrailMateMinimapButton)
+    _G.SlashCmdList.TRAILMATE("")
+    assert.is_true(named.TrailMatePanel.visible)
+    -- The route still works.
+    _G.SlashCmdList.TRAILMATE("diario")
+    tick()
+    assert.equals("Hacer: Lobos", named.TrailMateFrame.step.shown_text)
+  end)
+
   it("registers its events and slash command", function()
     assert.is_true(eventFrame().events.QUEST_LOG_UPDATE)
     assert.is_function(_G.SlashCmdList.TRAILMATE)

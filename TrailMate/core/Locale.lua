@@ -207,6 +207,9 @@ local esES = {
   ["Take the %s from %s to %s."] = "Coge el %s de %s a %s.",
   ["Go to %s."] = "Ve a %s.",
   ["Click the item to use it"] = "Pulsa el objeto para usarlo",
+  ["Error"] = "Error",
+  ["The panel could not be built: type /tm test and send the log."] =
+    "No se pudo crear el panel: escribe /tm test y pásame el registro.",
   ["zeppelin"] = "zepelín",
   ["ship"] = "barco",
   ["the zeppelin tower outside Orgrimmar (Durotar)"] = "la torre del zepelín junto a Orgrimmar (Durotar)",
