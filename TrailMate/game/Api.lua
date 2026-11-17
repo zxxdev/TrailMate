@@ -75,15 +75,24 @@ function Api.questLog()
         if complete == nil then
           complete = info.isComplete == true or info.isComplete == 1
         end
-        quests[#quests + 1] = { questID = info.questID, title = info.title, complete = complete == true }
+        local tag = safe(Q.GetQuestTagInfo, info.questID)
+        local group = (type(info.suggestedGroup) == "number" and info.suggestedGroup > 1)
+          or (type(tag) == "table" and (tag.isElite == true or tag.tagID == 1))
+        quests[#quests + 1] = {
+          questID = info.questID, title = info.title, complete = complete == true,
+          level = info.level, group = group == true,
+        }
       end
     end
   elseif GetNumQuestLogEntries and GetQuestLogTitle then
     local n = safe(GetNumQuestLogEntries) or 0
     for i = 1, n do
-      local title, _, _, isHeader, _, isComplete, _, questID = safe(GetQuestLogTitle, i)
+      local title, level, suggestedGroup, isHeader, _, isComplete, _, questID = safe(GetQuestLogTitle, i)
       if title and not isHeader and type(questID) == "number" and questID > 0 then
-        quests[#quests + 1] = { questID = questID, title = title, complete = isComplete == 1 or isComplete == true }
+        quests[#quests + 1] = {
+          questID = questID, title = title, complete = isComplete == 1 or isComplete == true,
+          level = level, group = type(suggestedGroup) == "number" and suggestedGroup > 1,
+        }
       end
     end
   end

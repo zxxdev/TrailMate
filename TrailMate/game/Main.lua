@@ -109,13 +109,51 @@ local function loadPlan(p, quiet)
   return true
 end
 
+local function names(list, limit)
+  local out = {}
+  for i, e in ipairs(list) do
+    if i > limit then
+      out[#out + 1] = "..."
+      break
+    end
+    out[#out + 1] = e.title and ("%s (%s)"):format(e.title, e.reason) or ("%s (%d)"):format(e.zone, e.count)
+  end
+  return table.concat(out, ", ")
+end
+
+-- Tells the player what the route decided and what it left out.
+local function sayReport(report)
+  if report.zone then
+    say(L["Route: %s, %d steps."]:format(report.zone, plan and #plan.steps or 0))
+  end
+  if #report.notNow > 0 then
+    say(L["Not now: %s"]:format(names(report.notNow, 6)))
+  end
+  if #report.abandon > 0 then
+    say(L["Consider abandoning: %s"]:format(names(report.abandon, 6)))
+  end
+  if #report.later > 0 then
+    say(L["Later: %s"]:format(names(report.later, 5)))
+  end
+end
+
 function buildFromQuestLog(quiet)
   local quests = Api.questLog()
+  local zoneNames = {}
   for _, q in ipairs(quests) do
     q.target = Api.questTarget(q.questID)
+    local m = q.target and q.target.mapID
+    if m then
+      zoneNames[m] = zoneNames[m] or Api.mapName(m) or ("map " .. m)
+      q.zone = zoneNames[m]
+    end
   end
   local mapID, x, y = Api.position()
-  local p = Builder.fromQuestLog(quests, { mapID = mapID, x = x, y = y }, L, Api.availableQuests(mapID))
+  local p, report = Builder.fromQuestLog(quests, { mapID = mapID, x = x, y = y, level = Api.level() }, L,
+    Api.availableQuests(mapID))
+  if p and (not quiet or (report.zone and report.zone ~= cdb.lastZone)) then
+    quiet = false
+  end
   if not p then
     plan, progress, current = nil, nil, nil
     cdb.plan, cdb.progress = nil, nil
@@ -123,11 +161,16 @@ function buildFromQuestLog(quiet)
     Api.clearArrow()
     refresh()
     if not quiet then
-      say(L["Your quest log is empty."])
+      say(L["Nothing worth doing in your quest log right now."])
+      sayReport(report)
     end
     return
   end
-  loadPlan(p, quiet)
+  loadPlan(p, true)
+  if not quiet then
+    sayReport(report)
+  end
+  cdb.lastZone = report.zone
 end
 
 local function planHasQuest(questID)
@@ -425,17 +468,37 @@ handlers.ADDON_LOADED = function(name)
   end
 end
 
-handlers.PLAYER_ENTERING_WORLD = function()
+-- On login and /reload, an automatic plan is rebuilt from the current quest
+-- log (once the log has loaded), so an old plan never lingers.
+local rebuildPending = false
+
+handlers.PLAYER_ENTERING_WORLD = function(isLogin, isReload)
   if cdb then
     arrowStep = false
+    if (isLogin or isReload or isLogin == nil) and plan and Builder.isAuto(plan) and cdb.prefs.autoPlan ~= false then
+      rebuildPending = true
+    end
     questThrottle:mark()
+  end
+end
+
+local function questChangedAfterLogin()
+  if rebuildPending then
+    rebuildPending = false
+    after(1, function()
+      cdb.lastZone = nil
+      buildFromQuestLog(true)
+    end)
   end
 end
 
 local function questChanged()
   questThrottle:mark()
 end
-handlers.QUEST_LOG_UPDATE = questChanged
+handlers.QUEST_LOG_UPDATE = function()
+  questChangedAfterLogin()
+  questChanged()
+end
 handlers.QUEST_TURNED_IN = questChanged
 handlers.QUEST_REMOVED = questChanged
 handlers.ZONE_CHANGED_NEW_AREA = questChanged

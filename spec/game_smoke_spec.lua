@@ -186,12 +186,15 @@ describe("addon smoke test", function()
     _G.SlashCmdList.TRAILMATE("diario")
     tick()
     local window = named.TrailMateFrame
-    -- "Lobos" has a place in this zone, "Jabalies" has none: Lobos goes first.
+    -- "Lobos" has a place in this zone, "Jabalies" has none: the route stays
+    -- in this zone and Jabalies is reported for later.
     assert.equals("Hacer: Lobos", window.step.shown_text)
+    assert.matches("Ruta: map 1429, 2 pasos%.", output())
+    assert.matches("Después: Lugar desconocido %(1%)", output())
     _G.SlashCmdList.TRAILMATE("salta")
     assert.equals("Entregar: Lobos", window.step.shown_text)
     _G.SlashCmdList.TRAILMATE("salta")
-    assert.equals("Entregar: Jabalies", window.step.shown_text)
+    assert.equals("Plan terminado.", window.step.shown_text)
   end)
 
   it("highlights the current quest in the log and on the map, and cleans up after itself", function()
@@ -199,12 +202,23 @@ describe("addon smoke test", function()
     assert.equals(10, superTracked)
     assert.equals(0, watched[10])
     assert.matches("Flecha: quest", named.TrailMateFrame.arrow.shown_text)
-    _G.SlashCmdList.TRAILMATE("salta")
-    _G.SlashCmdList.TRAILMATE("salta")
-    assert.equals(11, superTracked)
-    assert.is_nil(watched[10])
     _G.SlashCmdList.TRAILMATE("borrar")
-    assert.is_nil(watched[11])
+    assert.is_nil(watched[10])
+  end)
+
+  it("rebuilds an automatic plan on login and explains the route", function()
+    _G.SlashCmdList.TRAILMATE("diario")
+    local saved = _G.TrailMateCharDB
+    saved.plan.id = "questlog-old"
+    saved.progress.planId = "questlog-old"
+    install()
+    rawset(_G, "TrailMateCharDB", saved)
+    loadAddon()
+    fire("ADDON_LOADED", "TrailMate")
+    fire("PLAYER_ENTERING_WORLD", false, true)
+    fire("QUEST_LOG_UPDATE")
+    assert.are_not.equal("questlog-old", _G.TrailMateCharDB.plan.id)
+    assert.matches("Ruta: map 1429", output())
   end)
 
   it("does not remove a quest the player was already watching", function()
@@ -239,6 +253,9 @@ describe("addon smoke test", function()
     assert.equals("accept-30", plan.steps[1].id)
     -- Picking up a quest that is not in the plan rebuilds it.
     quests[3] = { questID = 31, title = "Nueva", isHeader = false }
+    _G.C_QuestLog.GetQuestsOnMap = function()
+      return { { questID = 10, x = 0.3, y = 0.3 }, { questID = 31, x = 0.6, y = 0.6 } }
+    end
     fire("QUEST_ACCEPTED", 31)
     assert.are_not.equal(plan.id, _G.TrailMateCharDB.plan.id)
     quests[3] = nil
