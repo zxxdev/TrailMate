@@ -784,6 +784,66 @@ end
 
 --- Quest givers ("!") the game shows on a map: { questID, title, target }.
 --- Only works if the client exposes them; returns an empty list otherwise.
+--- The quests the quest giver you are talking to offers (gossip or
+--- greeting window, or the one quest shown): { questID, title, level }.
+function Api.npcOffers()
+  local out, seen = {}, {}
+  local function add(questID, title, level)
+    if type(questID) == "number" and questID > 0 and not seen[questID] then
+      seen[questID] = true
+      out[#out + 1] = { questID = questID, title = type(title) == "string" and title or nil,
+        level = type(level) == "number" and level > 0 and level or nil }
+    end
+  end
+  if C_GossipInfo and C_GossipInfo.GetAvailableQuests then
+    for _, q in ipairs(safe(C_GossipInfo.GetAvailableQuests) or {}) do
+      if type(q) == "table" then
+        add(q.questID, q.title, q.questLevel)
+      end
+    end
+  end
+  for i = 1, safe(GetNumAvailableQuests) or 0 do
+    local _, _, _, _, questID = safe(GetAvailableQuestInfo, i)
+    add(questID, safe(GetAvailableTitle, i), safe(GetAvailableLevel, i))
+  end
+  return out
+end
+
+--- The names of where the player is: zone, sub-zone, minimap text.
+function Api.zoneTexts()
+  local out = {}
+  for _, fn in ipairs({ GetRealZoneText, GetZoneText, GetSubZoneText, GetMinimapZoneText }) do
+    local s = safe(fn)
+    if type(s) == "string" and s ~= "" then
+      out[#out + 1] = s
+    end
+  end
+  return out
+end
+
+--- The single quest shown in the quest window (QUEST_DETAIL), or nil.
+function Api.shownQuest()
+  local questID = safe(GetQuestID)
+  if type(questID) == "number" and questID > 0 then
+    return { questID = questID, title = safe(GetTitleText) }
+  end
+  return nil
+end
+
+--- True when the quest giver you are talking to is an innkeeper (it offers
+--- to make the inn your home).
+function Api.npcIsInnkeeper()
+  if C_GossipInfo and C_GossipInfo.GetOptions then
+    for _, o in ipairs(safe(C_GossipInfo.GetOptions) or {}) do
+      local name = type(o) == "table" and type(o.name) == "string" and o.name:lower() or ""
+      if o.type == "binder" or name:find("inn your home", 1, true) or name:find("posada", 1, true) then
+        return true
+      end
+    end
+  end
+  return false
+end
+
 function Api.availableQuests(mapID)
   local out = {}
   local QL = C_QuestLine

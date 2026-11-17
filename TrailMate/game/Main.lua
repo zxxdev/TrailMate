@@ -321,8 +321,79 @@ local function computeRoute()
   return p, report, quests
 end
 
+-- Is the hearthstone bound somewhere else than this zone?
+local function hearthElsewhere(here)
+  local h = Api.hearth()
+  if not h then
+    return false, nil
+  end
+  local bind = Atlas.bind(atlas, h.name)
+  if bind then
+    return bind.mapID ~= here.mapID, h
+  end
+  for _, name in ipairs(Api.zoneTexts()) do
+    if name == h.name then
+      return false, h
+    end
+  end
+  return true, h
+end
+
+-- Just arrived in the zone chosen to level in: first pick up the quests of
+-- the place, then (if the hearthstone is far) set it at the inn here, then
+-- the quests. Steps put at the front of the plan.
+local function addArrivalSteps(p)
+  local here = playerPoint()
+  if not (cdb.arrival and here.mapID == cdb.arrival) then
+    return p
+  end
+  -- No quests of yours here yet (the usual case on arrival): a plan with
+  -- only the arrival steps, rebuilt like any automatic plan as you take quests.
+  p = p or { version = 1, id = "questlog-arrival-" .. here.mapID, title = Api.mapName(here.mapID) or "TrailMate",
+    steps = {} }
+  local front = 0
+  while p.steps[front + 1] and p.steps[front + 1].type == "accept" do
+    front = front + 1
+  end
+  local extra = {}
+  if front == 0 then
+    extra[#extra + 1] = { id = "arrive-quests-" .. here.mapID, type = "note",
+      text = L["Pick up the quests here first"],
+      why = L["New area: talk to the quest givers marked ! around you before heading out. TrailMate remembers "
+        .. "them for next time."] }
+  end
+  local far, h = hearthElsewhere(here)
+  if far and h then
+    local place, name = Atlas.findNpc(atlas, "innkeeper", nil, Api.faction(), here)
+    local step = { id = "arrive-hearth-" .. here.mapID, type = "note",
+      text = name and L["Set your hearthstone at %s"]:format(name) or L["Set your hearthstone at the inn here"],
+      why = L["You will level here and your hearthstone is in %s."]:format(h.name) }
+    if place and place.mapID == here.mapID then
+      step.mapID, step.x, step.y = place.mapID, place.x, place.y
+    end
+    extra[#extra + 1] = step
+  end
+  local added = 0
+  for _, step in ipairs(extra) do
+    -- Done or skipped once on this visit: not again (plans are rebuilt often).
+    if not cdb.arrivalDone[step.id] then
+      added = added + 1
+      table.insert(p.steps, front + added, step)
+    end
+  end
+  return #p.steps > 0 and p or nil
+end
+
+-- Remembers an arrival step done or skipped, for the rest of this visit.
+local function arrivalStepDone(step)
+  if step and type(step.id) == "string" and step.id:find("^arrive%-") then
+    cdb.arrivalDone[step.id] = true
+  end
+end
+
 function buildFromQuestLog(quiet)
   local p, report = computeRoute()
+  p = addArrivalSteps(p)
   lastCounts = report.counts or {}
   if p and (not quiet or (report.zone and report.zone ~= cdb.lastZone)) then
     quiet = false
@@ -623,7 +694,11 @@ local function chooseZone(rest)
   cdb.prefs.focusZone = z.mapID
   local name = Api.mapName(z.mapID) or z.name
   say(L["Next zone: %s."]:format(name))
-  if (lastCounts[z.mapID] or 0) == 0 then
+  if Api.position() == z.mapID then
+    -- Already here: start with the place's quests and the hearthstone.
+    cdb.arrival, cdb.arrivalDone = z.mapID, {}
+    buildFromQuestLog(false)
+  elseif (lastCounts[z.mapID] or 0) == 0 then
     say(L["No quests of yours there yet: pick some up when you arrive."])
   else
     buildFromQuestLog(true)
@@ -860,6 +935,7 @@ end)
 alias({ "skip", "salta" }, function()
   local step = plan and Plan.skip(plan, progress, facts())
   if step then
+    arrivalStepDone(step)
     say(L["Skipped: %s"]:format(step.text))
   end
   refresh()
@@ -875,6 +951,7 @@ end)
 alias({ "done", "hecho" }, function()
   local step = plan and Plan.markDone(plan, progress, facts())
   if step then
+    arrivalStepDone(step)
     say(L["Marked as done: %s"]:format(step.text))
   end
   refresh()
@@ -1347,6 +1424,7 @@ handlers.ADDON_LOADED = function(name)
   cdb.panel = cdb.panel or {}
   cdb.minimap = cdb.minimap or {}
   cdb.talents = cdb.talents or {}
+  cdb.arrivalDone = cdb.arrivalDone or {}
   TrailMateDB.log = TrailMateDB.log or {}
   ns.setLocale(GetLocale and GetLocale() or "enUS")
   -- Each part on its own: one failing leaves the others working.
@@ -1399,6 +1477,10 @@ end
 handlers.QUEST_REMOVED = questChanged
 
 handlers.ZONE_CHANGED_NEW_AREA = function()
+  -- Left the zone just arrived in: the arrival guide is over.
+  if cdb and cdb.arrival and Api.position() ~= cdb.arrival then
+    cdb.arrival, cdb.arrivalDone = nil, {}
+  end
   -- Just used the hearthstone: learn where it lands.
   if hearthing then
     hearthing = false
@@ -1484,6 +1566,54 @@ end
 handlers.CHARACTER_POINTS_CHANGED = talentsChanged
 handlers.PLAYER_TALENT_UPDATE = talentsChanged
 handlers.PREVIEW_TALENT_POINTS_CHANGED = talentsChanged
+-- Talking to a quest giver: learn every quest offered (not only the ones
+-- taken), so this place's quests are known next time and to alts.
+local function learnOffers(list)
+  local npc = Api.npc()
+  local p = playerPoint()
+  for _, q in ipairs(list) do
+    Atlas.recordStart(atlas, q.questID, { title = q.title, level = q.level, faction = Api.faction(),
+      npcID = npc and npc.id }, p)
+  end
+  if npc and #list > 0 then
+    learnNpc("quest")
+  end
+end
+
+handlers.GOSSIP_SHOW = function()
+  if not cdb then
+    return
+  end
+  learnOffers(Api.npcOffers())
+  if Api.npcIsInnkeeper() then
+    learnNpc("innkeeper")
+  end
+end
+handlers.QUEST_GREETING = handlers.GOSSIP_SHOW
+handlers.QUEST_DETAIL = function()
+  local q = cdb and Api.shownQuest()
+  if q then
+    learnOffers({ q })
+  end
+end
+handlers.CONFIRM_BINDER = function()
+  if cdb then
+    learnNpc("innkeeper")
+  end
+end
+-- The hearthstone was set: the arrival step is done.
+handlers.HEARTHSTONE_BOUND = function()
+  if not cdb then
+    return
+  end
+  learnNpc("innkeeper")
+  if cdb.arrival then
+    cdb.arrivalDone["arrive-hearth-" .. cdb.arrival] = true
+    if plan and Builder.isAuto(plan) then
+      buildFromQuestLog(true)
+    end
+  end
+end
 handlers.MERCHANT_SHOW = function()
   learnNpc("vendor")
   if Api.vendorRepairs() then
@@ -1619,6 +1749,7 @@ frame:SetScript("OnUpdate", function(_, elapsed)
     sinceTarget = 0
     -- Arrived in the zone the player chose: drop the detour and route it.
     if detour and detour.zone and Api.position() == detour.zone then
+      cdb.arrival, cdb.arrivalDone = detour.zone, {}
       detour, arrowStep = nil, false
       buildFromQuestLog(false)
     end

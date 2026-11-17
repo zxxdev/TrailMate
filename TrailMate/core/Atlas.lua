@@ -173,17 +173,19 @@ end
 
 --- Quests seen before (by any character of the same faction) that can be
 --- picked up on the player's map now. ctx: { level, faction, isDone, inLog }.
---- Only quests whose level is known and fits are offered.
+--- A known level must fit; a quest only seen offered by a quest giver (its
+--- level not given) is offered too, since the game showed it to this level.
 function Atlas.offers(atlas, ctx, player)
   local out = {}
   if not (player and player.mapID) then
     return out
   end
   for questID, q in pairs(atlas.quests) do
-    if type(q) == "table" and isPlace(q.start) and q.start.mapID == player.mapID and isNum(q.level)
+    local fits = not isNum(q.level)
+      or (q.level - ctx.level < ns.Builder.TOO_HARD_DIFF and q.level > ns.Builder.grayLevel(ctx.level))
+    if type(q) == "table" and isPlace(q.start) and q.start.mapID == player.mapID and fits
       and (q.faction == nil or q.faction == ctx.faction)
-      and not ctx.inLog(questID) and not ctx.isDone(questID)
-      and q.level - ctx.level < ns.Builder.TOO_HARD_DIFF and q.level > ns.Builder.grayLevel(ctx.level) then
+      and not ctx.inLog(questID) and not ctx.isDone(questID) then
       out[#out + 1] = { questID = questID, title = q.title, level = q.level, target = place(q.start) }
     end
   end

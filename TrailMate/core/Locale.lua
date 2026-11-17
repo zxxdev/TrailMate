@@ -209,6 +209,13 @@ local esES = {
   ["Click the item to use it"] = "Pulsa el objeto para usarlo",
   ["Error"] = "Error",
   ["Walked trails cleared."] = "Rastros borrados.",
+  ["Pick up the quests here first"] = "Primero coge las misiones de aquí",
+  ["New area: talk to the quest givers marked ! around you before heading out. TrailMate remembers them for next "
+    .. "time."] = "Zona nueva: habla con los que tienen ! a tu alrededor antes de salir. TrailMate los recordará "
+    .. "para la próxima vez.",
+  ["Set your hearthstone at %s"] = "Pon la piedra de hogar con %s",
+  ["Set your hearthstone at the inn here"] = "Pon la piedra de hogar en la posada de aquí",
+  ["You will level here and your hearthstone is in %s."] = "Vas a subir aquí y tu piedra está en %s.",
   ["The world map now shows every dot learned around you. Again to go back to the route."] =
     "El mapa del mundo enseña ahora todos los puntos aprendidos a tu alrededor. Repite la orden para volver a la ruta.",
   ["The world map shows the route again."] = "El mapa del mundo vuelve a enseñar la ruta.",

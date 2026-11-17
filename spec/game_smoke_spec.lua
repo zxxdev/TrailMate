@@ -52,6 +52,7 @@ local function install()
   npcGUID, objectives = nil, {}
   -- Tests that add API pieces of their own must not leak them into the next.
   rawset(_G, "C_QuestLine", nil)
+  rawset(_G, "UnitFactionGroup", nil)
   local env = {
     print = function(...)
       local parts = {}
@@ -542,6 +543,45 @@ describe("addon smoke test", function()
     _G.SlashCmdList.TRAILMATE("companion none")
     assert.is_nil(_G.TrailMateCharDB.prefs.companion)
     assert.matches("Compañero: ninguno%.", output())
+  end)
+
+  it("on arrival starts with the place's quests, and learns what quest givers offer (the user's case)", function()
+    _G.SlashCmdList.TRAILMATE("diario")
+    _G.SlashCmdList.TRAILMATE("estrategia")
+    local index = output():match("%[(%d+)%] Elwynn Forest")
+    assert.is_not_nil(index)
+    -- Choosing the zone the player is in counts as arriving there.
+    _G.SlashCmdList.TRAILMATE("zona " .. index)
+    local window = named.TrailMateFrame
+    assert.equals("Primero coge las misiones de aquí", window.step.shown_text)
+    _G.SlashCmdList.TRAILMATE("hecho")
+    assert.equals("Hacer: Lobos", window.step.shown_text)
+    -- Rebuilding the plan (a quest taken, a reload) does not bring it back.
+    _G.SlashCmdList.TRAILMATE("diario")
+    assert.equals("Hacer: Lobos", window.step.shown_text)
+    -- A quest giver offers a quest the player does not take: it is learned,
+    -- and the plan then starts with picking it up.
+    npcGUID = "Creature-0-1-0-1-197-0"
+    rawset(_G, "C_GossipInfo", {
+      GetAvailableQuests = function() return { { questID = 50, title = "Bandidos", questLevel = 8 } } end,
+      GetOptions = function() return { { name = "Make this inn your home." } } end,
+    })
+    finally(function()
+      rawset(_G, "C_GossipInfo", nil)
+    end)
+    fire("GOSSIP_SHOW")
+    npcGUID = nil
+    assert.equals("Bandidos", _G.TrailMateDB.atlas.quests[50].title)
+    _G.SlashCmdList.TRAILMATE("diario")
+    assert.equals("Coger: Bandidos", window.step.shown_text)
+    -- It was an innkeeper too: remembered as one.
+    local roles = {}
+    for _, npc in pairs(_G.TrailMateDB.atlas.npcs) do
+      for role in pairs(npc.roles or {}) do
+        roles[role] = true
+      end
+    end
+    assert.is_true(roles.innkeeper)
   end)
 
   it("lets the player ignore a spell and announces only new ones at level up", function()
