@@ -809,6 +809,20 @@ function Api.npcOffers()
   return out
 end
 
+--- A quest's name from its id, or nil if the game has not loaded it yet
+--- (it is then asked for; QUEST_DATA_LOAD_RESULT says when it arrives).
+function Api.questTitle(questID)
+  local QL = C_QuestLog
+  local title = QL and QL.GetTitleForQuestID and safe(QL.GetTitleForQuestID, questID)
+  if type(title) == "string" and title ~= "" then
+    return title
+  end
+  if QL and QL.RequestLoadQuestByID then
+    try(QL.RequestLoadQuestByID, questID)
+  end
+  return nil
+end
+
 --- The names of where the player is: zone, sub-zone, minimap text.
 function Api.zoneTexts()
   local out = {}

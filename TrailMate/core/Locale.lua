@@ -210,6 +210,8 @@ local esES = {
   ["Error"] = "Error",
   ["Walked trails cleared."] = "Rastros borrados.",
   ["Pick up the quests here first"] = "Primero coge las misiones de aquí",
+  ["Quest %d"] = "Misión %d",
+  ["%s - optional: elite or group quest"] = "%s - opcional: misión élite o de grupo",
   ["New area: talk to the quest givers marked ! around you before heading out. TrailMate remembers them for next "
     .. "time."] = "Zona nueva: habla con los que tienen ! a tu alrededor antes de salir. TrailMate los recordará "
     .. "para la próxima vez.",

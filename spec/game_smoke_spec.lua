@@ -584,6 +584,28 @@ describe("addon smoke test", function()
     assert.is_true(roles.innkeeper)
   end)
 
+  it("arriving at Grom'gol starts with the hub's quests by name (the user's case)", function()
+    rawset(_G, "UnitLevel", function() return 34 end)
+    rawset(_G, "UnitFactionGroup", function() return "Horde" end)
+    _G.C_Map.GetBestMapForUnit = function() return 1434 end
+    local names = { [581] = "Hunt for Yenniku", [596] = "Bloody Bone Necklaces" }
+    _G.C_QuestLog.GetTitleForQuestID = function(id) return names[id] end
+    _G.C_QuestLog.RequestLoadQuestByID = function() end
+    finally(function()
+      rawset(_G, "UnitLevel", function() return 8 end)
+    end)
+    _G.SlashCmdList.TRAILMATE("estrategia")
+    local index = output():match("%[(%d+)%] Stranglethorn Vale")
+    assert.is_not_nil(index)
+    _G.SlashCmdList.TRAILMATE("zona " .. index)
+    local window = named.TrailMateFrame
+    assert.equals("Coger: Hunt for Yenniku", window.step.shown_text)
+    assert.equals("Grom'gol Base Camp", window.why.shown_text)
+    assert.equals("- Coger: Bloody Bone Necklaces", window.rows[1].label.shown_text)
+    -- A name the game has not loaded yet still gives a step.
+    assert.equals("- Coger: Misión 638", window.rows[2].label.shown_text)
+  end)
+
   it("lets the player ignore a spell and announces only new ones at level up", function()
     rawset(_G, "GetNumTrainerServices", function() return 3 end)
     rawset(_G, "GetTrainerServiceInfo", function(i)

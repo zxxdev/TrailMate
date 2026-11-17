@@ -356,7 +356,38 @@ local function addArrivalSteps(p)
     front = front + 1
   end
   local extra = {}
-  if front == 0 then
+  -- The quests of the hubs here (data/Hubs.lua), one step each, unless the
+  -- plan already picks them up.
+  local taken = {}
+  for _, s in ipairs(p.steps) do
+    if s.type == "accept" then
+      taken[s.questID] = true
+    end
+  end
+  local inLog = {}
+  for _, q in ipairs(Api.questLog()) do
+    inLog[q.questID] = true
+  end
+  local ctx = {
+    inLog = function(id)
+      return inLog[id] == true or taken[id] == true
+    end,
+    isDone = function(id)
+      return Api.turnedIn(id) == true
+    end,
+  }
+  for _, hub in ipairs(ns.Hubs.forZone(ns.HUBS, here.mapID, Api.faction(), here.level or 1)) do
+    for _, q in ipairs(ns.Hubs.pending(hub, ctx)) do
+      local title = Api.questTitle(q.questID) or (atlas.quests[q.questID] and atlas.quests[q.questID].title)
+        or L["Quest %d"]:format(q.questID)
+      local known = atlas.quests[q.questID] and atlas.quests[q.questID].start
+      local spot = known and known.mapID == here.mapID and known or { mapID = hub.mapID, x = hub.x, y = hub.y }
+      extra[#extra + 1] = { id = "arrive-q" .. q.questID, type = "accept", questID = q.questID,
+        text = L["Pick up: "] .. title, mapID = spot.mapID, x = spot.x, y = spot.y,
+        why = q.optional and L["%s - optional: elite or group quest"]:format(hub.name) or hub.name }
+    end
+  end
+  if front == 0 and #extra == 0 then
     extra[#extra + 1] = { id = "arrive-quests-" .. here.mapID, type = "note",
       text = L["Pick up the quests here first"],
       why = L["New area: talk to the quest givers marked ! around you before heading out. TrailMate remembers "
@@ -1590,6 +1621,17 @@ handlers.GOSSIP_SHOW = function()
   end
 end
 handlers.QUEST_GREETING = handlers.GOSSIP_SHOW
+-- A quest name asked for (a hub's quest) has loaded: show it.
+local titlesPending = false
+handlers.QUEST_DATA_LOAD_RESULT = function()
+  if cdb and cdb.arrival and not titlesPending and plan and Builder.isAuto(plan) then
+    titlesPending = true
+    after(1, function()
+      titlesPending = false
+      buildFromQuestLog(true)
+    end)
+  end
+end
 handlers.QUEST_DETAIL = function()
   local q = cdb and Api.shownQuest()
   if q then

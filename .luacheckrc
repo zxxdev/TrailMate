@@ -30,7 +30,7 @@ read_globals = {
   "PlaySound", "SOUNDKIT", "C_ClassTalents", "C_Traits", "C_Spell", "GetSpellInfo", "GetNumSpecializations",
   "GetSpecializationInfo", "C_SpecializationInfo", "UnitOnTaxi", "C_GossipInfo", "GetNumAvailableQuests",
   "GetAvailableQuestInfo", "GetAvailableTitle", "GetAvailableLevel", "GetQuestID", "GetTitleText", "GetRealZoneText",
-  "GetZoneText", "GetSubZoneText", "GetMinimapZoneText", "GetQuestLogSpecialItemInfo", "GetItemIcon", "GameTooltip", "CreateColor", "C_Texture", "C_TaxiMap", "Enum", "GetBindLocation", "GetItemCooldown", "GetItemCount", "GetTaxiMapID", "GetTime",
+  "GetZoneText", "GetSubZoneText", "GetMinimapZoneText", "C_QuestLog", "GetQuestLogSpecialItemInfo", "GetItemIcon", "GameTooltip", "CreateColor", "C_Texture", "C_TaxiMap", "Enum", "GetBindLocation", "GetItemCooldown", "GetItemCount", "GetTaxiMapID", "GetTime",
 }
 
 files["spec/"] = { std = "+busted" }

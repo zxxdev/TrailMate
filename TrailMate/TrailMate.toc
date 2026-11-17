@@ -25,7 +25,9 @@ core\Atlas.lua
 core\Travel.lua
 core\Talents.lua
 core\Trails.lua
+core\Hubs.lua
 data\Routes.lua
+data\Hubs.lua
 game\Api.lua
 game\Theme.lua
 game\UI.lua
