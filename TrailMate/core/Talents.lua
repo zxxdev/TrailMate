@@ -18,6 +18,8 @@ ns.Talents = Talents
 
 -- Points needed in a tree to open each row (classic rule: 5 per row).
 Talents.PER_ROW = 5
+-- Talent points a character has at level 60: one per level from 10.
+Talents.MAX_POINTS = 51
 
 -- The hunter templates use the talent names of WoW Forever's own trees, as
 -- the game reported them on 2026-11-17 (they differ from classic: Deadly
@@ -115,6 +117,15 @@ local function spentIn(tab)
     n = n + (t.rank or 0)
   end
   return n
+end
+
+--- Points spent in all trees, and the points still to come up to level 60.
+function Talents.spent(tabs)
+  local n = 0
+  for _, tab in ipairs(tabs) do
+    n = n + spentIn(tab)
+  end
+  return n, math.max(0, Talents.MAX_POINTS - n)
 end
 
 --- The template to show when the player has not chosen: the saved one if

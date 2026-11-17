@@ -1,7 +1,8 @@
--- TrailMate's own mark on the minimap, so no other addon is needed: a gold
--- dot where the target is, or, when it is beyond the minimap's edge, a small
--- gold arrow on the edge pointing at it. Follows the minimap's zoom, indoors
--- and outdoors, and the "rotate minimap" option.
+-- TrailMate's own mark on the minimap, so no other addon is needed: a purple
+-- pin with its tip on the target (the game's quest marks under it stay
+-- visible), or, when the target is beyond the minimap's edge, a small purple
+-- arrow on the edge pointing at it. Follows the minimap's zoom, indoors and
+-- outdoors, and the "rotate minimap" option. Returns "pin" or "edge".
 
 local _, ns = ...
 
@@ -14,7 +15,8 @@ local ACROSS = {
   outdoor = { [0] = 466 + 2 / 3, [1] = 400, [2] = 333 + 1 / 3, [3] = 266 + 2 / 6, [4] = 200, [5] = 133 + 1 / 3 },
   indoor = { [0] = 300, [1] = 240, [2] = 180, [3] = 120, [4] = 80, [5] = 50 },
 }
-local DOT = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
+local PIN = "Interface\\AddOns\\TrailMate\\media\\Pin" -- drawn by tools/make_pin.lua
+local PIN_SIZE = 20
 local ARROW = "Interface\\AddOns\\TrailMate\\media\\Arrow"
 local COLS, ROWS = 16, 8 -- the arrow picture, as in game/Arrow.lua
 local EDGE_GAP = 6 -- pixels inside the edge
@@ -30,18 +32,14 @@ local function create()
   f:SetSize(1, 1)
   f:SetPoint("CENTER", map, "CENTER")
   f:SetFrameLevel((map.GetFrameLevel and map:GetFrameLevel() or 1) + 10)
-  local gold = ns.Theme.GOLD
-  f.ring = f:CreateTexture(nil, "OVERLAY", nil, 1)
-  f.ring:SetTexture(DOT)
-  f.ring:SetVertexColor(0.1, 0.07, 0.02, 1)
-  f.ring:SetSize(14, 14)
-  f.dot = f:CreateTexture(nil, "OVERLAY", nil, 2)
-  f.dot:SetTexture(DOT)
-  f.dot:SetVertexColor(gold[1], gold[2], gold[3], 1)
-  f.dot:SetSize(10, 10)
+  -- The addon's purple, not gold: gold is the game's colour for quests.
+  local purple = ns.Theme.ACCENT
+  f.pin = f:CreateTexture(nil, "OVERLAY", nil, 2)
+  f.pin:SetTexture(PIN)
+  f.pin:SetSize(PIN_SIZE, PIN_SIZE)
   f.edge = f:CreateTexture(nil, "OVERLAY", nil, 3)
   f.edge:SetTexture(ARROW)
-  f.edge:SetVertexColor(gold[1], gold[2], gold[3], 1)
+  f.edge:SetVertexColor(purple[1], purple[2], purple[3], 1)
   f.edge:SetSize(20, 20)
   frame = f
   return f
@@ -49,8 +47,7 @@ end
 
 local function hideAll()
   if frame then
-    frame.ring:Hide()
-    frame.dot:Hide()
+    frame.pin:Hide()
     frame.edge:Hide()
   end
 end
@@ -114,18 +111,16 @@ function MinimapPin.update(bearing, yards, facing)
     f.edge:ClearAllPoints()
     f.edge:SetPoint("CENTER", map, "CENTER", x, y)
     f.edge:Show()
-    f.dot:Hide()
-    f.ring:Hide()
+    f.pin:Hide()
     MinimapPin.state = "edge"
   else
-    f.dot:ClearAllPoints()
-    f.dot:SetPoint("CENTER", map, "CENTER", x, y)
-    f.ring:ClearAllPoints()
-    f.ring:SetPoint("CENTER", map, "CENTER", x, y)
-    f.dot:Show()
-    f.ring:Show()
+    -- The pin's tip on the target (3 of the picture's 64 pixels above its
+    -- bottom edge): it stands above the spot and leaves it visible.
+    f.pin:ClearAllPoints()
+    f.pin:SetPoint("BOTTOM", map, "CENTER", x, y - PIN_SIZE * 3 / 64)
+    f.pin:Show()
     f.edge:Hide()
-    MinimapPin.state = "dot"
+    MinimapPin.state = "pin"
   end
   MinimapPin.x, MinimapPin.y = x, y
   return MinimapPin.state

@@ -9,6 +9,7 @@ local MapTrail = {}
 ns.MapTrail = MapTrail
 
 local DOT = "Interface\\CharacterFrame\\TempPortraitAlphaMask" -- a soft white disc
+local PIN = "Interface\\AddOns\\TrailMate\\media\\Pin" -- drawn by tools/make_pin.lua
 local MAX_DOTS = 1200
 local GAP = 0.004 -- minimum distance between dots on the map (0 to 1)
 
@@ -57,15 +58,13 @@ function MapTrail.draw()
     return
   end
   local size = math.max(4, w / 160)
-  local gold = ns.Theme.GOLD
-  -- The arrow's target, always marked (TrailMate's own map pin).
+  local gold = ns.Theme.GOLD -- the dots of the way
+  -- The arrow's target, always marked with TrailMate's own pin: purple, its
+  -- tip on the spot, so the game's yellow quest marks stay visible.
   local mark = MapTrail.mark
   if not mark then
-    mark = { ring = layer:CreateTexture(nil, "OVERLAY", nil, 6), dot = layer:CreateTexture(nil, "OVERLAY", nil, 7) }
-    mark.ring:SetTexture(DOT)
-    mark.ring:SetVertexColor(0.1, 0.07, 0.02, 1)
-    mark.dot:SetTexture(DOT)
-    mark.dot:SetVertexColor(gold[1], gold[2], gold[3], 1)
+    mark = { pin = layer:CreateTexture(nil, "OVERLAY", nil, 7) }
+    mark.pin:SetTexture(PIN)
     MapTrail.mark = mark
   end
   local gx, gy
@@ -73,15 +72,14 @@ function MapTrail.draw()
     gx, gy = ns.Api.mapPosFromWorld(goal.cont, goal.x, goal.y, mapID)
   end
   if gx and gx >= 0 and gx <= 1 and gy >= 0 and gy <= 1 then
-    for part, s in pairs({ ring = size * 3.2, dot = size * 2.4 }) do
-      mark[part]:ClearAllPoints()
-      mark[part]:SetPoint("CENTER", layer, "TOPLEFT", gx * w, -gy * h)
-      mark[part]:SetSize(s, s)
-      mark[part]:Show()
-    end
+    local s = size * 5
+    mark.pin:ClearAllPoints()
+    -- The tip is 3 of the picture's 64 pixels above its bottom edge.
+    mark.pin:SetPoint("BOTTOM", layer, "TOPLEFT", gx * w, -gy * h - s * 3 / 64)
+    mark.pin:SetSize(s, s)
+    mark.pin:Show()
   else
-    mark.ring:Hide()
-    mark.dot:Hide()
+    mark.pin:Hide()
   end
   if not path then
     hideFrom(1)

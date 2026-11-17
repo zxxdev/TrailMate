@@ -1475,7 +1475,7 @@ local function selfTest()
     local pin = ns.MinimapPin
     return true, ("minimap %s%s; world map target %s"):format(tostring(pin.state or "hidden"),
       pin.state and pin.state ~= "hidden" and (" at %.0f, %.0f"):format(pin.x or 0, pin.y or 0) or "",
-      ns.MapTrail.mark and ns.MapTrail.mark.dot:IsShown() and "shown" or "not drawn (open the map)")
+      ns.MapTrail.mark and ns.MapTrail.mark.pin:IsShown() and "shown" or "not drawn (open the map)")
   end)
   check("panel", function()
     local shown, tab = ns.Panel.frame:IsShown(), ns.Panel.current

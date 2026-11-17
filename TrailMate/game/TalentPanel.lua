@@ -34,9 +34,12 @@ function TalentPanel.advice()
   if not chosen then
     return nil
   end
-  local groups = Talents.group(Talents.plan(tabs, chosen, 15))
+  -- Never past level 60: the points still to come are the limit.
+  local spent, left = Talents.spent(tabs)
+  local groups = Talents.group(Talents.plan(tabs, chosen, math.min(15, left)))
   local points = math.max(0, (Api.talentPoints() or 0) - (pending or 0))
-  return { list = list, chosen = chosen, groups = groups, tabs = tabs, points = points }
+  return { list = list, chosen = chosen, groups = groups, tabs = tabs, points = points, spent = spent,
+    left = left }
 end
 
 local function pulse(tex)
@@ -128,6 +131,10 @@ function TalentPanel.attach()
     local text = Theme.label(f, "GameFontHighlightSmall")
     text:SetPoint("LEFT", icon, "RIGHT", 6, 0)
     text:SetWidth(WIDTH - 60)
+    text:SetJustifyH("LEFT")
+    if text.SetWordWrap then
+      text:SetWordWrap(false)
+    end
     f.rows[i] = { icon = icon, text = text }
   end
   f.footer = Theme.label(f, "GameFontDisableSmall")
@@ -172,7 +179,8 @@ function TalentPanel.showPreview(i)
   local a = TalentPanel.advice()
   local t = a and a.list[i]
   if t and TalentPanel.frame then
-    ns.TalentPreview.show(TalentPanel.frame, t, a.tabs, ns.Talents.preview(a.tabs, t, 51), TalentPanel.L)
+    local preview = ns.Talents.preview(a.tabs, t, ns.Talents.MAX_POINTS)
+    ns.TalentPreview.show(TalentPanel.frame, t, a.tabs, preview, TalentPanel.L)
   end
 end
 
@@ -204,24 +212,23 @@ local function hideBadges()
   end
 end
 
--- The chosen template's next points, by talent: the level of the first one.
+-- The chosen template's next points up to level 60, by talent: the level of
+-- the first one, in the colour of its tree.
 local function markWindow(a)
   hideBadges()
-  local spent = 0
-  for _, tab in ipairs(a.tabs) do
-    for _, talent in ipairs(tab.talents) do
-      spent = spent + (talent.rank or 0)
-    end
-  end
+  TalentPanel.badges = 0
   local seen = {}
-  for i, p in ipairs(ns.Talents.plan(a.tabs, a.chosen, 60)) do
+  for i, p in ipairs(ns.Talents.plan(a.tabs, a.chosen, a.left)) do
     if not seen[p.talent] then
       seen[p.talent] = true
-      local button = ns.Api.talentButton(p.tree or a.chosen.tree, p.talent)
+      local tree = p.tree or a.chosen.tree
+      local button = ns.Api.talentButton(tree, p.talent)
       if button then
         local b = badge(button)
-        b.text:SetText(9 + spent + i)
+        b.text:SetText(9 + a.spent + i)
+        b.text:SetTextColor(treeColor(tree))
         b:Show()
+        TalentPanel.badges = TalentPanel.badges + 1
       end
     end
   end
@@ -269,7 +276,7 @@ function TalentPanel.refresh()
     if t then
       -- The spec at a glance: points per tree at level 60, one colour each.
       local split = {}
-      for k, tree in ipairs(ns.Talents.preview(a.tabs, t, 51).trees) do
+      for k, tree in ipairs(ns.Talents.preview(a.tabs, t, ns.Talents.MAX_POINTS).trees) do
         split[k] = hex(k) .. tree.points .. "|r"
       end
       local mark = t == a.chosen and "> " or ""
@@ -323,8 +330,8 @@ function TalentPanel.refresh()
     if g then
       row.icon:SetTexture(g.talent.icon)
       row.icon:Show()
-      row.text:SetText(("%s (%s) %s%s|r"):format(g.talent.name, rankText(g, L), hex(g.tree or chosen.tree),
-        a.tabs[g.tree or chosen.tree].name))
+      -- One line each: the name in its tree's colour, then the ranks.
+      row.text:SetText(("%s%s|r  %s"):format(hex(g.tree or chosen.tree), g.talent.name, rankText(g, L)))
     else
       row.icon:Hide()
       row.text:SetText("")

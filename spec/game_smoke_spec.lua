@@ -284,7 +284,7 @@ describe("addon smoke test", function()
     assert.equals(0, watched[10])
   end)
 
-  it("marks the target on the minimap by itself: a dot near, an arrow on the edge when far", function()
+  it("marks the target on the minimap by itself: a pin near, an arrow on the edge when far", function()
     local zoom = 0
     local map = fakeObject("Minimap")
     rawset(map, "GetWidth", function() return 140 end)
@@ -295,16 +295,19 @@ describe("addon smoke test", function()
     end)
     _G.SlashCmdList.TRAILMATE("diario")
     eventFrame().scripts.OnUpdate(eventFrame(), 0.1)
-    local pin = named.TrailMateMinimapPin
+    local mark = named.TrailMateMinimapPin
     -- 283 yards away: beyond the 233 yards the minimap shows around you.
-    assert.is_true(pin.edge.visible)
-    assert.is_false(pin.dot.visible)
-    -- A nearer quest (70 yards) is a dot inside the minimap.
+    assert.is_true(mark.edge.visible)
+    assert.is_false(mark.pin.visible)
+    -- A nearer quest (70 yards) is a pin inside the minimap, its tip on the
+    -- spot: the picture stands above it, so the quest's own mark shows.
     _G.C_QuestLog.GetQuestsOnMap = function() return { { questID = 10, x = 0.45, y = 0.45 } } end
     _G.SlashCmdList.TRAILMATE("diario")
     eventFrame().scripts.OnUpdate(eventFrame(), 2)
-    assert.is_true(pin.dot.visible)
-    assert.is_false(pin.edge.visible)
+    assert.is_true(mark.pin.visible)
+    assert.is_false(mark.edge.visible)
+    -- Purple, not the gold of the game's quest marks.
+    assert.same({ 0.61, 0.48, 0.83, 1 }, mark.edge.color)
   end)
 
   it("points its own arrow at the current quest with distance and direction", function()
@@ -551,7 +554,8 @@ describe("addon smoke test", function()
     assert.matches("^Build de subida   %d+/%d+/%d+", picture.title.shown_text)
     panel.choices[1].scripts.OnLeave(panel.choices[1])
     assert.is_false(picture.visible)
-    assert.matches("^Endurance Training %(rangos 1%-5/5%)", panel.rows[1].text.shown_text)
+    -- One line per talent: the name in its tree's colour, then the ranks.
+    assert.matches("^|c%x+Endurance Training|r  rangos 1%-5/5$", panel.rows[1].text.shown_text)
     -- The reminder names the talent.
     fire("CHARACTER_POINTS_CHANGED")
     local found

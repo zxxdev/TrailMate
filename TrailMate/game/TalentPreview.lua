@@ -155,8 +155,25 @@ function TalentPreview.show(owner, template, tabs, preview, L)
   end
   hideNodes(used + 1)
   f.note:SetText(L["Number: level the talent is taken at. Bottom: rank it ends at (green: you have it)."])
+  -- Beside the panel where the screen has room (to the right, else over
+  -- the talent window on the left), never off the screen.
   f:ClearAllPoints()
-  f:SetPoint("TOPLEFT", owner, "TOPRIGHT", 6, 0)
+  -- Measured in screen pixels: each frame has its own scale.
+  local function px(region, value)
+    return value and value * (region.GetEffectiveScale and region:GetEffectiveScale() or 1)
+  end
+  local right = px(owner, owner.GetRight and owner:GetRight())
+  local screen = px(UIParent, UIParent.GetRight and UIParent:GetRight())
+  if right and screen and right + px(f, 6 + f:GetWidth()) > screen then
+    f:SetPoint("TOPRIGHT", owner, "TOPLEFT", -6, 0)
+    TalentPreview.side = "left"
+  else
+    f:SetPoint("TOPLEFT", owner, "TOPRIGHT", 6, 0)
+    TalentPreview.side = "right"
+  end
+  if f.SetClampedToScreen then
+    f:SetClampedToScreen(true)
+  end
   f:Show()
   TalentPreview.shown = used
 end

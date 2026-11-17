@@ -245,5 +245,18 @@ describe("Talents", function()
       local found, total = Talents.found(tabs, build)
       assert.equals(total, found)
     end)
+
+    it("plans only up to level 60: 26 points left at 25 spent, nothing after (the user's screenshot)", function()
+      local tabs = realTrees({ ["Deadly Aspects"] = 5, ["Focused Fire"] = 2, ["Endurance Training"] = 3,
+        ["Unleashed Fury"] = 5, ["Summon Hawk"] = 1, ["Ferocity"] = 5, ["Bestial Swiftness"] = 1,
+        ["Intimidation"] = 1, ["Bestial Discipline"] = 2 })
+      local spent, left = Talents.spent(tabs)
+      assert.same({ 25, 26 }, { spent, left })
+      local picks = Talents.plan(tabs, Talents.templates("HUNTER", tabs)[1], left)
+      assert.equals(26, #picks)
+      -- The 51st point (level 60) is the last of the build, not a filler talent.
+      assert.equals("Improved Tracking", picks[#picks].talent.name)
+      assert.same({ 51, 0 }, { Talents.spent(realTrees({ ["Deadly Aspects"] = 51 })) })
+    end)
   end)
 end)
