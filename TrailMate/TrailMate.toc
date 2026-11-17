@@ -1,0 +1,19 @@
+## Interface: 16001
+## Title: TrailMate
+## Notes: Leveling coach: quest steps with an arrow, trainer and vendor advice. Advises, never plays.
+## Author: zxxdev
+## Version: 0.1.0-dev
+## X-License: MIT
+## SavedVariables: TrailMateDB
+## SavedVariablesPerCharacter: TrailMateCharDB
+
+core\Locale.lua
+core\Plan.lua
+core\Builder.lua
+core\Throttle.lua
+core\Trainer.lua
+core\Bags.lua
+core\State.lua
+game\Api.lua
+game\UI.lua
+game\Main.lua
