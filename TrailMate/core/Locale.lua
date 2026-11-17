@@ -208,6 +208,12 @@ local esES = {
   ["Go to %s."] = "Ve a %s.",
   ["Click the item to use it"] = "Pulsa el objeto para usarlo",
   ["Error"] = "Error",
+  ["Walked trails cleared."] = "Rastros borrados.",
+  ["Trails: %s, %d dots and %d joins learned."] = "Rastros: %s, %d puntos y %d uniones aprendidos.",
+  ["on"] = "activados",
+  ["off"] = "desactivados",
+  ["Learn the ways you walk and follow them (dots on the map)"] =
+    "Aprende los caminos que recorres y los sigue (puntitos en el mapa)",
   ["The panel could not be built: type /tm test and send the log."] =
     "No se pudo crear el panel: escribe /tm test y pásame el registro.",
   ["zeppelin"] = "zepelín",

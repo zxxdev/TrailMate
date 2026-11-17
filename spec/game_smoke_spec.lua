@@ -663,9 +663,68 @@ describe("addon smoke test", function()
     for _ in out:gmatch("%[[PF]A[SI][SL]%]") do
       checks = checks + 1
     end
-    assert.equals(17, checks)
+    assert.equals(18, checks)
     assert.equals(planBefore, _G.TrailMateCharDB.plan)
     assert.is_nil(_G.TrailMateCharDB.prefs.focusZone)
+  end)
+
+  it("learns the way walked and follows it with the arrow and dots on the map", function()
+    local function vec(x, y)
+      return { x = x, y = y, GetXY = function(self) return self.x, self.y end }
+    end
+    local px, py = 0.5, 0.5
+    local map = fakeObject("WorldMapFrame")
+    local child = fakeObject("Canvas")
+    rawset(child, "GetWidth", function() return 1000 end)
+    rawset(child, "GetHeight", function() return 1000 end)
+    rawset(map, "ScrollContainer", { Child = child })
+    rawset(map, "GetMapID", function() return 1429 end)
+    map:Show()
+    local added = {
+      CreateVector2D = vec,
+      WorldMapFrame = map,
+    }
+    for k, v in pairs(added) do
+      rawset(_G, k, v)
+    end
+    finally(function()
+      for k in pairs(added) do
+        rawset(_G, k, nil)
+      end
+    end)
+    -- One map, 1000 yards across: world yards = map position x 1000.
+    _G.C_Map.GetPlayerMapPosition = function() return vec(px, py) end
+    _G.C_Map.GetWorldPosFromMapPos = function(_, v) return 0, vec(v.x * 1000, v.y * 1000) end
+    _G.C_Map.GetMapPosFromWorldPos = function(_, v) return 1429, vec(v.x / 1000, v.y / 1000) end
+    local function walkTo(x, y)
+      local steps = 20
+      local sx, sy = px, py
+      for i = 1, steps do
+        px, py = sx + (x - sx) * i / steps, sy + (y - sy) * i / steps
+        eventFrame().scripts.OnUpdate(eventFrame(), 0.5)
+      end
+    end
+    -- The player walks round a wall: north, then west to the quest at 0.3,0.3.
+    walkTo(0.5, 0.3)
+    walkTo(0.3, 0.3)
+    _G.SlashCmdList.TRAILMATE("rastro")
+    assert.matches("Rastros: activados, %d+ puntos", output())
+    -- Back at the start (a jump: no line is drawn across it), following the quest.
+    px, py = 0.5, 0.5
+    _G.SlashCmdList.TRAILMATE("diario")
+    eventFrame().scripts.OnUpdate(eventFrame(), 2)
+    printed = {}
+    _G.SlashCmdList.TRAILMATE("test")
+    assert.matches("%[PASS%] trails: on; %d+ dots, %d+ joins; route to the arrow target %d+ dots; "
+      .. "world map canvas found, %d+ dots drawn", output())
+    local drawn = tonumber(output():match("found, (%d+) dots drawn"))
+    assert.is_true(drawn > 10)
+    -- Switched off, nothing is followed.
+    _G.SlashCmdList.TRAILMATE("rastro off")
+    eventFrame().scripts.OnUpdate(eventFrame(), 2)
+    printed = {}
+    _G.SlashCmdList.TRAILMATE("test")
+    assert.matches("trails: off; .- route to the arrow target none", output())
   end)
 
   it("puts the icon and the compartment entry in the .toc", function()

@@ -87,10 +87,10 @@ end
 -- A target on another map of the same continent (Orgrimmar and Durotar):
 -- compare world positions. Which way is north in world units is measured on
 -- the player's own map, so no axis convention has to be assumed.
-local function farAway(mapID, px, py, target)
+-- there: a world point { cont, x, y }. Returns bearing and distance, or nil.
+local function towards(mapID, px, py, there)
   local Api = ns.Api
   local here = Api.worldPos(mapID, px, py)
-  local there = Api.worldPos(target.mapID, target.x, target.y)
   if not (here and there) or here.cont ~= there.cont then
     return nil
   end
@@ -103,6 +103,17 @@ local function farAway(mapID, px, py, target)
     return { x = a.x - here.x, y = a.y - here.y }
   end
   return ns.Geo.worldBearing(minus(there), minus(east), minus(north))
+end
+
+local function farAway(mapID, px, py, target)
+  return towards(mapID, px, py, ns.Api.worldPos(target.mapID, target.x, target.y))
+end
+
+--- The next dot of a walked trail to follow on the way to the target (a
+--- world point), or nil to point straight at the target. The distance shown
+--- stays the distance to the target.
+function Arrow.setVia(point)
+  Arrow.via = point
 end
 
 --- Recomputes direction and distance. Called a few times per second.
@@ -148,6 +159,10 @@ function Arrow.update()
     f.icon:Hide()
     f.distance:SetText(L["You are there"])
     return
+  end
+  -- Along a walked trail: point at its next dot (round the wall, through the gate).
+  if Arrow.via then
+    bearing = towards(mapID, px, py, Arrow.via) or bearing
   end
   local rotation = Geo.arrowRotation(bearing, Api.facing())
   if rotation then

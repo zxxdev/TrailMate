@@ -24,11 +24,13 @@ core\Geo.lua
 core\Atlas.lua
 core\Travel.lua
 core\Talents.lua
+core\Trails.lua
 game\Api.lua
 game\Theme.lua
 game\UI.lua
 game\Arrow.lua
 game\ItemButton.lua
+game\MapTrail.lua
 game\MinimapButton.lua
 game\Panel.lua
 game\TalentPanel.lua

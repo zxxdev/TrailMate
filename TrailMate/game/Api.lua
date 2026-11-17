@@ -441,6 +441,33 @@ function Api.worldPos(mapID, x, y)
   return { cont = cont, x = wx, y = wy }
 end
 
+--- Where a world point falls on a given map: x, y from 0 to 1, or nil.
+function Api.mapPosFromWorld(cont, x, y, mapID)
+  if not (C_Map and C_Map.GetMapPosFromWorldPos and CreateVector2D and mapID) then
+    return nil
+  end
+  local _, pos = safe(C_Map.GetMapPosFromWorldPos, cont, CreateVector2D(x, y), mapID)
+  if not (pos and pos.GetXY) then
+    return nil
+  end
+  local mx, my = safe(pos.GetXY, pos)
+  if type(mx) ~= "number" or type(my) ~= "number" then
+    return nil
+  end
+  return mx, my
+end
+
+--- True while on a flight (nothing walked then).
+function Api.onTaxi()
+  return safe(UnitOnTaxi, "player") == true
+end
+
+--- The player's world position { cont, x, y }, or nil.
+function Api.playerWorld()
+  local mapID, x, y = Api.position()
+  return mapID and x and y and Api.worldPos(mapID, x, y) or nil
+end
+
 local function nodeXY(n)
   local pos = n.position
   if type(pos) == "table" and pos.GetXY then

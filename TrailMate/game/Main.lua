@@ -20,7 +20,10 @@ local warnedLevel = {} -- levels already announced as "almost there"
 local warnedFull = false
 local questThrottle = ns.Throttle.new(0.3)
 local bagThrottle = ns.Throttle.new(1)
-local clock, sinceMove, sinceTarget, sinceArrow, sinceTalents = 0, 0, 0, 0, 0
+local clock, sinceMove, sinceTarget, sinceArrow, sinceTalents, sinceTrail = 0, 0, 0, 0, 0, 0
+local trails -- TrailMateDB.trails: the ways walked, shared by the account's characters
+local trailPrev, trailLast -- last dot recorded, last position seen
+local lastPath -- the trail route the arrow follows now
 
 local COLORS = {
   learn = "|cff40c040", skip = "|cffc04040", later = "|cffd0a020",
@@ -832,6 +835,7 @@ local HELP = {
   { "/tm tracking on|off  (rastreos si|no)", "Skip hunter tracking spells" },
   { "/tm reserve | reserva <gold>", "Gold the trainer advice never spends" },
   { "/tm arrow | flecha on|off", "Show or hide the arrow" },
+  { "/tm trail | rastro on|off|clear", "Learn the ways you walk and follow them (dots on the map)" },
   { "/tm talents | talentos", "Open your talents and say the next one" },
   { "/tm companion | compañero claude|chatgpt|none", "Icon colour of your AI companion" },
   { "/tm auto on|off", "Rebuild the plan by itself when it ends" },
@@ -949,6 +953,23 @@ alias({ "companion", "companero", "compañero" }, function(rest)
   local kind = ns.Theme.setCompanion(COMPANIONS[(rest or ""):lower()])
   cdb.prefs.companion = kind ~= "none" and kind or nil
   say(L["Companion: %s."]:format(kind == "none" and L["none"] or kind))
+end)
+alias({ "trail", "rastro" }, function(rest)
+  local word = (rest or ""):lower()
+  if word == "clear" or word == "borrar" then
+    TrailMateDB.trails = nil
+    trails, trailPrev, lastPath = ns.Trails.ensure(TrailMateDB), nil, nil
+    ns.Arrow.setVia(nil)
+    ns.MapTrail.show(nil)
+    say(L["Walked trails cleared."])
+    return
+  end
+  if word ~= "" then
+    cdb.prefs.trails = yes(word)
+  end
+  local nodes, links = ns.Trails.counts(trails)
+  say(L["Trails: %s, %d dots and %d joins learned."]:format(cdb.prefs.trails == false and L["off"] or L["on"],
+    nodes, links))
 end)
 alias({ "arrow", "flecha" }, function(rest)
   cdb.arrow.disabled = not yes(rest)
@@ -1162,6 +1183,16 @@ local function selfTest()
       tostring(f and f:IsShown()), tostring(f and f.icon:IsShown()), tostring(f and f.distance:GetText()),
       tostring(ns.ItemButton.current()))
   end)
+  check("trails", function()
+    local nodes, links = ns.Trails.counts(trails)
+    local canvas, _, drawn = ns.MapTrail.state()
+    local here = Api.playerWorld()
+    return true, ("%s; %d dots, %d joins; route to the arrow target %s; world map canvas %s, %d dots drawn; here %s")
+      :format(cdb.prefs.trails == false and "off" or "on", nodes, links,
+        lastPath and (#lastPath .. " dots") or "none (no walked trail helps here yet)",
+        canvas and "found" or "not found", drawn,
+        here and ("%s %.0f %.0f"):format(here.cont, here.x, here.y) or "unknown")
+  end)
   check("quest highlight", function()
     local ok = C_SuperTrack ~= nil and type(C_SuperTrack.SetSuperTrackedQuestID) == "function"
     return ok, ok and "available" or "missing"
@@ -1266,6 +1297,7 @@ handlers.ADDON_LOADED = function(name)
   TrailMateCharDB = TrailMateCharDB or {}
   cdb = TrailMateCharDB
   atlas = Atlas.ensure(TrailMateDB)
+  trails = ns.Trails.ensure(TrailMateDB)
   cdb.prefs = cdb.prefs or {}
   cdb.prefs.ignored = cdb.prefs.ignored or {}
   cdb.trainerMemory = cdb.trainerMemory or {}
@@ -1467,6 +1499,45 @@ local function talentTick()
   end
 end
 
+-- Records the way the player walks: a dot every few yards, joined to the
+-- previous one. Flights, ships and loading screens (a jump in position)
+-- start a new piece, so no line is drawn through walls or over the sea.
+local function recordTrail()
+  if cdb.prefs.trails == false or Api.onTaxi() then
+    trailPrev, trailLast = nil, nil
+    return
+  end
+  local w = Api.playerWorld()
+  if not w then
+    trailPrev, trailLast = nil, nil
+    return
+  end
+  local last = trailLast
+  trailLast = w
+  if last and (last.cont ~= w.cont or math.sqrt((last.x - w.x) ^ 2 + (last.y - w.y) ^ 2) > 60) then
+    trailPrev = nil
+  end
+  local p = trailPrev and trails.nodes[trailPrev]
+  if p and math.sqrt((p[2] - w.x) ^ 2 + (p[3] - w.y) ^ 2) < ns.Trails.STEP then
+    return
+  end
+  trailPrev = ns.Trails.add(trails, w.cont, w.x, w.y, trailPrev) or trailPrev
+end
+
+-- Follows a walked trail to the arrow's target when one helps: the arrow
+-- points at the next dot and the map shows the dotted way.
+local function followTrail()
+  local target = ns.Arrow.target
+  local here = Api.playerWorld()
+  local goal = target and Api.worldPos(target.mapID, target.x, target.y)
+  local path = cdb.prefs.trails ~= false and here and goal and ns.Trails.route(trails, here, goal) or nil
+  ns.Arrow.setVia(path and ns.Trails.next(path, here) or nil)
+  if path or lastPath then
+    ns.MapTrail.show(path)
+  end
+  lastPath = path
+end
+
 frame:SetScript("OnUpdate", function(_, elapsed)
   if not cdb then
     return
@@ -1498,6 +1569,14 @@ frame:SetScript("OnUpdate", function(_, elapsed)
     if detour or (plan and current) then
       guard("arrow", updateTarget, true)
     end
+    guard("trail", followTrail)
+  end
+  -- Learn the way while walking; redraw the dotted route on an open map.
+  sinceTrail = sinceTrail + elapsed
+  if sinceTrail >= 0.5 then
+    sinceTrail = 0
+    guard("trail", recordTrail)
+    guard("map dots", ns.MapTrail.tick)
   end
   -- The talent window may switch tabs: keep the lit talent right.
   sinceTalents = sinceTalents + elapsed
