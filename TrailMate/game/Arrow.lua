@@ -1,6 +1,11 @@
 -- TrailMate's own on-screen arrow: points at the current target using the
 -- player's facing, with the distance and the step text underneath.
 -- Works without TomTom. Movable; the position is saved per character.
+--
+-- Like TomTom's arrow, the picture (media/Arrow.tga, drawn by
+-- tools/make_arrow.lua) holds the arrow already drawn at 128 angles and the
+-- game only shows the right cell, so it stays smooth. It is tinted gold when
+-- the target is ahead and turns to the addon's purple as it falls behind.
 
 local _, ns = ...
 
@@ -8,33 +13,21 @@ local Arrow = {}
 ns.Arrow = Arrow
 
 local ARRIVED_YARDS = 8
--- Arrow art from the game, sharpest first: the modern client's navigation
--- arrow (an atlas), checked to exist before use; else the minimap arrow.
-local ATLASES = { "Navigation-Tracked-Arrow", "MiniMap-QuestArrow" }
+local SIZE = 56
+-- Must match tools/make_arrow.lua.
+local TEXTURE = "Interface\\AddOns\\TrailMate\\media\\Arrow"
+local COLS, ROWS = 16, 8
+local FRAMES = COLS * ROWS
+-- If the picture cannot be loaded: the minimap arrow, rotated by the game.
 local FALLBACK = "Interface\\Minimap\\MinimapArrow"
 
--- Returns the name of the art used (for the self-test) and its native size.
 local function setArrowArt(tex)
-  if tex.SetAtlas and C_Texture and C_Texture.GetAtlasInfo then
-    for _, atlas in ipairs(ATLASES) do
-      local ok, info = pcall(C_Texture.GetAtlasInfo, atlas)
-      if ok and type(info) == "table" and pcall(tex.SetAtlas, tex, atlas) then
-        return atlas, info.width, info.height
-      end
-    end
+  if tex:SetTexture(TEXTURE) ~= false then
+    tex:SetTexCoord(0, 1 / COLS, 0, 1 / ROWS)
+    return true
   end
   tex:SetTexture(FALLBACK)
-  return FALLBACK
-end
-
--- Rotated textures look jagged when the game snaps them to the pixel grid.
-local function smooth(tex)
-  if tex.SetSnapToPixelGrid then
-    pcall(tex.SetSnapToPixelGrid, tex, false)
-  end
-  if tex.SetTexelSnappingBias then
-    pcall(tex.SetTexelSnappingBias, tex, 0)
-  end
+  return false
 end
 
 function Arrow.create(saved, L)
@@ -54,20 +47,9 @@ function Arrow.create(saved, L)
 
   f.icon = f:CreateTexture(nil, "ARTWORK")
   f.icon:SetPoint("TOP", 0, -4)
-  local art, w, h = setArrowArt(f.icon)
-  Arrow.art = art
-  -- Never stretch the art beyond its own size: that is what makes it blurry.
-  if type(w) == "number" and type(h) == "number" and w > 0 and h > 0 then
-    local scale = math.min(1, 56 / math.max(w, h))
-    f.icon:SetSize(w * scale, h * scale)
-    Arrow.art = ("%s %dx%d"):format(art, w, h)
-  else
-    f.icon:SetSize(48, 48)
-  end
-  smooth(f.icon)
-  if art == FALLBACK then
-    f.icon:SetVertexColor(1, 0.82, 0)
-  end
+  f.icon:SetSize(SIZE, SIZE)
+  Arrow.sheet = setArrowArt(f.icon)
+  Arrow.art = Arrow.sheet and ("TrailMate %d frames"):format(FRAMES) or FALLBACK
 
   f.distance = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
   f.distance:SetPoint("TOP", f.icon, "BOTTOM", 0, -2)
@@ -84,6 +66,21 @@ end
 function Arrow.setTarget(target, label)
   Arrow.target, Arrow.labelText = target, label
   Arrow.update()
+end
+
+-- Turns the arrow and tints it: gold ahead, purple behind.
+local function aim(icon, rotation)
+  local Geo, Theme = ns.Geo, ns.Theme
+  if Arrow.sheet then
+    local k = Geo.arrowFrame(rotation, FRAMES)
+    local col, row = k % COLS, math.floor(k / COLS)
+    icon:SetTexCoord(col / COLS, (col + 1) / COLS, row / ROWS, (row + 1) / ROWS)
+    Arrow.cell = k
+  else
+    icon:SetRotation(rotation)
+  end
+  local t, a, b = Geo.offCourse(rotation), Theme.GOLD, Theme.ACCENT
+  icon:SetVertexColor(a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, a[3] + (b[3] - a[3]) * t)
 end
 
 --- Recomputes direction and distance. Called a few times per second.
@@ -122,7 +119,7 @@ function Arrow.update()
   end
   local rotation = Geo.arrowRotation(Geo.bearing(px, py, tx, ty, w, h), Api.facing())
   if rotation then
-    f.icon:SetRotation(rotation)
+    aim(f.icon, rotation)
     f.icon:Show()
   else
     f.icon:Hide()

@@ -46,4 +46,19 @@ describe("Geo", function()
     assert.equals("1.8 km", Geo.formatDistance(2000))
     assert.equals("?", Geo.formatDistance(nil))
   end)
+
+  it("picks the arrow picture drawn at the nearest angle", function()
+    assert.equals(0, Geo.arrowFrame(0, 128))
+    assert.equals(16, Geo.arrowFrame(PI / 4, 128))
+    assert.equals(64, Geo.arrowFrame(PI, 128))
+    assert.equals(0, Geo.arrowFrame(2 * PI - 0.001, 128)) -- wraps round
+    assert.equals(127, Geo.arrowFrame(-2 * PI / 128, 128))
+  end)
+
+  it("says how far off course the target is", function()
+    near(0, Geo.offCourse(0))
+    near(0.5, Geo.offCourse(PI / 2))
+    near(0.5, Geo.offCourse(3 * PI / 2)) -- right or left, the same
+    near(1, Geo.offCourse(PI))
+  end)
 end)

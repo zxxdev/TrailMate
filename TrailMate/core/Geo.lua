@@ -41,6 +41,21 @@ function Geo.arrowRotation(bearing, facing)
   return (bearing - facing) % TWO_PI
 end
 
+--- Which cell of a picture holding the arrow drawn at `frames` angles shows
+--- this rotation: 0 to frames - 1, nearest angle.
+function Geo.arrowFrame(rotation, frames)
+  return math.floor((rotation % TWO_PI) / TWO_PI * frames + 0.5) % frames
+end
+
+--- How far off course the target is: 0 straight ahead, 1 straight behind.
+function Geo.offCourse(rotation)
+  local angle = rotation % TWO_PI
+  if angle > math.pi then
+    angle = TWO_PI - angle
+  end
+  return angle / math.pi
+end
+
 --- Short text for a distance in yards.
 function Geo.formatDistance(yards)
   if not yards then

@@ -19,6 +19,10 @@ local function fakeObject(name)
         return function() return fakeObject() end
       elseif key == "SetRotation" then
         return function(self, r) rawset(self, "rotation", r) end
+      elseif key == "SetTexCoord" then
+        return function(self, ...) rawset(self, "texCoord", { ... }) end
+      elseif key == "SetVertexColor" then
+        return function(self, ...) rawset(self, "color", { ... }) end
       elseif key == "Show" then
         return function(self) rawset(self, "visible", true) end
       elseif key == "Hide" then
@@ -245,7 +249,13 @@ describe("addon smoke test", function()
     -- Player at 0.5,0.5 and the quest at 0.3,0.3 on a 1000-yard map:
     -- 283 yards (259 m) to the north-west, a quarter of a right angle to the left.
     assert.equals("259 m", arrow.distance.shown_text)
-    assert.is_true(math.abs(arrow.icon.rotation - math.pi / 4) < 1e-9)
+    -- An eighth of a turn is cell 16 of 128: first column, second row.
+    assert.same({ 0, 1 / 16, 1 / 8, 2 / 8 }, arrow.icon.texCoord)
+    assert.is_nil(rawget(arrow.icon, "rotation")) -- the picture is never rotated
+    -- A quarter of the way from gold (ahead) to purple (behind).
+    local c = arrow.icon.color
+    assert.is_true(math.abs(c[1] - (1 + (0.61 - 1) * 0.25)) < 1e-9)
+    assert.is_true(math.abs(c[3] - 0.83 * 0.25) < 1e-9)
     assert.equals("Hacer: Lobos", arrow.label.shown_text)
     _G.SlashCmdList.TRAILMATE("flecha no")
     assert.is_false(arrow.visible)
