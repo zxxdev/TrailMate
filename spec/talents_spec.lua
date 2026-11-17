@@ -13,7 +13,7 @@ describe("Talents", function()
     end
     return {
       { name = "Beast Mastery", talents = {
-        t(1, "Improved Aspect of the Hawk", 1, 2, 5),
+        t(1, "Deadly Aspects", 1, 2, 5),
         t(2, "Endurance Training", 1, 3, 5),
         t(3, "Unleashed Fury", 2, 2, 5),
         t(4, "Intimidation", 3, 2, 1, { tier = 2, column = 2 }),
@@ -43,14 +43,15 @@ describe("Talents", function()
     local tabs = tree()
     local bm = Talents.templates("HUNTER", tabs)[1]
     local picks = Talents.plan(tabs, bm, 11)
-    -- Hawk 1-5, then Endurance Training 1-5, then Unleashed Fury in row 2.
-    assert.equals("Improved Aspect of the Hawk", picks[1].talent.name)
+    -- Deadly Aspects 1-5, then Unleashed Fury in row 2 (open after 5 points),
+    -- then Intimidation in row 3 once Unleashed Fury is maxed.
+    assert.equals("Deadly Aspects", picks[1].talent.name)
     assert.equals(5, picks[5].rank)
-    assert.equals("Endurance Training", picks[6].talent.name)
-    assert.equals("Unleashed Fury", picks[11].talent.name)
+    assert.equals("Unleashed Fury", picks[6].talent.name)
+    assert.equals("Intimidation", picks[11].talent.name)
     local grouped = Talents.group(picks)
     assert.same({ 1, 5 }, { grouped[1].from, grouped[1].to })
-    assert.equals("Unleashed Fury", grouped[3].talent.name)
+    assert.equals("Intimidation", grouped[3].talent.name)
   end)
 
   it("never puts a point in a row that is not open yet", function()
@@ -65,7 +66,7 @@ describe("Talents", function()
   end)
 
   it("waits for a prerequisite to be maxed", function()
-    local tabs = tree({ ["Improved Aspect of the Hawk"] = 5, ["Endurance Training"] = 5, ["Unleashed Fury"] = 4 })
+    local tabs = tree({ ["Deadly Aspects"] = 5, ["Endurance Training"] = 5, ["Unleashed Fury"] = 4 })
     local bm = Talents.templates("HUNTER", tabs)[1]
     local picks = Talents.plan(tabs, bm, 2)
     assert.equals("Unleashed Fury", picks[1].talent.name)
@@ -91,7 +92,7 @@ describe("Talents", function()
         targets = targets }
     end
     local nodes = {
-      node(1, "Improved Aspect of the Hawk", 1, 2, 1, 0, { 3 }),
+      node(1, "Deadly Aspects", 1, 2, 1, 0, { 3 }),
       node(2, "Endurance Training", 1, 3, 1),
       node(3, "Focused Fire", 1, 2, 3), -- row 2 is empty in this tree
       node(4, "Lethal Shots", 2, 2, 1, 2),
@@ -126,9 +127,53 @@ describe("Talents", function()
       local tabs = Talents.fromNodes(nodes, { "Beast Mastery", "Marksmanship", "Survival" })
       local bm = Talents.templates("HUNTER", tabs)[1]
       local picks = Talents.plan(tabs, bm, 6)
-      assert.equals("Improved Aspect of the Hawk", picks[1].talent.name)
+      assert.equals("Deadly Aspects", picks[1].talent.name)
       assert.equals("Endurance Training", picks[6].talent.name)
       assert.same({}, Talents.fromNodes({}, {}))
+    end)
+
+    it("reads the user's real Forever tree (self-test of 2026-11-17)", function()
+      -- Columns 600 apart, trees about 2200 apart; rows 600 apart, but one
+      -- node sits 10 lower than its row; two stray nodes far away.
+      local X = { { 1020, 1620, 2220, 2820 }, { 5020, 5620, 6220, 6820 }, { 9080, 9680, 10280, 10880 } }
+      local id = 0
+      local function n(treeIndex, column, row, name, rank, maxRank, targets, dy)
+        id = id + 1
+        return { nodeID = id, name = name, posX = X[treeIndex][column], posY = 2130 + (row - 1) * 600 + (dy or 0),
+          rank = rank, maxRank = maxRank, targets = targets }
+      end
+      local real = {
+        n(1, 2, 1, "Deadly Aspects", 5, 5), n(1, 3, 1, "Endurance Training", 3, 5),
+        n(1, 1, 2, "Focused Fire", 2, 2), n(1, 2, 2, "Improved Aspect of the Monkey", 0, 3),
+        n(1, 3, 2, "Improved Revive Pet", 0, 2),
+        n(1, 1, 3, "Pathfinding", 0, 2), n(1, 2, 3, "Bestial Swiftness", 1, 1, { 14 }),
+        n(1, 3, 3, "Unleashed Fury", 5, 5),
+        n(1, 1, 4, "Improved Mend Pet", 0, 2), n(1, 3, 4, "Ferocity", 5, 5, { 16 }), n(1, 4, 4, "Summon Hawk", 1, 1),
+        n(1, 1, 5, "Spirit Bond", 0, 2), n(1, 4, 5, "Bestial Discipline", 2, 2),
+        n(1, 2, 5, "Intimidation", 1, 1, { 15 }), -- id 14
+        n(1, 2, 7, "Bestial Wrath", 0, 1), -- id 15
+        n(1, 3, 6, "Frenzy", 0, 5), -- id 16
+        n(2, 3, 1, "Lethal Attacks", 0, 5), n(3, 3, 1, "Deflection", 0, 5),
+        n(3, 1, 6, "Survival Tactics", 0, 2, nil, 10), -- 10 lower than its row
+        { nodeID = 98, name = "Lightning Reflexes", posX = 102800, posY = 5740, rank = 0, maxRank = 5 },
+        { nodeID = 99, name = "Improved Serpent Sting", posX = 6820, posY = 39300, rank = 0, maxRank = 5 },
+      }
+      local tabs = Talents.fromNodes(real, Talents.TREE_NAMES.HUNTER)
+      assert.equals(3, #tabs)
+      assert.equals(16, #tabs[1].talents) -- the strays are left out
+      local byName = {}
+      for _, t in ipairs(tabs[1].talents) do
+        byName[t.name] = t
+      end
+      assert.same({ 7, 2 }, { byName["Bestial Wrath"].tier, byName["Bestial Wrath"].column })
+      assert.same({ tier = 5, column = 2 }, byName["Bestial Wrath"].prereq)
+      assert.equals(6, tabs[3].talents[2].tier) -- 10 units off still counts as its row
+      -- 25 points spent at level 34: the next point goes to Frenzy (row 6).
+      local bm = Talents.templates("HUNTER", tabs)[1]
+      local groups = Talents.group(Talents.plan(tabs, bm, 6))
+      assert.equals("Frenzy", groups[1].talent.name)
+      assert.same({ 1, 5 }, { groups[1].from, groups[1].to })
+      assert.equals("Bestial Wrath", groups[2].talent.name)
     end)
   end)
 

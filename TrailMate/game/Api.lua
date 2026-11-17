@@ -122,12 +122,19 @@ local function traitNode(configID, nodeID)
   }
 end
 
---- The class's specialisation names, left to right (Beast Mastery, ...).
+--- The class's tree names, left to right (Beast Mastery, ...): from the
+--- game if it says, else the classic names (Forever does not say).
 local function specNames()
   local names = {}
+  local info = GetSpecializationInfo or (C_SpecializationInfo and C_SpecializationInfo.GetSpecializationInfo)
   for i = 1, safe(GetNumSpecializations) or 0 do
-    local _, name = safe(GetSpecializationInfo, i)
-    names[#names + 1] = name
+    local _, name = safe(info, i)
+    if type(name) == "string" then
+      names[#names + 1] = name
+    end
+  end
+  if #names == 0 then
+    names = ns.Talents.TREE_NAMES[Api.class()] or {}
   end
   return names
 end
@@ -367,6 +374,21 @@ function Api.talentReport()
     end
     lines[#lines + 1] = ("talent windows %d, with node buttons %d"):format(#Api.talentWindows(), buttons)
   end
+  -- Which frames the game shows now with "Talent" in their name: run the
+  -- self-test with the talent window open to learn what it is called here.
+  local shown = {}
+  for name, v in pairs(_G) do
+    if type(name) == "string" and name:find("Talent") and not name:find("^TrailMate") and type(v) == "table"
+      and type(rawget(v, 0)) == "userdata" and safe(v.IsShown, v) then
+      local parent = safe(v.GetParent, v)
+      if parent == UIParent or parent == nil then
+        shown[#shown + 1] = name .. (type(v.GetTalentButtonByNodeID) == "function" and "(node buttons)" or "")
+      end
+    end
+  end
+  table.sort(shown)
+  lines[#lines + 1] = ("talent frames shown now: %s"):format(#shown > 0 and table.concat(shown, ", ", 1,
+    math.min(#shown, 15)) or "none (open the talent window and run the test again)")
   local tabs = safe(GetNumTalentTabs) or 0
   for tab = 1, tabs do
     local r = pack(try(GetTalentTabInfo, tab))
@@ -474,6 +496,11 @@ function Api.flightNodes(learned)
     end
   end
   return out
+end
+
+--- The map the flight map shows (for the self-test), or nil.
+function Api.taxiMapID()
+  return (safe(GetTaxiMapID))
 end
 
 --- At an open flight map: the continent map, the current node's name, the

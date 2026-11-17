@@ -1095,9 +1095,13 @@ local function selfTest()
       table.sort(parts)
       return table.concat(parts, " ")
     end
+    local saved = {}
+    for cont, set in pairs(cdb.learnedFlights or {}) do
+      saved[tostring(cont)] = count(set)
+    end
     return #nodes > 0, ("%d of your faction, %d known (%d checked at a flight master); routes seen at %d flight "
-      .. "masters; states {%s} factions {%s}"):format(#nodes, known, sure, count(atlas.flights), show(states),
-      show(factions))
+      .. "masters; states {%s} factions {%s}; saved by continent {%s}; taxi map %s"):format(#nodes, known, sure,
+      count(atlas.flights), show(states), show(factions), show(saved), tostring(Api.taxiMapID()))
   end)
   check("hearthstone", function()
     local h = Api.hearth()
@@ -1428,7 +1432,9 @@ handlers.TAXIMAP_OPENED = function()
     Atlas.recordFlights(atlas, node, reachable)
   end
   if all and mapID then
-    local cont = Api.continentOf(mapID) or mapID
+    -- The flight map's own id is not always the continent (Forever): use
+    -- the continent the player stands on, which is the one the map shows.
+    local cont = Api.continentOf((Api.position())) or Api.continentOf(mapID) or mapID
     local set = {}
     for _, name in ipairs(all) do
       set[name] = true

@@ -19,43 +19,55 @@ ns.Talents = Talents
 -- Points needed in a tree to open each row (classic rule: 5 per row).
 Talents.PER_ROW = 5
 
+-- The hunter templates use the talent names of WoW Forever's own trees, as
+-- the game reported them on 2026-11-17 (they differ from classic: Deadly
+-- Aspects, Summon Hawk, Lethal Attacks...). The order is a suggestion for
+-- levelling, not an official guide.
 Talents.TEMPLATES = {
   HUNTER = {
     {
       id = "hunter-bm", tree = 1, difficulty = "easy",
       note = "Easiest to level: a strong pet takes the hits, little downtime.",
       priority = {
-        "Improved Aspect of the Hawk", "Endurance Training", "Focused Fire", "Unleashed Fury", "Ferocity",
-        "Thick Hide", "Bestial Discipline", "Intimidation", "Frenzy", "Spirit Bond", "Ferocious Inspiration",
-        "Bestial Wrath", "Serpent's Swiftness", "Catlike Reflexes", "Invigoration", "The Beast Within",
-        "Kindred Spirits", "Cobra Strikes", "Longevity", "Beast Mastery", "Animal Handler",
-        "Improved Mend Pet", "Pathfinding", "Aspect Mastery", "Bestial Swiftness", "Improved Revive Pet",
+        "Deadly Aspects", "Focused Fire", "Unleashed Fury", "Ferocity", "Bestial Swiftness", "Intimidation",
+        "Bestial Discipline", "Frenzy", "Bestial Wrath", "Endurance Training", "Spirit Bond", "Summon Hawk",
+        "Improved Aspect of the Monkey", "Pathfinding", "Improved Mend Pet", "Improved Revive Pet",
       },
     },
     {
       id = "hunter-mm", tree = 2, difficulty = "normal",
       note = "More damage from you, a weaker pet. Good for groups.",
       priority = {
-        "Lethal Shots", "Improved Concussive Shot", "Focused Aim", "Careful Aim", "Mortal Shots",
-        "Improved Hunter's Mark", "Aimed Shot", "Go for the Throat", "Rapid Killing", "Improved Arcane Shot",
-        "Barrage", "Improved Stings", "Trueshot Aura", "Ranged Weapon Specialization", "Piercing Shots",
-        "Improved Barrage", "Master Marksman", "Readiness", "Wild Quiver", "Silencing Shot",
-        "Improved Steady Shot", "Marked for Death", "Chimera Shot", "Efficiency", "Hawk Eye",
-        "Improved Serpent Sting", "Scatter Shot", "Improved Scorpid Sting",
+        "Lethal Attacks", "Careful Aim", "Efficiency", "Mortal Shots", "Improved Arcane Shot", "Rapid Killing",
+        "Trueshot Aura", "Barrage", "Ranged Weapon Specialization", "Sniper Shot", "Improved Concussive Shot",
+        "Hawk Eye", "Improved Stings", "Rapid Recuperation", "Scatter Shot", "Improved Serpent Sting", "Lone Wolf",
       },
     },
     {
       id = "hunter-sv", tree = 3, difficulty = "hard",
       note = "Traps and survival tricks; slower solo, needs more care.",
       priority = {
-        "Improved Tracking", "Savage Strikes", "Surefooted", "Entrapment", "Trap Mastery", "Survival Instincts",
-        "Survivalist", "Deterrence", "T.N.T.", "Lock and Load", "Hunter vs. Wild", "Killer Instinct",
-        "Lightning Reflexes", "Resourcefulness", "Expose Weakness", "Wyvern Sting", "Thrill of the Hunt",
-        "Master Tactician", "Noxious Stings", "Sniper Training", "Hunting Party", "Explosive Shot",
-        "Monster Slaying", "Humanoid Slaying", "Improved Wing Clip", "Counterattack", "Deflection",
+        "Savage Strikes", "Survivalist", "Deflection", "Surefooted", "Predator's Edge", "Expose Prey",
+        "Lightning Reflexes", "Lacerating Strikes", "Survivalist's Discipline", "Deterrence", "Survival Tactics",
+        "Improved Tracking", "Entrapment", "Clever Traps", "Resourcefulness", "Counterattack", "Strider Kick",
+        "Improved Wing Clip",
       },
     },
   },
+}
+
+-- Tree names left to right, for clients that do not give the
+-- specialisation names (WoW Forever does not).
+Talents.TREE_NAMES = {
+  DRUID = { "Balance", "Feral Combat", "Restoration" },
+  HUNTER = { "Beast Mastery", "Marksmanship", "Survival" },
+  MAGE = { "Arcane", "Fire", "Frost" },
+  PALADIN = { "Holy", "Protection", "Retribution" },
+  PRIEST = { "Discipline", "Holy", "Shadow" },
+  ROGUE = { "Assassination", "Combat", "Subtlety" },
+  SHAMAN = { "Elemental", "Enhancement", "Restoration" },
+  WARLOCK = { "Affliction", "Demonology", "Destruction" },
+  WARRIOR = { "Arms", "Fury", "Protection" },
 }
 
 --- The templates for this class and tree, plus a plain "fill this tree"
@@ -207,13 +219,18 @@ local function distinct(values)
   return out
 end
 
--- Smallest gap between neighbouring values (the grid step), or 1.
+-- The grid step: the most common gap between neighbouring values (the
+-- smallest one on a tie), or 1. Not simply the smallest gap: Forever has two
+-- nodes of one row 10 units apart where rows are 600 apart.
 local function step(sorted)
-  local best
+  local counts, best, bestCount = {}, nil, 0
   for i = 2, #sorted do
-    local d = sorted[i] - sorted[i - 1]
-    if d > 0 and (not best or d < best) then
-      best = d
+    local d = math.floor(sorted[i] - sorted[i - 1] + 0.5)
+    if d > 0 then
+      counts[d] = (counts[d] or 0) + 1
+      if counts[d] > bestCount or (counts[d] == bestCount and d < best) then
+        best, bestCount = d, counts[d]
+      end
     end
   end
   return best or 1
@@ -221,6 +238,23 @@ end
 
 local function round(v)
   return math.floor(v + 0.5)
+end
+
+-- Values far from every other one (more than ten grid steps): nodes the
+-- game keeps outside the drawn tree (Forever has two), not real talents.
+local function strays(sorted, gridStep)
+  local out = {}
+  if #sorted < 3 then
+    return out
+  end
+  for i, v in ipairs(sorted) do
+    local left = i > 1 and v - sorted[i - 1] or math.huge
+    local right = i < #sorted and sorted[i + 1] - v or math.huge
+    if math.min(left, right) > 10 * gridStep then
+      out[v] = true
+    end
+  end
+  return out
 end
 
 -- Which tree each grid column belongs to: by sub-tree when the game says,
@@ -277,7 +311,20 @@ end
 
 --- Trees (as Talents.plan wants them) from the modern node list.
 --- names: the trees' names left to right (the class's specialisations).
-function Talents.fromNodes(nodes, names)
+function Talents.fromNodes(all, names)
+  -- Leave out the stray nodes far away from the drawn trees.
+  local px, py = {}, {}
+  for _, n in ipairs(all) do
+    px[#px + 1], py[#py + 1] = n.posX, n.posY
+  end
+  px, py = distinct(px), distinct(py)
+  local farX, farY = strays(px, step(px)), strays(py, step(py))
+  local nodes = {}
+  for _, n in ipairs(all) do
+    if not (farX[n.posX] or farY[n.posY]) then
+      nodes[#nodes + 1] = n
+    end
+  end
   if #nodes == 0 then
     return {}
   end

@@ -76,8 +76,10 @@ function ItemButton.create(window, arrow)
     b:SetPoint("TOPRIGHT", window, "TOPLEFT", -4, -34)
   end
   if arrow then
+    -- A protected button may only be anchored to frames, not to textures:
+    -- left of the arrow picture, measured from the top of the arrow frame.
     local b = make("TrailMateArrowItemButton", arrow)
-    b:SetPoint("RIGHT", arrow.icon, "LEFT", -8, 0)
+    b:SetPoint("TOPRIGHT", arrow, "TOP", -34, -15)
   end
 end
 

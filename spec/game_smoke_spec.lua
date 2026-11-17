@@ -487,7 +487,7 @@ describe("addon smoke test", function()
 
   it("docks a talent plan to the talent window and lights up the next talent", function()
     local tree = {
-      { "Improved Aspect of the Hawk", "icon-hawk", 1, 2, 0, 5 },
+      { "Deadly Aspects", "icon-hawk", 1, 2, 0, 5 },
       { "Endurance Training", "icon-et", 1, 3, 0, 5 },
     }
     local names = { "Beast Mastery", "Marksmanship", "Survival" }
@@ -515,7 +515,7 @@ describe("addon smoke test", function()
     fire("ADDON_LOADED", "Blizzard_TalentUI")
     local panel = named.TrailMateTalents
     assert.matches("^> Beast Mastery", panel.choices[1].shown_text)
-    assert.equals("Improved Aspect of the Hawk", panel.name.shown_text)
+    assert.equals("Deadly Aspects", panel.name.shown_text)
     assert.equals("Gasta tu punto aquí (1 por gastar)", panel.heading.shown_text)
     assert.is_true(panel.glow.visible) -- lit in the game's window
     assert.equals("Endurance Training (rangos 1-5/5)", panel.rows[1].text.shown_text)
@@ -525,7 +525,7 @@ describe("addon smoke test", function()
     for _, c in ipairs(named.TrailMateFrame.chips) do
       found = found or (c.cmd == "talents" and c.label.shown_text)
     end
-    assert.equals("Punto de talento: coge Improved Aspect of the Hawk", found)
+    assert.equals("Punto de talento: coge Deadly Aspects", found)
     -- Choosing another template is saved per character.
     panel.choices[3].scripts.OnClick()
     assert.equals("hunter-sv", _G.TrailMateCharDB.talents.template)
