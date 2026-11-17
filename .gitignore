@@ -1,0 +1,13 @@
+# Game data that must never be committed: saved variables hold character data.
+WTF/
+SavedVariables/
+*.bak
+
+# Local Lua tooling
+.luarocks/
+lua_modules/
+luacov.*.out
+
+# Release builds
+dist/
+*.zip
