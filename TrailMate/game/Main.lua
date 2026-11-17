@@ -24,6 +24,7 @@ local clock, sinceMove, sinceTarget, sinceArrow, sinceTalents, sinceTrail = 0, 0
 local trails -- TrailMateDB.trails: the ways walked, shared by the account's characters
 local trailPrev, trailLast -- last dot recorded, last position seen
 local lastPath -- the trail route the arrow follows now
+local lastWhy -- why there is no trail route now (for the self-test)
 local showLearned = false -- /tm trail show: the map shows every learned dot
 local followTrail -- defined with the update loop, used by /tm trail
 
@@ -837,7 +838,7 @@ local HELP = {
   { "/tm tracking on|off  (rastreos si|no)", "Skip hunter tracking spells" },
   { "/tm reserve | reserva <gold>", "Gold the trainer advice never spends" },
   { "/tm arrow | flecha on|off", "Show or hide the arrow" },
-  { "/tm trail | rastro on|off|show|clear", "Learn the ways you walk and follow them (dots on the map)" },
+  { "/tm trail | rastro on|off|show|export|clear", "Learn the ways you walk and follow them (dots on the map)" },
   { "/tm talents | talentos", "Open your talents and say the next one" },
   { "/tm companion | compañero claude|chatgpt|none", "Icon colour of your AI companion" },
   { "/tm auto on|off", "Rebuild the plan by itself when it ends" },
@@ -964,6 +965,25 @@ alias({ "trail", "rastro" }, function(rest)
     ns.Arrow.setVia(nil)
     ns.MapTrail.show(nil)
     say(L["Walked trails cleared."])
+    return
+  end
+  if word == "export" or word == "exportar" then
+    -- The dots around the player, as text in the Log tab (not in the chat:
+    -- it is long), in pieces "TMR1 k/n ...", to ship them with the addon.
+    local here = Api.playerWorld()
+    if not here then
+      say(L["Position unknown here"])
+      return
+    end
+    local text, count = ns.Trails.export(trails, here.cont, here.x, here.y, 1500)
+    local size = 200
+    local pieces = math.ceil(#text / size)
+    for k = 1, pieces do
+      ns.Log.add(TrailMateDB.log, ("TMR1 %d/%d %s"):format(k, pieces, text:sub((k - 1) * size + 1, k * size)),
+        date and date("%H:%M") or nil)
+    end
+    say(L["%d dots around you exported to the Log tab (%d lines). Copy the Log tab and send it."]:format(count,
+      pieces))
     return
   end
   if word == "show" or word == "ver" then
@@ -1199,7 +1219,7 @@ local function selfTest()
     local here = Api.playerWorld()
     return true, ("%s; %d dots, %d joins; route to the arrow target %s; world map canvas %s, %d dots drawn; here %s")
       :format(cdb.prefs.trails == false and "off" or "on", nodes, links,
-        lastPath and (#lastPath .. " dots") or "none (no walked trail helps here yet)",
+        lastPath and (#lastPath .. " dots") or ("none: " .. tostring(lastWhy)),
         canvas and "found" or "not found", drawn,
         here and ("%s %.0f %.0f"):format(here.cont, here.x, here.y) or "unknown")
   end)
@@ -1308,6 +1328,17 @@ handlers.ADDON_LOADED = function(name)
   cdb = TrailMateCharDB
   atlas = Atlas.ensure(TrailMateDB)
   trails = ns.Trails.ensure(TrailMateDB)
+  -- The capitals' ways that ship with the addon, once per data version.
+  local routes = ns.ROUTES
+  if routes and (trails.seeded or 0) < (routes.version or 0) then
+    for _, text in ipairs(routes) do
+      local data = ns.Trails.parse(text)
+      if data then
+        guard("built-in trails", ns.Trails.import, trails, data)
+      end
+    end
+    trails.seeded = routes.version
+  end
   cdb.prefs = cdb.prefs or {}
   cdb.prefs.ignored = cdb.prefs.ignored or {}
   cdb.trainerMemory = cdb.trainerMemory or {}
@@ -1519,7 +1550,10 @@ local function recordTrail()
   end
   local w = Api.playerWorld()
   if not w then
-    trailPrev, trailLast = nil, nil
+    -- No position for a moment (crossing into another map, like leaving
+    -- Orgrimmar for Durotar): do not cut the trail; the next dot joins the
+    -- last one if it is still close (Trails.LINK).
+    trailLast = nil
     return
   end
   local last = trailLast
@@ -1541,11 +1575,19 @@ function followTrail()
   local target = ns.Arrow.target
   local here = Api.playerWorld()
   local goal = target and Api.worldPos(target.mapID, target.x, target.y)
-  local path = cdb.prefs.trails ~= false and here and goal and ns.Trails.route(trails, here, goal) or nil
+  local path, why
+  if cdb.prefs.trails == false then
+    why = "trails off"
+  elseif not (here and goal) then
+    why = "no position for you or the target"
+  else
+    path, why = ns.Trails.route(trails, here, goal)
+  end
+  lastWhy = why
   ns.Arrow.setVia(path and ns.Trails.next(path, here) or nil)
   if showLearned then
     -- /tm trail show: every dot learned around the player, to check them.
-    ns.MapTrail.show(here and ns.Trails.around(trails, here.cont, here.x, here.y, 1500, 400) or nil, true)
+    ns.MapTrail.show(here and ns.Trails.around(trails, here.cont, here.x, here.y, 3000, 1200) or nil, true)
   elseif path or lastPath then
     ns.MapTrail.show(path)
   end

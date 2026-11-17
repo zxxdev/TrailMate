@@ -94,6 +94,33 @@ describe("Trails", function()
     assert.equals(upper, (Trails.nearest(t, 0, 100, 100, 10, 1420)))
   end)
 
+  it("exports a walked city as text and imports it into a new player's trails", function()
+    walk(CHICANE)
+    Trails.add(t, 0, 5000, 5000) -- far away: not exported
+    local text, count = Trails.export(t, 0, 0, 0, 1000)
+    assert.matches("^TMR1#", text)
+    local data = Trails.parse(text)
+    assert.equals(count, #data.nodes)
+    -- A new player with no trails gets the chicane and can follow it.
+    local fresh = Trails.ensure({})
+    assert.equals(count, Trails.import(fresh, data))
+    local path = Trails.route(fresh, { cont = 0, x = 0, y = 0 }, { cont = 0, x = 0, y = 420 })
+    assert.is_table(path)
+    -- Importing again adds nothing.
+    assert.equals(0, Trails.import(fresh, data))
+    -- Floors survive the trip.
+    local floors = Trails.ensure({})
+    Trails.add(floors, 0, 1, 1, nil, 1458)
+    assert.equals(1458, Trails.parse((Trails.export(floors, 0, 0, 0, 10))).nodes[1][4])
+    assert.is_nil(Trails.parse("hello"))
+  end)
+
+  it("explains why there is no route", function()
+    walk(CHICANE)
+    local _, why = Trails.route(t, { cont = 0, x = 500, y = 500 }, { cont = 0, x = 0, y = 420 })
+    assert.matches("no learned dot within", why)
+  end)
+
   it("keeps the saved file small and repairs bad saved data", function()
     local max = Trails.MAX
     Trails.MAX = 2

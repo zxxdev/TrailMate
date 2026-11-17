@@ -212,6 +212,8 @@ local esES = {
   ["The world map now shows every dot learned around you. Again to go back to the route."] =
     "El mapa del mundo enseña ahora todos los puntos aprendidos a tu alrededor. Repite la orden para volver a la ruta.",
   ["The world map shows the route again."] = "El mapa del mundo vuelve a enseñar la ruta.",
+  ["%d dots around you exported to the Log tab (%d lines). Copy the Log tab and send it."] =
+    "%d puntos a tu alrededor exportados a la pestaña Registro (%d líneas). Copia el registro y pásamelo.",
   ["Levelling build"] = "Build de subida",
   ["Beast Mastery up to Bestial Wrath, then Marksmanship up to Trueshot Aura, then Survival."] =
     "Bestias hasta Cólera de las bestias, luego Puntería hasta Aura de disparo certero, luego Supervivencia.",

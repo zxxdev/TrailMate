@@ -20,7 +20,7 @@ ns.Trails = Trails
 Trails.STEP = 12 -- yards between recorded dots
 Trails.SNAP = 6 -- a new dot this close to an old one reuses it
 Trails.LINK = 40 -- never join two dots further apart than this
-Trails.START = 30 -- the trail must pass this close to the player
+Trails.START = 60 -- the trail must pass this close to the player
 Trails.MAX = 6000 -- dots kept at most (the saved file stays small)
 Trails.AHEAD = 20 -- a dot this close counts as reached
 Trails.MIN_ALONG = 40 -- a trail is only followed for at least this many yards
@@ -177,18 +177,19 @@ end
 --- It follows the trail as far as it pays: each dot is scored by the walk
 --- along the trail to it plus the straight line left to the goal (counted
 --- double, it may cross walls), and the best dot ends the trail part.
+--- When there is no route, the second value says why (for the self-test).
 function Trails.route(t, here, goal)
   if not (here and goal) or here.cont ~= goal.cont then
-    return nil
+    return nil, "target on another continent or unknown"
   end
   local straight = dist(here.x, here.y, goal.x, goal.y)
   if straight < Trails.AHEAD * 2 then
-    return nil
+    return nil, "target close by"
   end
   -- Start from a dot on the player's own floor (here.mapID, if known).
   local start, d0 = Trails.nearest(t, here.cont, here.x, here.y, Trails.START, here.mapID)
   if not start then
-    return nil
+    return nil, ("no learned dot within %d yards of you"):format(Trails.START)
   end
   local walked, from = { [start] = d0 }, {}
   local heap = {}
@@ -217,7 +218,7 @@ function Trails.route(t, here, goal)
     end
   end
   if not best or best == start then
-    return nil
+    return nil, ("the trails near you do not lead towards the target (straight %.0f yards)"):format(straight)
   end
   -- Only a trail that really leads somewhere: a real stretch walked that
   -- ends clearly closer to the goal. A couple of dots next to the player
@@ -226,7 +227,8 @@ function Trails.route(t, here, goal)
   local along = walked[best] - d0
   local left = dist(last[2], last[3], goal.x, goal.y)
   if along < Trails.MIN_ALONG or left > straight - Trails.MIN_GAIN then
-    return nil
+    return nil, ("the best trail is too short (%.0f yards along, %.0f of %.0f yards left)"):format(along, left,
+      straight)
   end
   local path, i = {}, best
   while i do
@@ -270,6 +272,84 @@ function Trails.around(t, c, x, y, radius, max)
     out[i] = { cont = found[i].cont, x = found[i].x, y = found[i].y }
   end
   return out
+end
+
+-- Sharing trails ---------------------------------------------------------------
+--
+-- The capitals' ways (Orgrimmar's zigzag gate, Undercity's floors and lifts)
+-- ship with the addon so a new player can follow them from day one. They
+-- are walked once with TrailMate, exported as text (/tm trail export), and
+-- turned into TrailMate/data/Routes.lua by tools/import_routes.lua.
+--
+-- Text: "TMR1#c,x,y,map;c,x,y,map;...#a,b;a,b;..." (dots, then joins
+-- between dot numbers, counted from 1).
+
+--- The dots within radius yards of a point, with their joins, as text.
+--- Returns the text and how many dots it holds.
+function Trails.export(t, c, x, y, radius)
+  local pick, index = {}, {}
+  for i, n in ipairs(t.nodes) do
+    if n[1] == c and dist(n[2], n[3], x, y) <= radius then
+      pick[#pick + 1] = i
+      index[i] = #pick
+    end
+  end
+  local dots, joins = {}, {}
+  for k, i in ipairs(pick) do
+    local n = t.nodes[i]
+    dots[k] = ("%d,%.1f,%.1f,%s"):format(n[1], n[2], n[3], n[4] and tostring(n[4]) or "")
+    for _, j in ipairs(t.links[i] or {}) do
+      if index[j] and k < index[j] then
+        joins[#joins + 1] = k .. "," .. index[j]
+      end
+    end
+  end
+  return "TMR1#" .. table.concat(dots, ";") .. "#" .. table.concat(joins, ";"), #pick
+end
+
+--- Reads exported text back: { nodes = { { c, x, y, map } }, links = { { a, b } } },
+--- or nil if it is not trail text.
+function Trails.parse(text)
+  local dots, joins = tostring(text or ""):match("^%s*TMR1#([^#]*)#([^#]*)%s*$")
+  if not dots then
+    return nil
+  end
+  local data = { nodes = {}, links = {} }
+  for c, x, y, m in dots:gmatch("(%-?%d+),(%-?[%d%.]+),(%-?[%d%.]+),(%d*)") do
+    data.nodes[#data.nodes + 1] = { tonumber(c), tonumber(x), tonumber(y), tonumber(m) }
+  end
+  for a, b in joins:gmatch("(%d+),(%d+)") do
+    data.links[#data.links + 1] = { tonumber(a), tonumber(b) }
+  end
+  return data
+end
+
+--- Adds shared trails to the player's own: dots close to known ones are
+--- merged, so importing twice changes nothing. Returns the dots it added.
+function Trails.import(t, data)
+  local before = #t.nodes
+  local placed = {}
+  local function place(k, prev)
+    local n = data.nodes[k]
+    if not n then
+      return nil
+    end
+    local i = Trails.add(t, n[1], n[2], n[3], prev, n[4])
+    placed[k] = placed[k] or i
+    return i
+  end
+  for _, link in ipairs(data.links) do
+    local a = placed[link[1]] or place(link[1])
+    if a then
+      place(link[2], a)
+    end
+  end
+  for k in ipairs(data.nodes) do
+    if not placed[k] then
+      place(k)
+    end
+  end
+  return #t.nodes - before
 end
 
 --- How many dots and joins are stored, for the self-test.

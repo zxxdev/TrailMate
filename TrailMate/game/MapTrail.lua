@@ -9,7 +9,7 @@ local MapTrail = {}
 ns.MapTrail = MapTrail
 
 local DOT = "Interface\\CharacterFrame\\TempPortraitAlphaMask" -- a soft white disc
-local MAX_DOTS = 400
+local MAX_DOTS = 1200
 local GAP = 0.004 -- minimum distance between dots on the map (0 to 1)
 
 local layer, dots = nil, {}

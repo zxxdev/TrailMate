@@ -719,6 +719,11 @@ describe("addon smoke test", function()
       .. "world map canvas found, %d+ dots drawn", output())
     local drawn = tonumber(output():match("found, (%d+) dots drawn"))
     assert.is_true(drawn > 10)
+    -- Exported to the log in pieces, ready to ship with the addon.
+    _G.SlashCmdList.TRAILMATE("rastro exportar")
+    assert.matches("puntos a tu alrededor exportados", output())
+    local log = table.concat(_G.TrailMateDB.log, "\n")
+    assert.matches("TMR1 1/%d+ TMR1#", log)
     -- Switched off, nothing is followed.
     _G.SlashCmdList.TRAILMATE("rastro off")
     eventFrame().scripts.OnUpdate(eventFrame(), 2)
