@@ -109,7 +109,7 @@ local function loadPlan(p, quiet)
   return true
 end
 
-local function names(list, limit)
+local function joinNames(list, limit)
   local out = {}
   for i, e in ipairs(list) do
     if i > limit then
@@ -127,13 +127,13 @@ local function sayReport(report)
     say(L["Route: %s, %d steps."]:format(report.zone, plan and #plan.steps or 0))
   end
   if #report.notNow > 0 then
-    say(L["Not now: %s"]:format(names(report.notNow, 6)))
+    say(L["Not now: %s"]:format(joinNames(report.notNow, 6)))
   end
   if #report.abandon > 0 then
-    say(L["Consider abandoning: %s"]:format(names(report.abandon, 6)))
+    say(L["Consider abandoning: %s"]:format(joinNames(report.abandon, 6)))
   end
   if #report.later > 0 then
-    say(L["Later: %s"]:format(names(report.later, 5)))
+    say(L["Later: %s"]:format(joinNames(report.later, 5)))
   end
 end
 
