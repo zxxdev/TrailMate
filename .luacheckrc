@@ -25,7 +25,7 @@ read_globals = {
   "UnitClass", "UnitLevel", "UnitXP", "UnitXPMax", "issecretvalue", "time",
   "CanMerchantRepair", "IsTradeskillTrainer", "UnitFactionGroup", "UnitGUID", "UnitName",
   "ChatFontNormal", "GameTooltip", "GetCursorPosition", "Minimap", "date",
-  "C_TaxiMap", "Enum", "GetBindLocation", "GetItemCooldown", "GetItemCount", "GetTaxiMapID", "GetTime",
+  "CreateColor", "C_TaxiMap", "Enum", "GetBindLocation", "GetItemCooldown", "GetItemCount", "GetTaxiMapID", "GetTime",
 }
 
 files["spec/"] = { std = "+busted" }

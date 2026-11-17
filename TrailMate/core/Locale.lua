@@ -62,6 +62,7 @@ local esES = {
   ["Commands"] = "Órdenes",
   ["Pick up: "] = "Coger: ",
   ["Travel"] = "Viaje",
+  ["Skip"] = "Saltar",
   ["Self-test"] = "Autotest",
   ["Self-test started (nothing is changed)."] = "Autotest en marcha (no cambia nada).",
   ["Self-test done: %d passed, %d failed. Copy the Log tab and send it."] =

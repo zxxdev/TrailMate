@@ -7,7 +7,7 @@ local _, ns = ...
 local Panel = {}
 ns.Panel = Panel
 
-local W, H = 480, 400
+local W, H = 480, 416
 local ROWS = 8
 local TABS = { "Route", "Zones", "Trainer", "Bags", "Log" }
 local L
@@ -175,9 +175,9 @@ function Panel.create(saved, locale)
   f:SetFrameStrata("DIALOG")
   ns.Theme.movable(f, saved)
   ns.Theme.panel(f)
-  ns.Theme.header(f, "TrailMate")
+  ns.Theme.header(f, "TrailMate", 48)
   local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
-  close:SetPoint("TOPRIGHT", 2, 2)
+  close:SetPoint("TOPRIGHT", -4, -4)
   if type(UISpecialFrames) == "table" then
     table.insert(UISpecialFrames, "TrailMatePanel") -- Escape closes it
   end
@@ -187,10 +187,10 @@ function Panel.create(saved, locale)
     local tab = ns.Theme.button(f, L[name], 88, function()
       Panel.show(name)
     end)
-    tab:SetPoint("TOPLEFT", 10 + (i - 1) * 92, -32)
+    tab:SetPoint("TOPLEFT", 14 + (i - 1) * 92, -42)
     f.tabs[name] = tab
     local page = CreateFrame("Frame", nil, f)
-    page:SetPoint("TOPLEFT", 0, -58)
+    page:SetPoint("TOPLEFT", 0, -70)
     page:SetPoint("BOTTOMRIGHT", 0, 0)
     page:Hide()
     BUILD[name](page)

@@ -37,9 +37,9 @@ function Arrow.create(saved, L)
       break
     end
   end
-  f.icon:SetVertexColor(0.61, 0.48, 0.83)
+  f.icon:SetVertexColor(1, 0.82, 0)
 
-  f.distance = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  f.distance = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
   f.distance:SetPoint("TOP", f.icon, "BOTTOM", 0, -2)
   f.label = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   f.label:SetPoint("TOP", f.distance, "BOTTOM", 0, -2)
