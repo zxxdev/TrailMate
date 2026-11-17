@@ -22,6 +22,56 @@ local function run(cmd)
   SlashCmdList.TRAILMATE(cmd)
 end
 
+-- Reminders hang under the window as bars: icon, text and a button that
+-- takes the player there (trainer, vendor) or opens the talents.
+local CHIPS, CHIP_HEIGHT = 3, 28
+
+local function pulse(tex)
+  local group = tex.CreateAnimationGroup and tex:CreateAnimationGroup()
+  if not group then
+    return
+  end
+  local fade = group:CreateAnimation("Alpha")
+  fade:SetFromAlpha(1)
+  fade:SetToAlpha(0.3)
+  fade:SetDuration(0.8)
+  group:SetLooping("BOUNCE")
+  group:Play()
+end
+
+local function chip(f, i)
+  local Theme = ns.Theme
+  local b = CreateFrame("Button", nil, f)
+  b:SetSize(WIDTH - 8, CHIP_HEIGHT)
+  b:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 4, 2 - (i - 1) * (CHIP_HEIGHT + 2))
+  local bg = b:CreateTexture(nil, "BACKGROUND")
+  bg:SetAllPoints()
+  bg:SetColorTexture(Theme.BG_BOTTOM[1], Theme.BG_BOTTOM[2], Theme.BG_BOTTOM[3], 0.94)
+  local bar = b:CreateTexture(nil, "ARTWORK")
+  bar:SetPoint("TOPLEFT")
+  bar:SetPoint("BOTTOMLEFT")
+  bar:SetWidth(4)
+  bar:SetColorTexture(Theme.GOLD[1], Theme.GOLD[2], Theme.GOLD[3], 1)
+  pulse(bar)
+  b.icon = b:CreateTexture(nil, "ARTWORK")
+  b.icon:SetSize(22, 22)
+  b.icon:SetPoint("LEFT", 10, 0)
+  b.label = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  b.label:SetPoint("LEFT", b.icon, "RIGHT", 8, 0)
+  b.label:SetWidth(WIDTH - 130)
+  b.label:SetJustifyH("LEFT")
+  b.go = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  b.go:SetPoint("RIGHT", -10, 0)
+  b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+  b:SetScript("OnClick", function(self)
+    if self.cmd then
+      run(self.cmd)
+    end
+  end)
+  b:Hide()
+  return b
+end
+
 function UI.create(saved)
   local template = BackdropTemplateMixin and "BackdropTemplate" or nil
   local f = CreateFrame("Frame", "TrailMateFrame", UIParent, template)
@@ -47,9 +97,10 @@ function UI.create(saved)
 
   f.arrow = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   f.arrow:SetPoint("BOTTOMLEFT", 16, 14)
-  f.alert = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  f.alert:SetPoint("BOTTOMLEFT", 16, 30)
-  f.alert:SetTextColor(ns.Theme.rgb(ns.Theme.GOLD))
+  f.chips = {}
+  for i = 1, CHIPS do
+    f.chips[i] = chip(f, i)
+  end
   f.skip = ns.Theme.button(f, "", 64, function()
     run("skip")
   end)
@@ -73,10 +124,23 @@ function UI.create(saved)
   return f
 end
 
---- A standing reminder (trainer, talents) until it is done.
-function UI.setAlert(message)
-  if UI.frame then
-    UI.frame.alert:SetText(message or "")
+--- Standing reminders until they are done: { icon, text, cmd, action }.
+function UI.setAlerts(list)
+  if not UI.frame then
+    return
+  end
+  for i, b in ipairs(UI.frame.chips) do
+    local a = list[i]
+    if a then
+      b.icon:SetTexture(a.icon)
+      b.label:SetText(a.text)
+      b.go:SetText(a.action and ("|cffffd100" .. a.action .. " >|r") or "")
+      b.cmd = a.cmd
+      b:Show()
+    else
+      b.cmd = nil
+      b:Hide()
+    end
   end
 end
 

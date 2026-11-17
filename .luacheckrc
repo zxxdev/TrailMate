@@ -26,7 +26,8 @@ read_globals = {
   "CanMerchantRepair", "IsTradeskillTrainer", "UnitFactionGroup", "UnitGUID", "UnitName",
   "ChatFontNormal", "GameTooltip", "GetCursorPosition", "Minimap", "date",
   "UnitCharacterPoints", "GetUnspentTalentPoints", "GetNumTalentTabs", "GetTalentTabInfo", "GetNumTalents",
-  "GetTalentInfo", "CreateColor", "C_Texture", "C_TaxiMap", "Enum", "GetBindLocation", "GetItemCooldown", "GetItemCount", "GetTaxiMapID", "GetTime",
+  "GetTalentInfo", "GetTalentPrereqs", "InCombatLockdown", "ToggleTalentFrame", "RaidNotice_AddMessage",
+  "PlaySound", "SOUNDKIT", "CreateColor", "C_Texture", "C_TaxiMap", "Enum", "GetBindLocation", "GetItemCooldown", "GetItemCount", "GetTaxiMapID", "GetTime",
 }
 
 files["spec/"] = { std = "+busted" }

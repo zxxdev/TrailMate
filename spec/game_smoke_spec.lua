@@ -4,6 +4,7 @@
 -- nil calls, wrong arguments) before anyone has to find them in-game.
 
 local frames, named, printed
+local notices = {} -- big messages in the middle of the screen
 local watched, superTracked = {}, nil
 local npcGUID, objectives = nil, {}
 
@@ -46,6 +47,7 @@ local quests = {
 
 local function install()
   frames, named, printed = {}, {}, {}
+  notices = {}
   watched, superTracked = {}, nil
   npcGUID, objectives = nil, {}
   -- Tests that add API pieces of their own must not leak them into the next.
@@ -67,6 +69,8 @@ local function install()
       return f
     end,
     UIParent = fakeObject("UIParent"),
+    RaidWarningFrame = fakeObject("RaidWarningFrame"),
+    RaidNotice_AddMessage = function(_, text) notices[#notices + 1] = text end,
     BackdropTemplateMixin = {},
     SlashCmdList = {},
     GetLocale = function() return "esES" end,
@@ -400,16 +404,90 @@ describe("addon smoke test", function()
     assert.matches("Nivel 34: seguramente te esperan hechizos nuevos en tu instructor%.", out)
     assert.matches("Visita tu instructor una vez y TrailMate recordará dónde está%.", out)
     assert.matches("Tienes 1 punto%(s%) de talento sin gastar%.", out)
-    local window = named.TrailMateFrame
-    assert.equals("! Instructor - 1 punto(s) de talento", window.alert.shown_text)
-    -- Visiting the class trainer clears that part of the reminder.
+    -- Bars under the window, each with a button that takes the player there,
+    -- and a big message in the middle of the screen for each new one.
+    local chips = named.TrailMateFrame.chips
+    assert.equals("Nivel 34: hechizos nuevos en tu instructor", chips[1].label.shown_text)
+    assert.equals("find trainer", chips[1].cmd)
+    assert.equals("1 punto(s) de talento por gastar", chips[2].label.shown_text)
+    assert.equals("talents", chips[2].cmd)
+    assert.is_false(chips[3].visible)
+    assert.equals(2, #notices)
+    -- Visiting the class trainer clears that reminder.
     fire("TRAINER_SHOW")
-    assert.equals("! 1 punto(s) de talento", window.alert.shown_text)
+    assert.equals("1 punto(s) de talento por gastar", chips[1].label.shown_text)
+    assert.is_false(chips[2].visible)
+    assert.equals(2, #notices) -- nothing new to announce
     rawset(_G, "UnitCharacterPoints", function() return 0 end)
     fire("CHARACTER_POINTS_CHANGED")
-    assert.equals("", window.alert.shown_text)
+    assert.is_false(chips[1].visible)
     rawset(_G, "UnitLevel", function() return 8 end)
     rawset(_G, "UnitCharacterPoints", nil)
+  end)
+
+  it("says when the bags are full, with a button to the vendor", function()
+    rawset(_G.C_Container, "GetContainerNumFreeSlots", function() return 0, 0 end)
+    fire("BAG_UPDATE_DELAYED")
+    tick()
+    tick()
+    local chips = named.TrailMateFrame.chips
+    local bags
+    for _, c in ipairs(chips) do
+      if c.cmd == "find vendor" and c.visible then
+        bags = c
+      end
+    end
+    assert.is_truthy(bags)
+    assert.equals("Bolsas llenas (0 libres): ve a vender", bags.label.shown_text)
+    assert.matches("ve a vender", notices[#notices])
+  end)
+
+  it("docks a talent plan to the talent window and lights up the next talent", function()
+    local tree = {
+      { "Improved Aspect of the Hawk", "icon-hawk", 1, 2, 0, 5 },
+      { "Endurance Training", "icon-et", 1, 3, 0, 5 },
+    }
+    local names = { "Beast Mastery", "Marksmanship", "Survival" }
+    local added = {
+      GetNumTalentTabs = function() return 3 end,
+      -- The newer answer: id, name, description, icon, points.
+      GetTalentTabInfo = function(tab) return tab, names[tab], "", "icon" .. tab, 0 end,
+      GetNumTalents = function(tab) return tab == 1 and #tree or 0 end,
+      GetTalentInfo = function(_, i) return unpack(tree[i]) end,
+      GetUnspentTalentPoints = function() return 1 end,
+      PlayerTalentFrame = fakeObject("PlayerTalentFrame"),
+      PlayerTalentFrameTalent1 = fakeObject("PlayerTalentFrameTalent1"),
+    }
+    rawset(added.PlayerTalentFrameTalent1, "GetID", function() return 1 end)
+    rawset(added.PlayerTalentFrameTalent1, "IsVisible", function() return true end)
+    for k, v in pairs(added) do
+      rawset(_G, k, v)
+    end
+    finally(function()
+      for k in pairs(added) do
+        rawset(_G, k, nil)
+      end
+    end)
+
+    fire("ADDON_LOADED", "Blizzard_TalentUI")
+    local panel = named.TrailMateTalents
+    assert.matches("^> Beast Mastery", panel.choices[1].shown_text)
+    assert.equals("Improved Aspect of the Hawk", panel.name.shown_text)
+    assert.equals("Gasta tu punto aquí (1 por gastar)", panel.heading.shown_text)
+    assert.is_true(panel.glow.visible) -- lit in the game's window
+    assert.equals("Endurance Training (rangos 1-5/5)", panel.rows[1].text.shown_text)
+    -- The reminder names the talent.
+    fire("CHARACTER_POINTS_CHANGED")
+    local found
+    for _, c in ipairs(named.TrailMateFrame.chips) do
+      found = found or (c.cmd == "talents" and c.label.shown_text)
+    end
+    assert.equals("Punto de talento: coge Improved Aspect of the Hawk", found)
+    -- Choosing another template is saved per character.
+    panel.choices[3].scripts.OnClick()
+    assert.equals("hunter-sv", _G.TrailMateCharDB.talents.template)
+    assert.equals("Esta rama está completa.", panel.name.shown_text)
+    assert.is_false(panel.glow.visible)
   end)
 
   it("lets the player ignore a spell and announces only new ones at level up", function()

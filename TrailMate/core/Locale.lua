@@ -190,6 +190,36 @@ local esES = {
   ["Show or hide the window"] = "Muestra u oculta la ventana",
   ["Remove the plan"] = "Quita el plan",
   ["What this client exposes (for bug reports)"] = "Qué ofrece este cliente (para informar de fallos)",
+  -- Reminders under the window.
+  ["Take me"] = "Llévame",
+  ["Open"] = "Abrir",
+  ["Level %d: new spells at your trainer"] = "Nivel %d: hechizos nuevos en tu instructor",
+  ["Talent point: take %s"] = "Punto de talento: coge %s",
+  ["%d talent point(s) to spend"] = "%d punto(s) de talento por gastar",
+  ["Bags full (%d free): go and sell"] = "Bolsas llenas (%d libres): ve a vender",
+  ["Open your talents with the N key (not in combat)."] = "Abre tus talentos con la tecla N (fuera de combate).",
+  ["Next talent: %s (%s)."] = "Siguiente talento: %s (%s).",
+  ["Open your talents and say the next one"] = "Abre tus talentos y dice cuál toca",
+  -- Talent plan.
+  ["Talent plan"] = "Plan de talentos",
+  ["Easiest to level: a strong pet takes the hits, little downtime."] =
+    "Lo más fácil para subir: la mascota aguanta los golpes y casi no paras.",
+  ["More damage from you, a weaker pet. Good for groups."] =
+    "Más daño tuyo y una mascota más floja. Buena en grupo.",
+  ["Traps and survival tricks; slower solo, needs more care."] =
+    "Trampas y trucos de supervivencia; más lenta en solitario y pide más cuidado.",
+  ["No template for this tree: it is filled row by row."] = "Sin plantilla para esta rama: se llena fila a fila.",
+  ["Spend your point here (%d to spend)"] = "Gasta tu punto aquí (%d por gastar)",
+  ["Your next point goes here"] = "Tu próximo punto irá aquí",
+  ["%s - %s, row %d"] = "%s - %s, fila %d",
+  ["rank %d/%d"] = "rango %d/%d",
+  ["ranks %d-%d/%d"] = "rangos %d-%d/%d",
+  ["Open the %s tab to see it lit up."] = "Abre la pestaña %s para verlo iluminado.",
+  ["After that"] = "Después",
+  ["This tree is complete."] = "Esta rama está completa.",
+  ["This client shows no talent trees."] = "Este cliente no muestra árboles de talentos.",
+  ["A guide from the classic trees, not checked in Forever: %d of %d names found in yours."] =
+    "Guía hecha con los árboles clásicos, sin comprobar en Forever: %d de %d nombres están en el tuyo.",
 }
 
 local L = setmetatable({}, {

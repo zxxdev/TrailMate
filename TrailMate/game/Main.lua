@@ -20,7 +20,7 @@ local warnedLevel = {} -- levels already announced as "almost there"
 local warnedFull = false
 local questThrottle = ns.Throttle.new(0.3)
 local bagThrottle = ns.Throttle.new(1)
-local clock, sinceMove, sinceTarget, sinceArrow = 0, 0, 0, 0
+local clock, sinceMove, sinceTarget, sinceArrow, sinceTalents = 0, 0, 0, 0, 0
 
 local COLORS = {
   learn = "|cff40c040", skip = "|cffc04040", later = "|cffd0a020",
@@ -619,16 +619,53 @@ local function trainerDue(level)
   return type(level) == "number" and level >= 2 and level % 2 == 0 and (cdb.trainerVisitedLevel or 0) < level
 end
 
-local function alertText()
-  local parts = {}
-  if trainerDue(Api.level()) then
-    parts[#parts + 1] = L["Trainer"]
+local ALERT_ICONS = {
+  trainer = "Interface\\GossipFrame\\TrainerGossipIcon",
+  talents = "Interface\\Icons\\Ability_Marksmanship",
+  bags = "Interface\\GossipFrame\\VendorGossipIcon",
+}
+local bagsFree -- free slots when the bags are (almost) full, else nil
+
+-- Reminders shown as bars under the step window until they are done.
+local function alerts()
+  local list = {}
+  local level = Api.level()
+  if trainerDue(level) then
+    list[#list + 1] = { kind = "trainer", icon = ALERT_ICONS.trainer, cmd = "find trainer", action = L["Take me"],
+      text = L["Level %d: new spells at your trainer"]:format(level) }
   end
   local points = Api.talentPoints()
   if points and points > 0 then
-    parts[#parts + 1] = L["%d talent point(s)"]:format(points)
+    local advice = ns.TalentPanel.advice()
+    local first = advice and advice.groups[1]
+    list[#list + 1] = { kind = "talents", icon = first and first.talent.icon or ALERT_ICONS.talents,
+      cmd = "talents", action = L["Open"],
+      text = first and L["Talent point: take %s"]:format(first.talent.name)
+        or L["%d talent point(s) to spend"]:format(points) }
   end
-  return #parts > 0 and ("! " .. table.concat(parts, " - ")) or nil
+  if bagsFree then
+    list[#list + 1] = { kind = "bags", icon = ALERT_ICONS.bags, cmd = "find vendor", action = L["Take me"],
+      text = L["Bags full (%d free): go and sell"]:format(bagsFree) }
+  end
+  return list
+end
+
+local shownAlerts = {}
+
+-- Shows the reminders; a new one also flashes in the middle of the screen.
+local function updateAlerts()
+  local list, now = alerts(), {}
+  for _, a in ipairs(list) do
+    now[a.kind] = true
+    if not shownAlerts[a.kind] then
+      Api.notice("TrailMate: " .. a.text)
+    end
+  end
+  shownAlerts = now
+  ns.UI.setAlerts(list)
+end
+ns.onTalentsChanged = function()
+  updateAlerts()
 end
 
 local function remindAtLevel(level)
@@ -650,7 +687,7 @@ local function remindAtLevel(level)
   if points and points > 0 then
     say(L["You have %d unspent talent point(s)."]:format(points))
   end
-  ns.UI.setAlert(alertText())
+  updateAlerts()
 end
 
 -- Vendor ----------------------------------------------------------------------
@@ -699,6 +736,11 @@ local function checkBags()
   else
     warnedFull = false
   end
+  local full = warnedFull and free or nil
+  if full ~= bagsFree then
+    bagsFree = full
+    updateAlerts()
+  end
 end
 
 -- Slash commands ------------------------------------------------------------
@@ -727,6 +769,7 @@ local HELP = {
   { "/tm tracking on|off  (rastreos si|no)", "Skip hunter tracking spells" },
   { "/tm reserve | reserva <gold>", "Gold the trainer advice never spends" },
   { "/tm arrow | flecha on|off", "Show or hide the arrow" },
+  { "/tm talents | talentos", "Open your talents and say the next one" },
   { "/tm auto on|off", "Rebuild the plan by itself when it ends" },
   { "/tm show | hide  (mostrar | ocultar)", "Show or hide the window" },
   { "/tm clear | borrar", "Remove the plan" },
@@ -799,6 +842,16 @@ alias({ "learned", "aprendido" }, function(rest)
   end
 end)
 alias({ "vendor", "vender" }, adviseVendor)
+alias({ "talents", "talentos" }, function()
+  if not Api.openTalents() then
+    say(L["Open your talents with the N key (not in combat)."])
+  end
+  local advice = ns.TalentPanel.advice()
+  local first = advice and advice.groups[1]
+  if first then
+    say(L["Next talent: %s (%s)."]:format(first.talent.name, advice.tabs[advice.chosen.tree].name))
+  end
+end)
 alias({ "find", "buscar" }, findNpc)
 alias({ "plan" }, backToPlan)
 alias({ "strategy", "estrategia" }, sayStrategy)
@@ -1105,6 +1158,10 @@ local handlers = {}
 
 handlers.ADDON_LOADED = function(name)
   if name ~= addonName then
+    -- The game's talent window loads on demand: dock the talent plan to it.
+    if cdb then
+      ns.TalentPanel.attach()
+    end
     return
   end
   TrailMateDB = TrailMateDB or {}
@@ -1118,11 +1175,14 @@ handlers.ADDON_LOADED = function(name)
   cdb.arrow = cdb.arrow or {}
   cdb.panel = cdb.panel or {}
   cdb.minimap = cdb.minimap or {}
+  cdb.talents = cdb.talents or {}
   TrailMateDB.log = TrailMateDB.log or {}
   ns.setLocale(GetLocale and GetLocale() or "enUS")
   ns.UI.create(cdb.ui)
   ns.Arrow.create(cdb.arrow, L)
   ns.Panel.create(cdb.panel, L)
+  ns.TalentPanel.init(cdb.talents, L)
+  ns.TalentPanel.attach()
   ns.MinimapButton.create(cdb.minimap, L, ns.Panel.toggle, function()
     ns.UI.setShown(cdb.ui.hidden == true)
   end)
@@ -1140,7 +1200,7 @@ local rebuildPending = false
 handlers.PLAYER_ENTERING_WORLD = function(isLogin, isReload)
   if cdb then
     arrowStep = false
-    ns.UI.setAlert(alertText())
+    updateAlerts()
     if (isLogin or isReload or isLogin == nil) and plan and Builder.isAuto(plan) and cdb.prefs.autoPlan ~= false then
       rebuildPending = true
     end
@@ -1236,15 +1296,20 @@ handlers.TRAINER_SHOW = function()
   else
     learnNpc("trainer", Api.class())
     cdb.trainerVisitedLevel = Api.level()
-    ns.UI.setAlert(alertText())
+    updateAlerts()
   end
   after(0.3, adviseTrainer)
 end
-handlers.CHARACTER_POINTS_CHANGED = function()
+-- A talent was taken (or placed before "Apply Changes"): next advice.
+local function talentsChanged()
   if cdb then
-    ns.UI.setAlert(alertText())
+    ns.TalentPanel.refresh()
+    updateAlerts()
   end
 end
+handlers.CHARACTER_POINTS_CHANGED = talentsChanged
+handlers.PLAYER_TALENT_UPDATE = talentsChanged
+handlers.PREVIEW_TALENT_POINTS_CHANGED = talentsChanged
 handlers.MERCHANT_SHOW = function()
   learnNpc("vendor")
   if Api.vendorRepairs() then
@@ -1322,6 +1387,15 @@ frame:SetScript("OnUpdate", function(_, elapsed)
     end
     if detour or (plan and current) then
       updateTarget(true)
+    end
+  end
+  -- The talent window may switch tabs: keep the lit talent right.
+  sinceTalents = sinceTalents + elapsed
+  if sinceTalents >= 1 then
+    sinceTalents = 0
+    local panel = ns.TalentPanel.attach()
+    if panel and panel:IsVisible() then
+      ns.TalentPanel.refresh()
     end
   end
   if sinceArrow >= 0.05 then

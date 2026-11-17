@@ -80,6 +80,91 @@ function Api.talentPoints()
   return best
 end
 
+--- The player's talent trees, for core/Talents.lua, and the points already
+--- placed but not applied yet ("Apply Changes"), which count as taken.
+function Api.talentTree()
+  local tabs, pending = {}, 0
+  for tab = 1, safe(GetNumTalentTabs) or 0 do
+    -- Classic answers name, icon, ...; later clients id, name, description, icon, ...
+    local r = pack(try(GetTalentTabInfo, tab))
+    local name, icon = r[2], r[3]
+    if type(r[2]) == "number" then
+      name, icon = r[3], r[5]
+    end
+    local talents = {}
+    for index = 1, safe(GetNumTalents, tab) or 0 do
+      local tname, ticon, tier, column, rank, maxRank, _, _, preview = safe(GetTalentInfo, tab, index)
+      if type(tname) == "string" and type(tier) == "number" and type(column) == "number"
+        and type(maxRank) == "number" then
+        local taken = type(rank) == "number" and rank or 0
+        if type(preview) == "number" and preview > taken then
+          pending = pending + preview - taken
+          taken = preview
+        end
+        local ptier, pcolumn = safe(GetTalentPrereqs, tab, index)
+        talents[#talents + 1] = {
+          index = index, name = tname, icon = ticon, tier = tier, column = column, rank = taken, maxRank = maxRank,
+          prereq = type(ptier) == "number" and type(pcolumn) == "number" and { tier = ptier, column = pcolumn } or nil,
+        }
+      end
+    end
+    tabs[#tabs + 1] = { name = type(name) == "string" and name or ("Tree " .. tab), icon = icon, talents = talents }
+  end
+  return tabs, pending
+end
+
+-- Talent buttons in the game's talent window, by client generation.
+local TALENT_BUTTONS = { "PlayerTalentFrameTalent", "TalentFrameTalent", "PlayerTalentFramePanel%dTalent" }
+
+local function buttonIcon(b)
+  local name = safe(b.GetName, b)
+  local tex = rawget(b, "icon") or rawget(b, "Icon") or (name and rawget(_G, name .. "IconTexture"))
+  return type(tex) == "table" and safe(tex.GetTexture, tex) or nil
+end
+
+--- The visible button of this talent in the game's talent window, or nil
+--- (another tab is open). Matched by talent number and, if known, icon.
+function Api.talentButton(tab, talent)
+  for _, prefix in ipairs(TALENT_BUTTONS) do
+    local base = prefix:find("%%d") and prefix:format(tab) or prefix
+    for i = 1, 60 do
+      local b = rawget(_G, base .. i)
+      if type(b) ~= "table" then
+        break
+      end
+      if safe(b.IsVisible, b) and safe(b.GetID, b) == talent.index then
+        local icon = buttonIcon(b)
+        if icon == nil or talent.icon == nil or tostring(icon):lower() == tostring(talent.icon):lower() then
+          return b
+        end
+      end
+    end
+  end
+  return nil
+end
+
+--- Opens the game's talent window (not in combat). Returns true if it could.
+function Api.openTalents()
+  if safe(InCombatLockdown) then
+    return false
+  end
+  if type(ToggleTalentFrame) == "function" then
+    return (pcall(ToggleTalentFrame))
+  end
+  return false
+end
+
+--- A big message in the middle of the screen with a sound, like a raid warning.
+function Api.notice(text)
+  local frame, info = rawget(_G, "RaidWarningFrame"), rawget(_G, "ChatTypeInfo")
+  if frame and type(RaidNotice_AddMessage) == "function" then
+    pcall(RaidNotice_AddMessage, frame, text, info and info.RAID_WARNING or { r = 1, g = 0.82, b = 0 })
+  end
+  if type(PlaySound) == "function" then
+    pcall(PlaySound, SOUNDKIT and SOUNDKIT.RAID_WARNING or 8959)
+  end
+end
+
 --- What the client says about talents, for the self-test: which functions
 --- exist and the player's trees as the game reports them.
 function Api.talentReport()
