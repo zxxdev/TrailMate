@@ -47,6 +47,9 @@ function UI.create(saved)
 
   f.arrow = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   f.arrow:SetPoint("BOTTOMLEFT", 16, 14)
+  f.alert = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  f.alert:SetPoint("BOTTOMLEFT", 16, 30)
+  f.alert:SetTextColor(ns.Theme.rgb(ns.Theme.GOLD))
   f.skip = ns.Theme.button(f, "", 64, function()
     run("skip")
   end)
@@ -68,6 +71,13 @@ function UI.create(saved)
   end
   UI.frame, UI.saved = f, saved
   return f
+end
+
+--- A standing reminder (trainer, talents) until it is done.
+function UI.setAlert(text)
+  if UI.frame then
+    UI.frame.alert:SetText(text or "")
+  end
 end
 
 function UI.setShown(shown)

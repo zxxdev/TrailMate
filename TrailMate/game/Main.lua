@@ -614,14 +614,43 @@ local function remindBeforeLevel()
   end
 end
 
+-- What still needs doing outside the route: new trainer spells, talents.
+local function trainerDue(level)
+  return type(level) == "number" and level >= 2 and level % 2 == 0 and (cdb.trainerVisitedLevel or 0) < level
+end
+
+local function alertText()
+  local parts = {}
+  if trainerDue(Api.level()) then
+    parts[#parts + 1] = L["Trainer"]
+  end
+  local points = Api.talentPoints()
+  if points and points > 0 then
+    parts[#parts + 1] = L["%d talent point(s)"]:format(points)
+  end
+  return #parts > 0 and ("! " .. table.concat(parts, " - ")) or nil
+end
+
 local function remindAtLevel(level)
   local names = Trainer.newAtLevel(cdb.trainerMemory, level, cdb.prefs.ignored)
   if #names > 0 then
     say(L["Level %d: your trainer now has %s."]:format(level, table.concat(names, ", ")))
+  elseif trainerDue(level) then
+    -- In classic, new class spells come at even levels.
+    say(L["Level %d: new spells are usually waiting at your class trainer."]:format(level))
+  end
+  if #names > 0 or trainerDue(level) then
     if Atlas.findNpc(atlas, "trainer", Api.class(), Api.faction(), playerPoint()) then
       say(L["Type /tm find trainer and the arrow takes you there."])
+    else
+      say(L["Visit your trainer once and TrailMate will remember where it is."])
     end
   end
+  local points = Api.talentPoints()
+  if points and points > 0 then
+    say(L["You have %d unspent talent point(s)."]:format(points))
+  end
+  ns.UI.setAlert(alertText())
 end
 
 -- Vendor ----------------------------------------------------------------------
@@ -1107,6 +1136,7 @@ local rebuildPending = false
 handlers.PLAYER_ENTERING_WORLD = function(isLogin, isReload)
   if cdb then
     arrowStep = false
+    ns.UI.setAlert(alertText())
     if (isLogin or isReload or isLogin == nil) and plan and Builder.isAuto(plan) and cdb.prefs.autoPlan ~= false then
       rebuildPending = true
     end
@@ -1201,8 +1231,15 @@ handlers.TRAINER_SHOW = function()
     learnNpc("profession")
   else
     learnNpc("trainer", Api.class())
+    cdb.trainerVisitedLevel = Api.level()
+    ns.UI.setAlert(alertText())
   end
   after(0.3, adviseTrainer)
+end
+handlers.CHARACTER_POINTS_CHANGED = function()
+  if cdb then
+    ns.UI.setAlert(alertText())
+  end
 end
 handlers.MERCHANT_SHOW = function()
   learnNpc("vendor")

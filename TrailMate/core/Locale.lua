@@ -63,6 +63,12 @@ local esES = {
   ["Pick up: "] = "Coger: ",
   ["Travel"] = "Viaje",
   ["Skip"] = "Saltar",
+  ["%d talent point(s)"] = "%d punto(s) de talento",
+  ["Level %d: new spells are usually waiting at your class trainer."] =
+    "Nivel %d: seguramente te esperan hechizos nuevos en tu instructor.",
+  ["Visit your trainer once and TrailMate will remember where it is."] =
+    "Visita tu instructor una vez y TrailMate recordará dónde está.",
+  ["You have %d unspent talent point(s)."] = "Tienes %d punto(s) de talento sin gastar.",
   ["Self-test"] = "Autotest",
   ["Self-test started (nothing is changed)."] = "Autotest en marcha (no cambia nada).",
   ["Self-test done: %d passed, %d failed. Copy the Log tab and send it."] =

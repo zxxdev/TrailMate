@@ -65,6 +65,16 @@ function Api.faction()
   return (safe(UnitFactionGroup, "player"))
 end
 
+--- Unspent talent points, or nil if the client does not say.
+function Api.talentPoints()
+  local n = safe(UnitCharacterPoints, "player")
+  if type(n) == "number" then
+    return n
+  end
+  n = safe(GetUnspentTalentPoints)
+  return type(n) == "number" and n or nil
+end
+
 -- Travel ---------------------------------------------------------------------
 
 -- Continent maps of the classic world (Kalimdor, Eastern Kingdoms).
