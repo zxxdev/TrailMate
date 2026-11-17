@@ -29,7 +29,7 @@ function UI.create(saved)
   f:SetPoint(saved.point or "RIGHT", UIParent, saved.relPoint or "RIGHT", saved.x or -40, saved.y or 120)
   ns.Theme.movable(f, saved)
   ns.Theme.panel(f)
-  local _, title = ns.Theme.header(f, "TrailMate", 40)
+  local _, title = ns.Theme.header(f, "TrailMate", 28)
   title:SetWidth(WIDTH - 110)
   title:SetJustifyH("LEFT")
   f.title = title

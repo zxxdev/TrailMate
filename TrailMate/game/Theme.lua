@@ -69,12 +69,12 @@ function Theme.panel(f)
   return bg
 end
 
---- A round emblem with the addon icon and a gold ring, hanging over the
---- top-left corner of a frame. Returns the holder frame.
+--- A round emblem with the addon icon and a gold ring, inside the top-left
+--- corner of a frame. Returns the holder frame.
 function Theme.emblem(f, size)
   local holder = CreateFrame("Frame", nil, f)
   holder:SetSize(size, size)
-  holder:SetPoint("TOPLEFT", -size * 0.3, size * 0.3)
+  holder:SetPoint("TOPLEFT", 9, -8)
   holder:SetFrameLevel((f:GetFrameLevel() or 1) + 5)
   local back = holder:CreateTexture(nil, "BACKGROUND")
   back:SetPoint("TOPLEFT", size * 0.12, -size * 0.12)
@@ -99,10 +99,10 @@ end
 
 --- Emblem plus a gold title next to it. Returns emblem, title.
 function Theme.header(f, title, size)
-  size = size or 40
+  size = size or 28
   local emblem = Theme.emblem(f, size)
   local text = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-  text:SetPoint("TOPLEFT", size * 0.75, -12)
+  text:SetPoint("LEFT", emblem, "RIGHT", 8, 0)
   text:SetText(title)
   text:SetTextColor(rgb(Theme.GOLD))
   return emblem, text

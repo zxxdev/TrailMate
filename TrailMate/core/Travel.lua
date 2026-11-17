@@ -19,6 +19,8 @@ Travel.MOUNT = 11.2 -- with a classic 60% mount
 Travel.FLY = 30 -- taxi speed
 Travel.TAXI_OVERHEAD = 30 -- talking to the flight master, take-off, landing
 Travel.HEARTH = 40 -- cast plus loading screen
+-- The hearthstone then waits an hour: only worth it if it saves real time.
+Travel.HEARTH_VALUE = 300
 Travel.SHIP = 300 -- waiting for and riding a ship or zeppelin
 Travel.WALK_YARDS = 1500 -- below this, walking is always offered first
 
@@ -84,7 +86,9 @@ function Travel.plan(ctx)
       for _, s in ipairs(afterSteps) do
         trip[#trip + 1] = s
       end
-      options[#options + 1] = { cost = Travel.HEARTH + after, steps = trip }
+      options[#options + 1] = {
+        cost = Travel.HEARTH + Travel.HEARTH_VALUE + after, real = Travel.HEARTH + after, steps = trip,
+      }
     end
   end
   if #options == 0 then
@@ -114,7 +118,7 @@ function Travel.plan(ctx)
       mode = "fly"
     end
   end
-  return { mode = mode, cost = best.cost, steps = best.steps }
+  return { mode = mode, cost = best.real or best.cost, steps = best.steps }
 end
 
 --- "4 min" style text for a cost in seconds.

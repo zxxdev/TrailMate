@@ -175,7 +175,7 @@ function Panel.create(saved, locale)
   f:SetFrameStrata("DIALOG")
   ns.Theme.movable(f, saved)
   ns.Theme.panel(f)
-  ns.Theme.header(f, "TrailMate", 48)
+  ns.Theme.header(f, "TrailMate", 30)
   local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
   close:SetPoint("TOPRIGHT", -4, -4)
   if type(UISpecialFrames) == "table" then

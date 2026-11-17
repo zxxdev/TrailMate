@@ -976,7 +976,7 @@ local function selfTest()
   end)
   check("arrow", function()
     ns.Arrow.update()
-    return true, tostring(ns.Arrow.labelText)
+    return true, ("%s (art: %s)"):format(tostring(ns.Arrow.labelText), tostring(ns.Arrow.art))
   end)
   check("quest highlight", function()
     local ok = C_SuperTrack ~= nil and type(C_SuperTrack.SetSuperTrackedQuestID) == "function"

@@ -8,11 +8,24 @@ local Arrow = {}
 ns.Arrow = Arrow
 
 local ARRIVED_YARDS = 8
--- Built-in textures, tried in order: the first one the client has is used.
-local TEXTURES = {
-  "Interface\\Minimap\\MinimapArrow",
-  "Interface\\Minimap\\ROTATING-MINIMAPGUIDEARROW",
-}
+-- Arrow art from the game, sharpest first: the modern client's navigation
+-- arrow (an atlas), checked to exist before use; else the minimap arrow.
+local ATLASES = { "Navigation-Tracked-Arrow", "MiniMap-QuestArrow" }
+local FALLBACK = "Interface\\Minimap\\MinimapArrow"
+
+-- Returns the name of the art used, for the self-test.
+local function setArrowArt(tex)
+  if tex.SetAtlas and C_Texture and C_Texture.GetAtlasInfo then
+    for _, atlas in ipairs(ATLASES) do
+      local ok, info = pcall(C_Texture.GetAtlasInfo, atlas)
+      if ok and info and pcall(tex.SetAtlas, tex, atlas) then
+        return atlas
+      end
+    end
+  end
+  tex:SetTexture(FALLBACK)
+  return FALLBACK
+end
 
 function Arrow.create(saved, L)
   local f = CreateFrame("Frame", "TrailMateArrow", UIParent)
@@ -32,12 +45,10 @@ function Arrow.create(saved, L)
   f.icon = f:CreateTexture(nil, "ARTWORK")
   f.icon:SetSize(56, 56)
   f.icon:SetPoint("TOP", 0, -4)
-  for _, path in ipairs(TEXTURES) do
-    if f.icon:SetTexture(path) ~= false then
-      break
-    end
+  Arrow.art = setArrowArt(f.icon)
+  if Arrow.art == FALLBACK then
+    f.icon:SetVertexColor(1, 0.82, 0)
   end
-  f.icon:SetVertexColor(1, 0.82, 0)
 
   f.distance = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
   f.distance:SetPoint("TOP", f.icon, "BOTTOM", 0, -2)

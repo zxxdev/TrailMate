@@ -64,6 +64,15 @@ describe("Travel", function()
     assert.equals("walk", T.plan({ here = arathi, dest = stranglethorn, nodes = {}, hearth = hearth }).mode)
   end)
 
+  it("does not spend the hearthstone to save a few seconds (the user's real case)", function()
+    -- Standing near Hammerfall, hearthstone bound in Hammerfall: walk to the flight master.
+    local hearth = { name = "Hammerfall", cont = 0, x = 300, y = 100, ready = true }
+    local trip = T.plan({ here = { cont = 0, x = 0, y = 0 }, dest = stranglethorn, nodes = { hammerfall, gromgol },
+      hearth = hearth })
+    assert.equals("fly", trip.mode)
+    assert.equals("walk,fly,walk", kinds(trip))
+  end)
+
   it("says ship or zeppelin for another continent, with the nearest known flight master", function()
     local trip = T.plan({ here = arathi, dest = { cont = 1, x = 6000, y = 6000 },
       nodes = { hammerfall, orgrimmar } })
