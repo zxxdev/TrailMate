@@ -292,7 +292,7 @@ describe("addon smoke test", function()
         [41] = { name = "Muy alta", requiredLevel = 20, questLevel = 25, startedBy = { { 501 } } },
       }),
       Npc = entity({
-        [500] = { spawns = { [45] = { { 70, 70 } } } },
+        [500] = { spawns = { [45] = { { 75, 75 } } } },
         [501] = { spawns = { [45] = { { 55, 50 } } }, friendlyToFaction = "AH" },
         [502] = { name = "Ormak", subName = "Hunter Trainer", npcFlags = 16 + 1, spawns = { [45] = { { 20, 80 } } } },
       }),
