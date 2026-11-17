@@ -61,21 +61,6 @@ function Api.xp()
   return safe(UnitXP, "player"), safe(UnitXPMax, "player")
 end
 
--- Race and class as the bit quest databases use: 2 ^ (id - 1).
-function Api.raceBit()
-  local _, _, raceID = safe(UnitRace, "player")
-  return type(raceID) == "number" and raceID > 0 and 2 ^ (raceID - 1) or nil
-end
-
-function Api.classBit()
-  local _, _, classID = safe(UnitClass, "player")
-  return type(classID) == "number" and classID > 0 and 2 ^ (classID - 1) or nil
-end
-
-function Api.faction()
-  return (safe(UnitFactionGroup, "player"))
-end
-
 --- Quests in the log: { questID, title, complete }.
 function Api.questLog()
   local quests = {}
@@ -544,9 +529,5 @@ function Api.diagnose()
   end
   lines[#lines + 1] = ("facing %s map size %s x %s available quests on map %d"):format(
     tostring(Api.facing()), tostring(w), tostring(h), #Api.availableQuests(mapID))
-  -- Optional data source: QuestieDB's public API, read at runtime (never copied).
-  local lib = rawget(_G, "LibQuestieDB")
-  lines[#lines + 1] = ("data: Questie %s, LibQuestieDB %s"):format(
-    tostring(rawget(_G, "Questie") ~= nil), type(lib) == "table" and "yes" or "no")
   return lines
 end
