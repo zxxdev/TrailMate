@@ -23,6 +23,8 @@ Trails.LINK = 40 -- never join two dots further apart than this
 Trails.START = 30 -- the trail must pass this close to the player
 Trails.MAX = 6000 -- dots kept at most (the saved file stays small)
 Trails.AHEAD = 20 -- a dot this close counts as reached
+Trails.MIN_ALONG = 40 -- a trail is only followed for at least this many yards
+Trails.MIN_GAIN = 30 -- ...and only if it ends this much closer to the goal
 -- Walking off the trail in a straight line is risky (walls): that part
 -- counts double when choosing how far to follow the trail.
 Trails.OFF_TRAIL = 2
@@ -71,7 +73,10 @@ function Trails.ensure(db)
 end
 
 --- The dot nearest to a point within maxDist yards: index, distance; or nil.
-function Trails.nearest(t, c, x, y, maxDist)
+--- mapID (optional): only dots recorded on that map. Cities with floors
+--- (Undercity under the ruins) share x and y between floors, but not the
+--- map: the map keeps the floors apart.
+function Trails.nearest(t, c, x, y, maxDist, mapID)
   local g = grids[t] or Trails.index(t)
   local r = math.ceil(maxDist / CELL)
   local cx, cy = cellOf(x), cellOf(y)
@@ -81,7 +86,8 @@ function Trails.nearest(t, c, x, y, maxDist)
       for _, i in ipairs(g[key(c, cx + dx, cy + dy)] or {}) do
         local n = t.nodes[i]
         local d = dist(x, y, n[2], n[3])
-        if d <= maxDist and (not bestDist or d < bestDist) then
+        local sameFloor = mapID == nil or n[4] == nil or n[4] == mapID
+        if sameFloor and d <= maxDist and (not bestDist or d < bestDist) then
           best, bestDist = i, d
         end
       end
@@ -105,14 +111,16 @@ local function round(v)
 end
 
 --- Adds a dot where the player is, joined to the previous dot (prev).
+--- mapID: the map the player is on (keeps floors apart; the step from one
+--- map to the next, like a lift, is still joined because it was walked).
 --- Returns the dot's index (an old one if close enough), or nil when full.
-function Trails.add(t, c, x, y, prev)
-  local i = Trails.nearest(t, c, x, y, Trails.SNAP)
+function Trails.add(t, c, x, y, prev, mapID)
+  local i = Trails.nearest(t, c, x, y, Trails.SNAP, mapID)
   if not i then
     if #t.nodes >= Trails.MAX then
       return nil
     end
-    t.nodes[#t.nodes + 1] = { c, round(x), round(y) }
+    t.nodes[#t.nodes + 1] = { c, round(x), round(y), mapID }
     i = #t.nodes
     addToGrid(grids[t] or Trails.index(t), i, t.nodes[i])
   end
@@ -177,7 +185,8 @@ function Trails.route(t, here, goal)
   if straight < Trails.AHEAD * 2 then
     return nil
   end
-  local start, d0 = Trails.nearest(t, here.cont, here.x, here.y, Trails.START)
+  -- Start from a dot on the player's own floor (here.mapID, if known).
+  local start, d0 = Trails.nearest(t, here.cont, here.x, here.y, Trails.START, here.mapID)
   if not start then
     return nil
   end
@@ -210,6 +219,15 @@ function Trails.route(t, here, goal)
   if not best or best == start then
     return nil
   end
+  -- Only a trail that really leads somewhere: a real stretch walked that
+  -- ends clearly closer to the goal. A couple of dots next to the player
+  -- would only add a straight line through the wall.
+  local last = t.nodes[best]
+  local along = walked[best] - d0
+  local left = dist(last[2], last[3], goal.x, goal.y)
+  if along < Trails.MIN_ALONG or left > straight - Trails.MIN_GAIN then
+    return nil
+  end
   local path, i = {}, best
   while i do
     local n = t.nodes[i]
@@ -230,6 +248,28 @@ function Trails.next(path, here)
     end
   end
   return path[reached + 1]
+end
+
+--- The learned dots around a point (to check what was recorded), as
+--- { cont, x, y }, the nearest first, at most max.
+function Trails.around(t, c, x, y, radius, max)
+  local found = {}
+  for _, n in ipairs(t.nodes) do
+    if n[1] == c then
+      local d = dist(n[2], n[3], x, y)
+      if d <= radius then
+        found[#found + 1] = { d = d, cont = n[1], x = n[2], y = n[3] }
+      end
+    end
+  end
+  table.sort(found, function(a, b)
+    return a.d < b.d
+  end)
+  local out = {}
+  for i = 1, math.min(max, #found) do
+    out[i] = { cont = found[i].cont, x = found[i].x, y = found[i].y }
+  end
+  return out
 end
 
 --- How many dots and joins are stored, for the self-test.

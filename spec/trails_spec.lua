@@ -74,6 +74,26 @@ describe("Trails", function()
     assert.is_nil(Trails.route(t, { cont = 0, x = 0, y = 0 }, { cont = 0, x = 0, y = 20 }))
   end)
 
+  it("never turns a few dots next to the player into a straight line through the wall (the user's case)", function()
+    -- A few steps walked towards the gate, nothing further.
+    walk({ { 0, 0 }, { 0, 30 } })
+    assert.is_nil(Trails.route(t, { cont = 0, x = 0, y = 0 }, { cont = 0, x = 300, y = 300 }))
+  end)
+
+  it("keeps the floors of a city apart (Undercity under the ruins)", function()
+    -- Same x and y, different maps: two dots, not one.
+    local upper = Trails.add(t, 0, 100, 100, nil, 1420)
+    local lower = Trails.add(t, 0, 100, 100, nil, 1458)
+    assert.are_not.equal(upper, lower)
+    -- The lift: walked from one floor to the other, so the two are joined.
+    local lift = Trails.add(t, 0, 101, 100, upper, 1458)
+    assert.equals(lower, lift)
+    assert.same({ lower }, t.links[upper])
+    -- A player on the lower floor never starts from an upper floor dot.
+    assert.equals(lower, (Trails.nearest(t, 0, 100, 100, 10, 1458)))
+    assert.equals(upper, (Trails.nearest(t, 0, 100, 100, 10, 1420)))
+  end)
+
   it("keeps the saved file small and repairs bad saved data", function()
     local max = Trails.MAX
     Trails.MAX = 2

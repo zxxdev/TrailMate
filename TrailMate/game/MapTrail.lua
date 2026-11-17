@@ -81,9 +81,12 @@ function MapTrail.draw()
   hideFrom(n + 1)
 end
 
--- Fills long straight parts (the last bit to the target) with dots every
--- SPACING yards, so the route reads as one dotted line.
+-- Fills the gaps of the walked trail with dots every SPACING yards, so the
+-- route reads as one dotted line. The last bit, from the end of the trail
+-- to the target, is not walked: it is only filled when short, so no dotted
+-- line is ever drawn through a wall.
 local SPACING = 15
+local LAST_FILL = 60
 
 local function densify(points)
   if not points then
@@ -94,6 +97,9 @@ local function densify(points)
     local a, b = points[i - 1], points[i]
     local len = math.sqrt((b.x - a.x) ^ 2 + (b.y - a.y) ^ 2)
     local steps = math.min(200, math.floor(len / SPACING))
+    if i == #points and len > LAST_FILL then
+      steps = 0
+    end
     for s = 1, steps - 1 do
       local f = s / steps
       out[#out + 1] = { cont = a.cont, x = a.x + (b.x - a.x) * f, y = a.y + (b.y - a.y) * f }
@@ -104,8 +110,9 @@ local function densify(points)
 end
 
 --- Sets the route to draw (dots { cont, x, y }), or nil to clear it.
-function MapTrail.show(points)
-  path = densify(points)
+--- raw: draw the dots as they are (the learned dots, for checking).
+function MapTrail.show(points, raw)
+  path = raw and points or densify(points)
   version = version + 1
   MapTrail.draw()
 end

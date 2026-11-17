@@ -24,6 +24,8 @@ local clock, sinceMove, sinceTarget, sinceArrow, sinceTalents, sinceTrail = 0, 0
 local trails -- TrailMateDB.trails: the ways walked, shared by the account's characters
 local trailPrev, trailLast -- last dot recorded, last position seen
 local lastPath -- the trail route the arrow follows now
+local showLearned = false -- /tm trail show: the map shows every learned dot
+local followTrail -- defined with the update loop, used by /tm trail
 
 local COLORS = {
   learn = "|cff40c040", skip = "|cffc04040", later = "|cffd0a020",
@@ -835,7 +837,7 @@ local HELP = {
   { "/tm tracking on|off  (rastreos si|no)", "Skip hunter tracking spells" },
   { "/tm reserve | reserva <gold>", "Gold the trainer advice never spends" },
   { "/tm arrow | flecha on|off", "Show or hide the arrow" },
-  { "/tm trail | rastro on|off|clear", "Learn the ways you walk and follow them (dots on the map)" },
+  { "/tm trail | rastro on|off|show|clear", "Learn the ways you walk and follow them (dots on the map)" },
   { "/tm talents | talentos", "Open your talents and say the next one" },
   { "/tm companion | compañero claude|chatgpt|none", "Icon colour of your AI companion" },
   { "/tm auto on|off", "Rebuild the plan by itself when it ends" },
@@ -962,6 +964,14 @@ alias({ "trail", "rastro" }, function(rest)
     ns.Arrow.setVia(nil)
     ns.MapTrail.show(nil)
     say(L["Walked trails cleared."])
+    return
+  end
+  if word == "show" or word == "ver" then
+    showLearned = not showLearned
+    lastPath = nil
+    say(showLearned and L["The world map now shows every dot learned around you. Again to go back to the route."]
+      or L["The world map shows the route again."])
+    followTrail()
     return
   end
   if word ~= "" then
@@ -1518,21 +1528,25 @@ local function recordTrail()
     trailPrev = nil
   end
   local p = trailPrev and trails.nodes[trailPrev]
-  if p and math.sqrt((p[2] - w.x) ^ 2 + (p[3] - w.y) ^ 2) < ns.Trails.STEP then
+  -- A new dot every few yards, or at once when the map (the floor) changes.
+  if p and p[4] == w.mapID and math.sqrt((p[2] - w.x) ^ 2 + (p[3] - w.y) ^ 2) < ns.Trails.STEP then
     return
   end
-  trailPrev = ns.Trails.add(trails, w.cont, w.x, w.y, trailPrev) or trailPrev
+  trailPrev = ns.Trails.add(trails, w.cont, w.x, w.y, trailPrev, w.mapID) or trailPrev
 end
 
 -- Follows a walked trail to the arrow's target when one helps: the arrow
 -- points at the next dot and the map shows the dotted way.
-local function followTrail()
+function followTrail()
   local target = ns.Arrow.target
   local here = Api.playerWorld()
   local goal = target and Api.worldPos(target.mapID, target.x, target.y)
   local path = cdb.prefs.trails ~= false and here and goal and ns.Trails.route(trails, here, goal) or nil
   ns.Arrow.setVia(path and ns.Trails.next(path, here) or nil)
-  if path or lastPath then
+  if showLearned then
+    -- /tm trail show: every dot learned around the player, to check them.
+    ns.MapTrail.show(here and ns.Trails.around(trails, here.cont, here.x, here.y, 1500, 400) or nil, true)
+  elseif path or lastPath then
     ns.MapTrail.show(path)
   end
   lastPath = path

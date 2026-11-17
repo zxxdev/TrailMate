@@ -462,10 +462,14 @@ function Api.onTaxi()
   return safe(UnitOnTaxi, "player") == true
 end
 
---- The player's world position { cont, x, y }, or nil.
+--- The player's world position { cont, x, y, mapID }, or nil.
 function Api.playerWorld()
   local mapID, x, y = Api.position()
-  return mapID and x and y and Api.worldPos(mapID, x, y) or nil
+  local w = mapID and x and y and Api.worldPos(mapID, x, y) or nil
+  if w then
+    w.mapID = mapID
+  end
+  return w
 end
 
 local function nodeXY(n)
