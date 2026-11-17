@@ -14,6 +14,9 @@ local arrowStep, markMethod
 local detour -- { target, label }: takes over the arrow for a moment
 local lastAdvice = {}
 local lastProgress = {}
+local lastCounts = {} -- quests worth doing per zone, from the last route
+local lastZones = {} -- the numbered list /tm strategy showed
+local warnedLevel = {} -- levels already announced as "almost there"
 local warnedFull = false
 local questThrottle = ns.Throttle.new(0.3)
 local bagThrottle = ns.Throttle.new(1)
@@ -252,7 +255,11 @@ function buildFromQuestLog(quiet)
       q.zone = zoneName(names, q.target.mapID)
     end
   end
-  local p, report = Builder.fromQuestLog(quests, player, L, offersHere(player, quests, names))
+  local p, report = Builder.fromQuestLog(quests, player, L, offersHere(player, quests, names), {
+    zoneBonus = ns.Strategy.zoneBonus(player.level),
+    focus = cdb.prefs.focusZone,
+  })
+  lastCounts = report.counts or {}
   if p and (not quiet or (report.zone and report.zone ~= cdb.lastZone)) then
     quiet = false
   end
@@ -342,6 +349,71 @@ local function findNpc(rest)
   say(("%s - %s"):format(label, Api.mapName(point.mapID) or ""))
 end
 
+-- Strategy ----------------------------------------------------------------------
+
+local function zoneLine(i, z)
+  local quests = z.quests > 0 and (", " .. L["%d quests in your log"]:format(z.quests)) or ""
+  return ("[%d] %s (%d-%d) - %s%s"):format(i, Api.mapName(z.mapID) or z.name, z.min, z.max, L[z.difficulty], quests)
+end
+
+local function sayStrategy()
+  local level = Api.level()
+  if type(level) ~= "number" then
+    return
+  end
+  local advice = ns.Strategy.advise(level, Api.faction(), playerPoint().mapID, lastCounts)
+  lastZones = {}
+  if advice.best then
+    lastZones[1] = advice.best
+  end
+  for i = 1, math.min(#advice.options, 5) do
+    lastZones[#lastZones + 1] = advice.options[i]
+  end
+  say(L["Strategy for level %d:"]:format(level))
+  for i, z in ipairs(lastZones) do
+    print("  " .. zoneLine(i, z))
+  end
+  if advice.leaveHere then
+    say(L["This zone is too easy for you now: time to move on."])
+  end
+  if #advice.upcoming > 0 then
+    local soon = {}
+    for _, z in ipairs(advice.upcoming) do
+      soon[#soon + 1] = ("%s (%d)"):format(Api.mapName(z.mapID) or z.name, z.min)
+    end
+    say(L["Coming up: %s"]:format(table.concat(soon, ", ")))
+  end
+  say(L["Want another zone? /tm zone <number>. Back to automatic: /tm zone auto."])
+  if not ns.Zones.VERIFIED_IN_FOREVER then
+    say(L["Zone levels are the classic ones, not yet confirmed in Forever."])
+  end
+end
+
+-- The player picks a zone: the route works there, and if there are no
+-- quests for it yet, the arrow points the way to it.
+local function chooseZone(rest)
+  if (rest or ""):lower() == "auto" then
+    cdb.prefs.focusZone = nil
+    say(L["Zone choice back to automatic."])
+    buildFromQuestLog(false)
+    return
+  end
+  local z = lastZones[tonumber(rest) or 0]
+  if not z then
+    say(L["Type /tm strategy first, then /tm zone <number>."])
+    return
+  end
+  cdb.prefs.focusZone = z.mapID
+  local name = Api.mapName(z.mapID) or z.name
+  say(L["Next zone: %s."]:format(name))
+  buildFromQuestLog(false)
+  if (lastCounts[z.mapID] or 0) == 0 then
+    local label = L["Travel to %s"]:format(name)
+    detour = { target = { mapID = z.mapID, x = 0.5, y = 0.5 }, label = label, zone = z.mapID }
+    ns.Arrow.setTarget(detour.target, label)
+  end
+end
+
 -- Trainer ---------------------------------------------------------------------
 
 local function adviseTrainer()
@@ -375,6 +447,20 @@ local function pickSpell(rest)
     return rest, rest
   end
   return nil
+end
+
+-- Near the end of a level: say what the trainer will have, once per level.
+local function remindBeforeLevel()
+  local level = Api.level()
+  local xp, xpMax = Api.xp()
+  if type(level) ~= "number" or warnedLevel[level] or not (xp and xpMax and xpMax > 0) or xp / xpMax < 0.9 then
+    return
+  end
+  warnedLevel[level] = true
+  local names = Trainer.newAtLevel(cdb.trainerMemory, level + 1, cdb.prefs.ignored)
+  if #names > 0 then
+    say(L["Almost level %d: your trainer will have %s."]:format(level + 1, table.concat(names, ", ")))
+  end
 end
 
 local function remindAtLevel(level)
@@ -447,6 +533,8 @@ local HELP = {
   { "/tm vendor | vender", "What to sell, keep or auction" },
   { "/tm find trainer|vendor|repair|flight", "Arrow to the nearest one TrailMate has seen" },
   { "/tm plan", "Arrow back to the plan" },
+  { "/tm strategy | estrategia", "Best zones for your level, with difficulty" },
+  { "/tm zone <n>|auto  (zona)", "Choose the zone to level in, or let TrailMate choose" },
   { "/tm status | estado", "Character summary" },
   { "/tm tracking on|off  (rastreos si|no)", "Skip hunter tracking spells" },
   { "/tm reserve | reserva <gold>", "Gold the trainer advice never spends" },
@@ -525,6 +613,8 @@ end)
 alias({ "vendor", "vender" }, adviseVendor)
 alias({ "find", "buscar" }, findNpc)
 alias({ "plan" }, backToPlan)
+alias({ "strategy", "estrategia" }, sayStrategy)
+alias({ "zone", "zona" }, chooseZone)
 alias({ "status", "estado" }, function()
   for _, line in ipairs(ns.State.summary(takeSnapshot(), L)) do
     say(line)
@@ -694,6 +784,11 @@ handlers.MERCHANT_SHOW = function()
   end
   after(0.3, adviseVendor)
 end
+handlers.PLAYER_XP_UPDATE = function()
+  if cdb then
+    remindBeforeLevel()
+  end
+end
 handlers.TAXIMAP_OPENED = function()
   learnNpc("flight")
 end
@@ -737,6 +832,11 @@ frame:SetScript("OnUpdate", function(_, elapsed)
   -- Quest objectives move (next area, turn-in): look again every two seconds.
   if sinceTarget >= 2 then
     sinceTarget = 0
+    -- Arrived in the zone the player chose: drop the detour and route it.
+    if detour and detour.zone and Api.position() == detour.zone then
+      detour, arrowStep = nil, false
+      buildFromQuestLog(false)
+    end
     if detour or (plan and current) then
       updateTarget(true)
     end

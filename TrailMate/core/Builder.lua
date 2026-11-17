@@ -163,14 +163,15 @@ local function groupByMap(quests)
 end
 
 --- The zone to work in: highest score, staying here on a tie. Quests with no
---- known place never decide the zone.
-function Builder.chooseZone(groups, keys, here)
-  local best, bestScore = nil, -1
+--- known place never decide the zone. bonus(mapID), if given, adds how well
+--- the zone suits the player's level (the leveling strategy).
+function Builder.chooseZone(groups, keys, here, bonus)
+  local best, bestScore = nil, nil
   for _, key in ipairs(keys) do
     local g = groups[key]
     if key ~= "none" and g.count > 0 then
-      local score = g.score + (key == here and Builder.HERE_BONUS or 0)
-      if score > bestScore or (score == bestScore and key == here) then
+      local score = g.score + (key == here and Builder.HERE_BONUS or 0) + (bonus and bonus(key) or 0)
+      if bestScore == nil or score > bestScore or (score == bestScore and key == here) then
         best, bestScore = key, score
       end
     end
@@ -192,8 +193,10 @@ local REASON = {
 --- available (optional) are quest givers the game shows on the map:
 --- { questID, title, target }. L is the locale table for the texts.
 --- report = { zone, later = { { zone, count } }, notNow = { { title, reason } },
----            abandon = { { title, reason } } }
-function Builder.fromQuestLog(quests, player, L, available)
+---            abandon = { { title, reason } }, counts = { [mapID] = quests worth doing } }
+--- opts.zoneBonus(mapID) weighs zones by the leveling strategy; opts.focus
+--- (a mapID) is a zone the player chose, which wins whenever it has quests.
+function Builder.fromQuestLog(quests, player, L, available, opts)
   local max = ns.Plan.MAX_TEXT - 40
   local level = player and player.level
   local here = player and player.mapID
@@ -208,7 +211,7 @@ function Builder.fromQuestLog(quests, player, L, available)
     offers[i] = nil
   end
 
-  local report = { later = {}, notNow = {}, abandon = {} }
+  local report = { later = {}, notNow = {}, abandon = {}, counts = {} }
   for _, q in ipairs(valid) do
     local reason = REASON[q.class]
     if reason then
@@ -219,7 +222,18 @@ function Builder.fromQuestLog(quests, player, L, available)
   end
 
   local groups, keys = groupByMap(valid)
-  local focus = Builder.chooseZone(groups, keys, here)
+  for _, key in ipairs(keys) do
+    if key ~= "none" then
+      report.counts[key] = groups[key].count
+    end
+  end
+  local chosen = opts and opts.focus
+  local focus
+  if chosen and groups[chosen] and groups[chosen].count > 0 then
+    focus = chosen
+  else
+    focus = Builder.chooseZone(groups, keys, here, opts and opts.zoneBonus)
+  end
   if not focus and #offers > 0 then
     focus = here
   end

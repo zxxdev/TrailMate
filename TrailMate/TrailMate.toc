@@ -11,6 +11,8 @@
 core\Locale.lua
 core\Plan.lua
 core\Builder.lua
+core\Zones.lua
+core\Strategy.lua
 core\Throttle.lua
 core\Trainer.lua
 core\Bags.lua
