@@ -58,7 +58,9 @@ function State.build(raw, now)
       break
     end
     if num(it.itemID) then
-      snap.bags.items[#snap.bags.items + 1] = { itemID = it.itemID, count = num(it.count) or 1, quality = num(it.quality) }
+      snap.bags.items[#snap.bags.items + 1] = {
+        itemID = it.itemID, count = num(it.count) or 1, quality = num(it.quality),
+      }
     end
   end
   return snap
