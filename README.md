@@ -15,13 +15,15 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 | Arrow | TrailMate's own arrow points at the current step (quest giver, objective area or turn-in) with the distance, using your facing. It also marks the spot on the map, through [TomTom](https://www.curseforge.com/wow/addons/tomtom) when it is installed or the game's own map pin otherwise. |
 | Trainer advice | When you open a class trainer: a numbered list with *learn*, *skip* or *later* for each spell, and the reason. Ignore a spell once (`/tm ignore 3`) and it is never recommended again, in any rank. At each level-up it tells you only what just unlocked. Keeps a gold reserve you choose. |
 | Vendor advice | When you open a vendor: what to sell (and roughly for how much), what to keep, and what is worth the auction house. Warns when your bags are almost full. |
+| Leveling strategy | `/tm strategy` lists the zones that suit your level, each marked *easy*, *normal* or *hard*, and which zones open up next. Pick one (`/tm zone 2`) and the arrow takes you there; `/tm zone auto` lets TrailMate choose again. Zone level ranges are the classic ones and are not yet confirmed in Forever. |
 | Character summary | `/tm status`: class, level, XP, gold, position, quests and bag space. No names are stored. |
+| Panel and log | `/tm` or the minimap button opens a panel with Route, Zones, Trainer, Bags and Log tabs: every action is a button. Everything TrailMate says is kept in the log, which you can select and copy. |
 
 ## Install
 
 1. Copy the `TrailMate` folder into `World of Warcraft/_forever_/Interface/AddOns/`.
 2. Restart the game or type `/reload`.
-3. Type `/tm` to see the commands. English and Spanish commands both work (`/tm questlog` or `/tm diario`).
+3. Click the TrailMate button on the minimap, or type `/tm`. `/tm help` lists the commands; English and Spanish both work (`/tm questlog` or `/tm diario`).
 
 ## Commands
 
