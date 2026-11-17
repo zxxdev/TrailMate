@@ -87,11 +87,40 @@ local function validQuests(list, exclude)
   return out
 end
 
+-- Groups quests by the map of their target: the player's map first, then the
+-- other maps in quest log order, and quests with no known place last.
+local function groupByMap(quests, here)
+  local groups, seen = {}, {}
+  for _, q in ipairs(quests) do
+    local key = q.target and q.target.mapID or "none"
+    if not groups[key] then
+      groups[key] = {}
+      seen[#seen + 1] = key
+    end
+    local list = groups[key]
+    list[#list + 1] = q
+  end
+  local keys = {}
+  if here and groups[here] then
+    keys[1] = here
+  end
+  for _, key in ipairs(seen) do
+    if key ~= here and key ~= "none" then
+      keys[#keys + 1] = key
+    end
+  end
+  if groups.none then
+    keys[#keys + 1] = "none"
+  end
+  return groups, keys
+end
+
 --- Returns a plan (format v1) built from the quest log, or nil when there is
 --- nothing to do. available (optional) are quest givers the game shows on the
---- map: { questID, title, target }. Order, like a leveling route: turn in what
---- is already complete, pick up the nearby quests, do everything nearest
---- first, then turn it all in. L is the locale table for the step texts.
+--- map: { questID, title, target }. Order, like a leveling route, one zone at
+--- a time and the player's zone first: pick up the nearby quests, then visit
+--- every place nearest first (turning in what is complete, doing what is not),
+--- then turn in what was done there. L is the locale table for the texts.
 function Builder.fromQuestLog(quests, player, L, available)
   local max = ns.Plan.MAX_TEXT - 20
   local valid = validQuests(quests)
@@ -107,17 +136,12 @@ function Builder.fromQuestLog(quests, player, L, available)
     return nil
   end
 
-  local done, todo = {}, {}
-  for _, q in ipairs(valid) do
-    if q.complete then
-      done[#done + 1] = q
-    else
-      todo[#todo + 1] = q
-    end
+  local here = player and player.mapID
+  local groups, keys = groupByMap(valid, here)
+  if #offers > 0 and here and not groups[here] then
+    groups[here] = {}
+    table.insert(keys, 1, here)
   end
-  local last = offers[#offers]
-  local from = last and { mapID = last.target.mapID, x = last.target.x, y = last.target.y } or player
-  todo = orderByDistance(todo, from)
 
   local steps = {}
   local function add(kind, q, text, target)
@@ -127,23 +151,41 @@ function Builder.fromQuestLog(quests, player, L, available)
     end
     steps[#steps + 1] = step
   end
-  for _, q in ipairs(done) do
-    add("turnin", q, L["Turn in: "] .. clip(q.title, max))
+  local function addAll(kind, list, prefix)
+    for _, q in ipairs(list) do
+      add(kind, q, L[prefix] .. clip(q.title, max))
+    end
   end
-  for _, q in ipairs(offers) do
-    add("accept", q, L["Pick up: "] .. clip(q.title, max), q.target)
-  end
-  for _, q in ipairs(todo) do
-    add("complete", q, L["Do: "] .. clip(q.title, max))
-  end
-  for _, q in ipairs(offers) do
-    add("complete", q, L["Do: "] .. clip(q.title, max))
-  end
-  for _, q in ipairs(todo) do
-    add("turnin", q, L["Turn in: "] .. clip(q.title, max))
-  end
-  for _, q in ipairs(offers) do
-    add("turnin", q, L["Turn in: "] .. clip(q.title, max))
+
+  for _, key in ipairs(keys) do
+    local list = groups[key]
+    local isHere = key == here
+    if isHere then
+      for _, q in ipairs(offers) do
+        add("accept", q, L["Pick up: "] .. clip(q.title, max), q.target)
+      end
+    end
+    local route = list
+    if key ~= "none" and #list > 0 then
+      local start = isHere and player or { mapID = key, x = list[1].target.x, y = list[1].target.y }
+      route = orderByDistance(list, start)
+    end
+    local doneHere = {}
+    for _, q in ipairs(route) do
+      if q.complete then
+        add("turnin", q, L["Turn in: "] .. clip(q.title, max))
+      else
+        add("complete", q, L["Do: "] .. clip(q.title, max))
+        doneHere[#doneHere + 1] = q
+      end
+    end
+    if isHere then
+      addAll("complete", offers, "Do: ")
+    end
+    addAll("turnin", doneHere, "Turn in: ")
+    if isHere then
+      addAll("turnin", offers, "Turn in: ")
+    end
   end
 
   local all = {}

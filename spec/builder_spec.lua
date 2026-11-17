@@ -20,16 +20,28 @@ describe("Builder.fromQuestLog", function()
     assert.is_nil(ns.Builder.fromQuestLog({}, nil, L))
   end)
 
-  it("turns in complete quests first, then visits the rest by distance", function()
+  it("does the player's zone first, by distance, then other zones, then unknown places", function()
     local quests = {
       { questID = 1, title = "Far", complete = false, target = { mapID = 5, x = 0.9, y = 0.9 } },
-      { questID = 2, title = "Done", complete = true },
+      { questID = 2, title = "Done, place unknown", complete = true },
       { questID = 3, title = "Near", complete = false, target = { mapID = 5, x = 0.2, y = 0.2 } },
       { questID = 4, title = "Other map", complete = false, target = { mapID = 6, x = 0.1, y = 0.1 } },
     }
     local plan = ns.Builder.fromQuestLog(quests, { mapID = 5, x = 0.1, y = 0.1 }, L)
-    assert.equals("turnin-2,complete-3,complete-1,complete-4,turnin-3,turnin-1,turnin-4", ids(plan))
+    assert.equals("complete-3,complete-1,turnin-3,turnin-1,complete-4,turnin-4,turnin-2", ids(plan))
     assert.is_true(ns.Plan.validate(plan))
+  end)
+
+  it("mixes turn-ins of complete quests into the route by distance", function()
+    -- The real case: a complete quest whose turn-in is in another zone must
+    -- not come first just because it is complete.
+    local quests = {
+      { questID = 1, title = "Cook", complete = true, target = { mapID = 9, x = 0.5, y = 0.5 } },
+      { questID = 2, title = "Mid", complete = false, target = { mapID = 5, x = 0.5, y = 0.5 } },
+      { questID = 3, title = "Ready here", complete = true, target = { mapID = 5, x = 0.3, y = 0.3 } },
+    }
+    local plan = ns.Builder.fromQuestLog(quests, { mapID = 5, x = 0.1, y = 0.1 }, L)
+    assert.equals("turnin-3,complete-2,turnin-2,turnin-1", ids(plan))
   end)
 
   it("picks up nearby quest givers first, then does and turns in everything", function()
