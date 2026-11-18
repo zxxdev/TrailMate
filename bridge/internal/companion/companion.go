@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"sync"
 )
 
 // Companion answers questions within one conversation.
@@ -68,20 +69,23 @@ type Claude struct {
 	Model   string // the CLI's default if empty
 	Dir     string // where it runs: an empty folder
 	Run     Runner
+
+	mu      sync.Mutex // the conversation is read and changed from two goroutines
 	session string
 	started bool
+	gen     int // grows on Reset: an answer from before it changes nothing
 }
 
-func (c *Claude) args() []string {
+func (c *Claude) args(session string, started bool) []string {
 	args := []string{"-p", "--output-format", "json", "--tools", "", "--strict-mcp-config", "--safe-mode",
 		"--system-prompt", SystemPrompt}
 	if c.Model != "" {
 		args = append(args, "--model", c.Model)
 	}
-	if c.started {
-		return append(args, "--resume", c.session)
+	if started {
+		return append(args, "--resume", session)
 	}
-	return append(args, "--session-id", c.session)
+	return append(args, "--session-id", session)
 }
 
 type result struct {
@@ -90,11 +94,15 @@ type result struct {
 	SessionID string `json:"session_id"`
 }
 
-// Ask sends the question in the current conversation.
+// Ask sends the question in the current conversation. It does not hold the
+// lock while the model thinks, so Reset never waits for it.
 func (c *Claude) Ask(ctx context.Context, question string) (string, error) {
+	c.mu.Lock()
 	if c.session == "" {
 		c.session = newUUID()
 	}
+	session, started, gen := c.session, c.started, c.gen
+	c.mu.Unlock()
 	program := c.Program
 	if program == "" {
 		program = "claude"
@@ -103,7 +111,7 @@ func (c *Claude) Ask(ctx context.Context, question string) (string, error) {
 	if run == nil {
 		run = Run
 	}
-	out, err := run(ctx, c.Dir, program, c.args(), question)
+	out, err := run(ctx, c.Dir, program, c.args(session, started), question)
 	if err != nil {
 		return "", err
 	}
@@ -114,16 +122,23 @@ func (c *Claude) Ask(ctx context.Context, question string) (string, error) {
 	if r.IsError || strings.TrimSpace(r.Result) == "" {
 		return "", errors.New("claude: " + firstLine(r.Result))
 	}
-	c.started = true
-	if r.SessionID != "" {
-		c.session = r.SessionID
+	c.mu.Lock()
+	if c.gen == gen { // no Reset meanwhile: this conversation goes on
+		c.started = true
+		if r.SessionID != "" {
+			c.session = r.SessionID
+		}
 	}
+	c.mu.Unlock()
 	return strings.TrimSpace(r.Result), nil
 }
 
-// Reset starts a new conversation.
+// Reset starts a new conversation, even while a question is in flight.
 func (c *Claude) Reset() {
+	c.mu.Lock()
 	c.session, c.started = "", false
+	c.gen++
+	c.mu.Unlock()
 }
 
 func firstLine(s string) string {

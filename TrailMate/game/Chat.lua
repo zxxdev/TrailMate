@@ -34,6 +34,7 @@ local function api()
     save = Api.saveBindings,
     combat = Api.inCombat,
     loadAddOn = Api.loadAddOn,
+    synced = Api.bindingsSynced,
   }
 end
 

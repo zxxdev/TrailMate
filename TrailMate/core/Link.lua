@@ -258,17 +258,19 @@ function methods:send(kind, text)
   end
   if kind == "M" then
     self.waiting, self.waitSince, self.gaveUp = true, nil, nil
+    self.question = self.seq -- its last frame: an answer or error after it is for it
   end
   return true
 end
 
--- Our keys for frames: the ones we hold already, and the ones with nothing
--- on them. A key the player uses is never touched.
+-- Our keys for frames: the ones we hold already, and the ones the game says
+-- are empty (""). A key the player uses, or one the game cannot tell about
+-- (nil), is never touched.
 function methods:freeKeys()
   local free = {}
   for _, key in ipairs(Link.KEYS) do
     local action = self.api.getAction(key)
-    if self.keys[key] or action == nil or action == "" then
+    if self.keys[key] or action == "" then
       free[#free + 1] = key
     end
   end
@@ -294,6 +296,8 @@ function methods:write(frames, now)
     end
     local got = self.api.getAction(free[i])
     if got ~= action then
+      -- Leave the key as it was: empty.
+      self.api.setBinding(free[i], nil)
       self.noKeys = true
       self.noKeysWhy = ("%s: reads back %s"):format(free[i], tostring(got):sub(1, 60))
       return false
@@ -355,6 +359,10 @@ function methods:apply(env, now)
     self.out = nil
   end
   self.thinking, self.error = env.thinking, env.error
+  -- The companion failed on this question: say so now, not after minutes.
+  if env.error and not env.thinking and self.question and env.ack >= self.question then
+    self.waiting = false
+  end
   for _, r in ipairs(env.replies) do
     if not self.seen[r.id] then
       self.seen[r.id] = true
@@ -366,7 +374,22 @@ function methods:apply(env, now)
   end
 end
 
+-- Nobody answers at all: drop what waits, free the keys, stop polling.
+function methods:giveUp(now)
+  self.queue, self.out, self.waiting, self.gaveUp = {}, nil, false, true
+  self:clearKeys(now)
+end
+
 function methods:step(now)
+  -- While the game keeps bindings on Blizzard's servers, saving them would
+  -- send the question there: nothing is written until the player says so.
+  if self.api.synced and self.api.synced() and not self.out then
+    return
+  end
+  if self.out and now - self.out.at > Link.GIVE_UP then
+    self:giveUp(now)
+    return
+  end
   if self.out then
     -- Frames on the keys: wait for the bridge to acknowledge them.
     local late = now - self.out.at > Link.NO_BRIDGE

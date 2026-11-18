@@ -183,6 +183,52 @@ describe("Link (the chat with the companion)", function()
     assert.same({ false, "too long" }, { link:send("M", ("x"):rep(Link.MAX_PAYLOAD * Link.MAX_PARTS)) })
   end)
 
+  it("never uses a key the game cannot tell about", function()
+    local w = world()
+    w.api.getAction = function(key) return key ~= "CTRL-ALT-SHIFT-F1" and (w.live[key] or "") or nil end
+    w.link = Link.new(w.api, { session = "1A2B3C4D" })
+    w.link:send("M", "hola")
+    w.link:tick(1)
+    assert.is_nil(w.live["CTRL-ALT-SHIFT-F1"])
+    assert.matches("^CLICK TrailMateCarrier_", w.live["CTRL-ALT-SHIFT-F2"])
+  end)
+
+  it("writes nothing while key bindings sync with Blizzard's servers", function()
+    local w = world()
+    local synced = true
+    w.api.synced = function() return synced end
+    w.link = Link.new(w.api, { session = "1A2B3C4D" })
+    w.link:send("M", "hola")
+    w.link:tick(1)
+    assert.equals(0, w.saves) -- the question would go to the servers
+    synced = false
+    w.link:tick(3)
+    assert.equals(1, w.saves)
+  end)
+
+  it("shows the companion's error at once, and gives up when nobody answers", function()
+    local w = world()
+    w.link = Link.new(w.api, { session = "1A2B3C4D" })
+    w.bridge = function()
+      for s = 1, Link.WINDOW do
+        w.inboxes[Link.inbox(s)] = { protocol = 1, session = "1A2B3C4D", ack = 1, error = "Not logged in" }
+      end
+    end
+    w.link:send("M", "hola")
+    for t = 1, 5 do
+      w.link:tick(t)
+    end
+    assert.equals("error", w.link.status)
+    -- No bridge at all: after three minutes it stops and frees the keys.
+    local quiet = world()
+    quiet.link = Link.new(quiet.api, { session = "1A2B3C4D" })
+    quiet.link:send("M", "hola")
+    quiet.link:tick(1)
+    quiet.link:tick(Link.GIVE_UP + 2)
+    assert.equals("noreply", quiet.link.status)
+    assert.equals("", quiet.api.getAction("CTRL-ALT-SHIFT-F1"))
+  end)
+
   it("clears frames a previous session left behind", function()
     local w = world()
     w.live["CTRL-ALT-SHIFT-F5"] = Link.action({ session = "00000001", seq = 1, slot = 1, msg = 1, part = 1,

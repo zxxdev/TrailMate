@@ -88,3 +88,26 @@ func TestEchoGivesTheQuestionBack(t *testing.T) {
 		t.Fatalf("Echo = %q", got)
 	}
 }
+
+// "New conversation" pressed while Claude thinks: the answer that arrives
+// afterwards must not bring the old conversation back.
+func TestResetDuringAQuestionStartsANewConversation(t *testing.T) {
+	var calls [][]string
+	c := &Claude{}
+	c.Run = func(_ context.Context, _, _ string, args []string, _ string) ([]byte, error) {
+		calls = append(calls, args)
+		if len(calls) == 1 {
+			c.Reset() // the player starts a new conversation meanwhile
+		}
+		return []byte(`{"type":"result","is_error":false,"result":"ok","session_id":"old"}`), nil
+	}
+	if _, err := c.Ask(context.Background(), "uno"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Ask(context.Background(), "dos"); err != nil {
+		t.Fatal(err)
+	}
+	if id, ok := value(calls[1], "--resume"); ok {
+		t.Fatalf("the old conversation came back: --resume %s", id)
+	}
+}
