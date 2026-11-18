@@ -1,6 +1,8 @@
 # Contributing to TrailMate
 
-Thank you for helping. TrailMate is an alpha, and reports from other classes, races and level ranges are what it needs most.
+**English** · [Español](CONTRIBUTING.es.md)
+
+Thank you for helping. Issues and pull requests can be written in English or Spanish. TrailMate is an alpha, and reports from other classes, races and level ranges are what it needs most.
 
 ## Report a problem
 
