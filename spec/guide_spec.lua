@@ -86,6 +86,20 @@ describe("Guide", function()
     end
   end)
 
+  it("notices when the quest giver does not offer the step's quest (Trollbane at Grom'gol, the user's case)", function()
+    local step = { type = "accept", questID = 638, npc = "Nimboya", text = "Pick up: Trollbane" }
+    -- Nimboya offers other quests, not Trollbane: the guide must not wait.
+    assert.is_true(Guide.notOffered(step, "Nimboya", { { questID = 581 } }))
+    assert.is_true(Guide.notOffered(step, "Nimboya", {}))
+    -- Offered, someone else, or not a pick-up step: nothing to do.
+    assert.is_false(Guide.notOffered(step, "Nimboya", { { questID = 638 } }))
+    assert.is_false(Guide.notOffered(step, "Kin'weelay", {}))
+    assert.is_false(Guide.notOffered({ type = "turnin", questID = 638, npc = "Nimboya" }, "Nimboya", {}))
+    -- Guide steps know their quest giver.
+    local plan = Guide.toPlan(small, { who = hunter, L = L })
+    assert.equals("Nimboya", plan.steps[2].npc)
+  end)
+
   it("knows when a guide is finished", function()
     assert.is_false(Guide.finished(small, hunter, function() return false end))
     assert.is_true(Guide.finished(small, hunter, function() return true end))

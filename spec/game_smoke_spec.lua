@@ -668,6 +668,30 @@ describe("addon smoke test", function()
     assert.is_nil(window.step.shown_text:find("Yenniku", 1, true))
   end)
 
+  it("skips a pick-up the quest giver does not offer (Trollbane at Grom'gol, the user's case)", function()
+    rawset(_G, "UnitLevel", function() return 34 end)
+    rawset(_G, "UnitFactionGroup", function() return "Horde" end)
+    finally(function()
+      rawset(_G, "UnitLevel", function() return 8 end)
+      rawset(_G, "C_GossipInfo", nil)
+      npcGUID = nil
+    end)
+    _G.C_Map.GetBestMapForUnit = function() return 1434 end
+    _G.C_Map.GetPlayerMapPosition = function()
+      return { GetXY = function() return 0.326, 0.29 end }
+    end
+    _G.SlashCmdList.TRAILMATE("diario")
+    local window = named.TrailMateFrame
+    assert.equals("Coger: Hunt for Yenniku", window.step.shown_text)
+    -- Talking to Nimboya, who offers something else.
+    npcGUID = "Creature-0-1-0-1-2497-0"
+    rawset(_G, "UnitName", function(unit) return unit == "npc" and "Nimboya" or nil end)
+    rawset(_G, "C_GossipInfo", { GetAvailableQuests = function() return { { questID = 1, title = "Otra" } } end })
+    fire("GOSSIP_SHOW")
+    assert.matches("Nimboya no ofrece «Hunt for Yenniku» ahora: lo salto", output())
+    assert.equals("Coger: Bloody Bone Necklaces", window.step.shown_text)
+  end)
+
   it("says when key bindings sync with Blizzard, and keeps them on the PC only when asked (the user's case)", function()
     local live, cvars, saves = {}, { synchronizeBindings = "1" }, 0
     local added = {

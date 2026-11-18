@@ -112,6 +112,7 @@ function Guide.toPlan(guide, ctx)
       if s.t == "accept" then
         step.type, step.questID, step.text = "accept", s.q, L["Pick up: "] .. name
         step.why = s.npc and L["From %s"]:format(s.npc) or nil
+        step.npc = s.npc -- to notice when that quest giver does not offer it
       elseif s.t == "turnin" then
         step.type, step.questID, step.text = "turnin", s.q, L["Turn in: "] .. name
         step.why = s.npc and L["To %s"]:format(s.npc) or nil
@@ -147,6 +148,22 @@ function Guide.toPlan(guide, ctx)
     title = guide.name,
     steps = steps,
   }
+end
+
+--- True if the step asks to pick up a quest from this quest giver, who does
+--- not offer it now (offers: { { questID } } from the gossip or greeting
+--- window). The data can be wrong for Forever, or the quest may need
+--- something we cannot see: the guide must not wait for it.
+function Guide.notOffered(step, npcName, offers)
+  if not (step and step.type == "accept" and step.npc and npcName and step.npc == npcName) then
+    return false
+  end
+  for _, q in ipairs(offers or {}) do
+    if q.questID == step.questID then
+      return false
+    end
+  end
+  return true
 end
 
 --- True if a plan was made from a guide.

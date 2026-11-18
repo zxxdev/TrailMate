@@ -51,6 +51,8 @@ local esES = {
   ["Plan loaded: %s (%d steps)."] = "Plan cargado: %s (%d pasos).",
   ["Plan rejected: %s"] = "Plan rechazado: %s",
   ["Skipped: %s"] = "Saltado: %s",
+  ["%s does not offer \"%s\" now: skipped (/tm undo brings it back)."] =
+    "%s no ofrece «%s» ahora: lo salto (/tm deshaz lo recupera).",
   ["Marked as done: %s"] = "Marcado como hecho: %s",
   ["Undone."] = "Deshecho.",
   ["Nothing to undo."] = "Nada que deshacer.",

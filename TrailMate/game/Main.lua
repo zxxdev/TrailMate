@@ -1911,11 +1911,31 @@ local function learnOffers(list)
   end
 end
 
+-- Talking to the step's quest giver, who does not offer its quest now (the
+-- data may be wrong for Forever, or it needs something we cannot see):
+-- skip it, say so, and look at the next step the same way.
+local function skipNotOffered(offers)
+  local npc = Api.npc()
+  for _ = 1, 5 do
+    local step = plan and current and plan.steps[current]
+    if not (npc and ns.Guide.notOffered(step, npc.name, offers)) then
+      return
+    end
+    Plan.skip(plan, progress, facts())
+    say(L["%s does not offer \"%s\" now: skipped (/tm undo brings it back)."]:format(npc.name,
+      (step.text:gsub("^" .. L["Pick up: "], ""))))
+    arrowStep = false
+    refresh()
+  end
+end
+
 handlers.GOSSIP_SHOW = function()
   if not cdb then
     return
   end
-  learnOffers(Api.npcOffers())
+  local offers = Api.npcOffers()
+  learnOffers(offers)
+  guard("plan", skipNotOffered, offers)
   if Api.npcIsInnkeeper() then
     learnNpc("innkeeper")
   end
