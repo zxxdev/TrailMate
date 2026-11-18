@@ -176,12 +176,31 @@ describe("Plan", function()
       assert.equals("a", Plan.skip(p, progress, f).id)
       assert.equals(2, (Plan.evaluate(p, progress, f)))
       assert.equals("g", Plan.markDone(p, progress, f).id)
-      assert.equals(3, (Plan.evaluate(p, progress, f)))
+      -- The quest was never picked up: doing and handing it in are passed too.
+      assert.equals(5, (Plan.evaluate(p, progress, f)))
       assert.equals("g", Plan.undo(progress))
       assert.equals(2, (Plan.evaluate(p, progress, f)))
       assert.equals("a", Plan.undo(progress))
       assert.equals(1, (Plan.evaluate(p, progress, f)))
       assert.is_nil(Plan.undo(progress))
+    end)
+
+    it("passes a hand-in for a quest you never had (Hemet Nesingwary, the user's case)", function()
+      local p = { version = 1, id = "guide-stv", steps = {
+        { id = "t1", type = "turnin", questID = 5762, text = "Turn in: Hemet Nesingwary" },
+        { id = "t2", type = "turnin", questID = 583, text = "Turn in: Welcome to the Jungle" },
+        { id = "a3", type = "accept", questID = 194, text = "Pick up: Raptor Mastery" },
+        { id = "c3", type = "complete", questID = 194, text = "Do: Raptor Mastery" },
+      } }
+      local progress = Plan.newProgress(p)
+      -- Welcome to the Jungle is in the log, Hemet Nesingwary never was.
+      local f = helper.facts({ questLog = { [583] = { complete = true } } })
+      assert.equals(2, (Plan.evaluate(p, progress, f)))
+      -- Handed in: on to Raptor Mastery, whose "do" step waits for its pick-up.
+      f.questLog[583], f.turned[583] = nil, true
+      assert.equals(3, (Plan.evaluate(p, progress, f)))
+      local _, statuses = Plan.evaluate(p, progress, f)
+      assert.equals("pending", statuses[4])
     end)
 
     it("lets the player choose which pending step to do now", function()

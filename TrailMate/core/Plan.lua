@@ -227,12 +227,24 @@ function Plan.evaluate(plan, progress, facts)
     end
     return false
   end
+  -- A quest you do not have (not in the log, never handed in) cannot be done
+  -- or handed in: unless its pick-up step is still ahead, those steps are
+  -- passed ("Turn in: Hemet Nesingwary" when it was never picked up).
+  local acceptAhead = {}
+  local function missing(step)
+    local q = step.questID
+    return (step.type == "complete" or step.type == "turnin") and q and not acceptAhead[q]
+      and type(facts.questLog) == "table" and facts.questLog[q] == nil
+      and type(facts.turnedIn) == "function" and facts.turnedIn(q) == false
+  end
   for i, step in ipairs(plan.steps) do
     local status
     if progress.skipped[step.id] then
       status = "skipped"
     elseif progress.done[step.id] or stateDone(step, facts) or (step.soft and (i < lastDone or nearNext(i))) then
       status = "done"
+    elseif missing(step) then
+      status = "skipped"
     elseif current == nil and step.type == "goto" and Plan.isAt(step, facts) then
       progress.done[step.id] = true
       progress.history[#progress.history + 1] = step.id
@@ -242,6 +254,9 @@ function Plan.evaluate(plan, progress, facts)
       status = "pending"
       if current == nil then
         current = i
+      end
+      if step.type == "accept" and step.questID then
+        acceptAhead[step.questID] = true
       end
     end
     statuses[i] = status
