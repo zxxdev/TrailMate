@@ -1,0 +1,48 @@
+## Interface: 16001
+## Title: |cff9b7bd4TrailMate|r
+## Notes: Leveling coach: a route that decides, an arrow, trainer and vendor advice. Advises, never plays.
+## Author: zxxdev
+## Version: 0.1.0-alpha
+## X-License: MIT
+## IconTexture: Interface\AddOns\TrailMate\media\Icon
+## AddonCompartmentFunc: TrailMate_OnAddonCompartmentClick
+## SavedVariables: TrailMateDB
+## SavedVariablesPerCharacter: TrailMateCharDB
+
+core\Locale.lua
+core\Log.lua
+core\Plan.lua
+core\Builder.lua
+core\Zones.lua
+core\Strategy.lua
+core\Throttle.lua
+core\Trainer.lua
+core\Bags.lua
+core\State.lua
+core\Geo.lua
+core\Atlas.lua
+core\Travel.lua
+core\Talents.lua
+core\Trails.lua
+core\Hubs.lua
+core\Guide.lua
+core\Dungeons.lua
+core\Link.lua
+data\Routes.lua
+data\Hubs.lua
+data\Guides.lua
+data\GuideQuests.lua
+data\Dungeons.lua
+game\Api.lua
+game\Theme.lua
+game\UI.lua
+game\Arrow.lua
+game\ItemButton.lua
+game\MapTrail.lua
+game\MinimapPin.lua
+game\MinimapButton.lua
+game\Panel.lua
+game\TalentPreview.lua
+game\TalentPanel.lua
+game\Chat.lua
+game\Main.lua
