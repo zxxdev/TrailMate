@@ -283,6 +283,8 @@ local esES = {
   ["Dungeon finished: back to your guide."] = "Mazmorra terminada: vuelves a tu guía.",
   -- Companion chat.
   ["Companion"] = "Compañero",
+  ["The chat could not start: type /tm test and send the Log tab."] =
+    "El chat no ha podido arrancar: escribe /tm test y mándame la pestaña Registro.",
   ["You: %s"] = "Tú: %s",
   ["Companion: %s"] = "Compañero: %s",
   ["Your companion answered."] = "Tu compañero te ha contestado.",

@@ -668,6 +668,26 @@ describe("addon smoke test", function()
     assert.is_nil(window.step.shown_text:find("Yenniku", 1, true))
   end)
 
+  it("starts the chat without math.randomseed, which WoW does not have (the user's case)", function()
+    local seed = math.randomseed
+    rawset(math, "randomseed", nil)
+    finally(function()
+      rawset(math, "randomseed", seed)
+    end)
+    install()
+    rawset(_G, "TrailMateDB", nil)
+    rawset(_G, "TrailMateCharDB", nil)
+    loadAddon()
+    fire("ADDON_LOADED", "TrailMate")
+    _G.SlashCmdList.TRAILMATE("chat hola")
+    local lines = _G.TrailMateCharDB.chat.lines
+    assert.same({ who = "me", text = "hola" }, lines[#lines])
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.25)
+    local status = named.TrailMateChat.status.shown_text
+    assert.is_string(status)
+    assert.is_nil(status:find("no ha podido arrancar", 1, true))
+  end)
+
   it("chats with the companion through the key bindings and an inbox (the bridge simulated)", function()
     local codec = {}
     assert(loadfile("TrailMate/core/Link.lua"))("TrailMate", codec)

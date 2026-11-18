@@ -34,6 +34,18 @@ local function api()
   }
 end
 
+--- A new id for this game session. The game's math.random is already
+--- random (WoW has no math.randomseed); the clock is the fallback.
+function Chat.sessionId()
+  local ok, id = pcall(ns.Link.newSession, math.random)
+  if ok and type(id) == "string" and id:match("^%x%x%x%x%x%x%x%x$") then
+    return id
+  end
+  local now = (type(time) == "function" and time() or 0) + (type(GetTime) == "function" and GetTime() or 0) * 1000
+  local t = math.floor(now) % 4294967296
+  return ("%04X%04X"):format(math.floor(t / 65536), t % 65536)
+end
+
 --- saved: TrailMateCharDB.chat ({ lines, pos }); context(): the
 --- character's state as text, sent with the first question and whenever it
 --- changes.
@@ -41,12 +53,7 @@ function Chat.init(saved, L, context)
   Chat.saved, Chat.L, Chat.context = saved, L, context
   saved.lines = saved.lines or {}
   saved.pos = saved.pos or {}
-  local random = math.random
-  if type(time) == "function" then
-    math.randomseed(time())
-    random(); random()
-  end
-  Chat.link = ns.Link.new(api(), { session = ns.Link.newSession(random), onReply = Chat.reply })
+  Chat.link = ns.Link.new(api(), { session = Chat.sessionId(), onReply = Chat.reply })
   -- Frames a previous session left on the keys go first.
   if not ns.Api.inCombat() then
     Chat.link:scrub()
@@ -97,10 +104,17 @@ end
 --- Sends a question, with the character's context if it changed.
 function Chat.ask(text)
   text = (text or ""):gsub("^%s+", ""):gsub("%s+$", "")
-  if text == "" or not Chat.link then
+  if text == "" then
     return false
   end
-  local ctx = Chat.context and Chat.context() or ""
+  if not Chat.link then
+    -- Never silent: say the chat did not start, and where to look.
+    add("companion", Chat.L["The chat could not start: type /tm test and send the Log tab."])
+    return false
+  end
+  -- The context helps, but a question goes even if it cannot be built.
+  local built, ctx = pcall(Chat.context or function() return "" end)
+  ctx = built and type(ctx) == "string" and ctx or ""
   if ctx ~= "" and ctx ~= Chat.lastContext then
     -- The context fits in one message: cut it, never the question.
     local max = ns.Link.MAX_PAYLOAD * ns.Link.MAX_PARTS - 1
@@ -119,7 +133,9 @@ end
 
 --- Starts a new conversation (the companion forgets the old one).
 function Chat.restart()
-  if Chat.link then
+  if not Chat.link then
+    add("companion", Chat.L["The chat could not start: type /tm test and send the Log tab."])
+  else
     Chat.link:send("N")
     Chat.lastContext = nil
     add("companion", Chat.L["New conversation."])
@@ -205,6 +221,9 @@ end
 --- Moves the conversation on and shows how it is going.
 function Chat.tick(now)
   if not Chat.link then
+    if Chat.frame and Chat.frame:IsShown() and Chat.L then
+      Chat.frame.status:SetText(Chat.L["The chat could not start: type /tm test and send the Log tab."])
+    end
     return
   end
   local status = Chat.link:tick(now)
