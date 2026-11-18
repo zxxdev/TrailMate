@@ -48,9 +48,10 @@ The addon cannot reach the internet, so a small program on your PC, `trailmate-b
 3. While you play, keep it running:
    `trailmate-bridge run --game "C:\Program Files (x86)\World of Warcraft\_forever_"`
    Add `--companion echo` to check the link without asking a model.
-4. In the game, `/tm chat` and write.
+4. In the game, once: `/tm chat local`. While key bindings sync with Blizzard's servers, the game does not write them on your PC, so the bridge sees nothing. `/tm chat sync` turns syncing back on.
+5. `/tm chat` and write. `/tm chat diag` shows what each key holds if something is stuck.
 
-The bridge uses the keys `Ctrl+Alt+Shift+F5` to `F8` while a message goes out, and frees them afterwards. It never touches a key you use.
+The chat uses the keys `Ctrl+Alt+Shift+F1` to `F8` while a message goes out, and frees them afterwards. It never touches a key you use.
 
 ## Commands
 

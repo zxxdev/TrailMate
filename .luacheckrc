@@ -31,7 +31,7 @@ read_globals = {
   "GetSpecializationInfo", "C_SpecializationInfo", "UnitOnTaxi", "UnitRace", "C_GossipInfo", "GetNumAvailableQuests",
   "GetAvailableQuestInfo", "GetAvailableTitle", "GetAvailableLevel", "GetQuestID", "GetTitleText", "GetRealZoneText",
   "GetZoneText", "GetSubZoneText", "GetMinimapZoneText", "C_QuestLog", "GetQuestLogSpecialItemInfo", "GetItemIcon", "GameTooltip", "CreateColor", "C_Texture", "C_TaxiMap", "Enum", "GetBindLocation", "GetItemCooldown", "GetItemCount", "GetTaxiMapID", "GetTime",
-  "SetBinding", "SaveBindings", "GetBindingAction", "GetCurrentBindingSet", "GetAddOnInfo",
+  "SetBinding", "SaveBindings", "GetBindingAction", "GetCurrentBindingSet", "GetAddOnInfo", "SetCVar",
 }
 
 files["spec/"] = { std = "+busted" }

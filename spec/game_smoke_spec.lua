@@ -668,6 +668,39 @@ describe("addon smoke test", function()
     assert.is_nil(window.step.shown_text:find("Yenniku", 1, true))
   end)
 
+  it("says when key bindings sync with Blizzard, and keeps them on the PC only when asked (the user's case)", function()
+    local live, cvars, saves = {}, { synchronizeBindings = "1" }, 0
+    local added = {
+      GetBindingAction = function(key) return live[key] or "" end,
+      SetBinding = function(key, action) live[key] = action; return true end,
+      GetCurrentBindingSet = function() return 1 end,
+      SaveBindings = function() saves = saves + 1 end,
+      GetCVar = function(name) return cvars[name] end,
+      SetCVar = function(name, value) cvars[name] = value end,
+    }
+    for k, v in pairs(added) do
+      rawset(_G, k, v)
+    end
+    finally(function()
+      for k in pairs(added) do
+        rawset(_G, k, nil)
+      end
+    end)
+    _G.SlashCmdList.TRAILMATE("chat hola")
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.25)
+    assert.matches("se sincronizan con Blizzard", named.TrailMateChat.status.shown_text)
+    assert.equals("1", cvars.synchronizeBindings) -- never changed by itself
+    _G.SlashCmdList.TRAILMATE("chat local")
+    assert.equals("0", cvars.synchronizeBindings)
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.25)
+    assert.is_nil(named.TrailMateChat.status.shown_text:find("sincronizan", 1, true))
+    -- What each key holds, for a bug report.
+    _G.SlashCmdList.TRAILMATE("chat diag")
+    assert.matches("CTRL%-ALT%-SHIFT%-F1: frame 1", output())
+    _G.SlashCmdList.TRAILMATE("chat sync")
+    assert.equals("1", cvars.synchronizeBindings)
+  end)
+
   it("starts the chat without math.randomseed, which WoW does not have (the user's case)", function()
     local seed = math.randomseed
     rawset(math, "randomseed", nil)

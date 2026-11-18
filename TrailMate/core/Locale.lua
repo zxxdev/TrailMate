@@ -302,8 +302,16 @@ local esES = {
   ["All inboxes used: type /reload to go on."] = "Se han gastado todos los buzones: escribe /reload para seguir.",
   ["No inbox addons: run \"trailmate-bridge init\" and restart the game."] =
     "No hay buzones: ejecuta «trailmate-bridge init» y reinicia el juego.",
-  ["The keys the chat uses are taken (Ctrl+Alt+Shift+F5 to F8)."] =
-    "Las teclas que usa el chat están ocupadas (Ctrl+Alt+Mayús+F5 a F8).",
+  ["The keys the chat uses are taken: type /tm chat diag and send it."] =
+    "Las teclas que usa el chat no están libres: escribe /tm chat diag y mándamelo.",
+  ["Your key bindings sync with Blizzard, so the game does not save them on this PC. " ..
+    "Type /tm chat local to keep them here (back with /tm chat sync)."] =
+    "Tus teclas se sincronizan con Blizzard, así que el juego no las guarda en este PC. " ..
+    "Escribe /tm chat local para guardarlas aquí (lo deshaces con /tm chat sync).",
+  ["Key bindings are kept on this PC now, so the chat can use them. Back to Blizzard's servers: /tm chat sync."] =
+    "Ahora tus teclas se guardan en este PC y el chat puede usarlas. Para volver a Blizzard: /tm chat sync.",
+  ["Key bindings sync with Blizzard again. The chat needs /tm chat local to work."] =
+    "Tus teclas vuelven a sincronizarse con Blizzard. El chat necesita /tm chat local para funcionar.",
   ["Talk to your AI companion (needs trailmate-bridge on your PC)"] =
     "Habla con tu compañero de IA (necesita trailmate-bridge en tu PC)",
   ["Run the self-test and write it to the log"] = "Pasa el autotest y lo escribe en el registro",

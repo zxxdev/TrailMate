@@ -26,8 +26,12 @@ local _, ns = ...
 local Link = {}
 ns.Link = Link
 
--- Key combinations nobody uses (Witchcraft takes F9 to F12).
-Link.KEYS = { "CTRL-ALT-SHIFT-F5", "CTRL-ALT-SHIFT-F6", "CTRL-ALT-SHIFT-F7", "CTRL-ALT-SHIFT-F8" }
+-- Key combinations nobody uses (Witchcraft takes F9 to F12): eight frames,
+-- 256 bytes, per save.
+Link.KEYS = {
+  "CTRL-ALT-SHIFT-F1", "CTRL-ALT-SHIFT-F2", "CTRL-ALT-SHIFT-F3", "CTRL-ALT-SHIFT-F4",
+  "CTRL-ALT-SHIFT-F5", "CTRL-ALT-SHIFT-F6", "CTRL-ALT-SHIFT-F7", "CTRL-ALT-SHIFT-F8",
+}
 Link.PREFIX = "TrailMateCarrier_"
 Link.MAX_PAYLOAD = 32 -- bytes per frame
 Link.MAX_PARTS = 64 -- frames per message: 2 KiB
@@ -274,8 +278,9 @@ end
 -- Puts frames on the keys (up to one per key) and saves the bindings once.
 function methods:write(frames, now)
   local free = self:freeKeys()
-  self.noKeys = #free == 0
+  self.noKeys, self.noKeysWhy = #free == 0, nil
   if self.noKeys then
+    self.noKeysWhy = "every key holds something of yours"
     return false
   end
   local batch = {}
@@ -283,8 +288,14 @@ function methods:write(frames, now)
     local f = frames[i]
     f.slot = self.slot
     local action = Link.action(f)
-    if not self.api.setBinding(free[i], action) or self.api.getAction(free[i]) ~= action then
+    if not self.api.setBinding(free[i], action) then
+      self.noKeys, self.noKeysWhy = true, free[i] .. ": the game refused the binding"
+      return false
+    end
+    local got = self.api.getAction(free[i])
+    if got ~= action then
       self.noKeys = true
+      self.noKeysWhy = ("%s: reads back %s"):format(free[i], tostring(got):sub(1, 60))
       return false
     end
     self.keys[free[i]] = action

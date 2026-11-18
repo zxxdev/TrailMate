@@ -1206,3 +1206,14 @@ function Api.loadAddOn(name)
   end
   return loaded == true or loaded == 1, reason
 end
+
+--- True while the game keeps key bindings on Blizzard's servers: then it
+--- does not write bindings-cache.wtf on this PC when they change.
+function Api.bindingsSynced()
+  return safe(GetCVar, "synchronizeBindings") == "1"
+end
+
+--- Turns that on or off (only when the player asks, with /tm chat).
+function Api.setBindingsSynced(on)
+  return safe(SetCVar, "synchronizeBindings", on and "1" or "0") ~= false
+end

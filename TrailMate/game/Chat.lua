@@ -10,6 +10,7 @@ ns.Chat = Chat
 
 local WIDTH, HEIGHT = 380, 300
 local KEEP = 40 -- lines of conversation kept between sessions
+Chat.MAX_CONTEXT = 480 -- bytes: about two saves of the eight keys
 local STATUS = {
   idle = "Write a question and press Enter.",
   sending = "Sending to the bridge...",
@@ -20,7 +21,9 @@ local STATUS = {
   combat = "In combat: the chat waits.",
   exhausted = "All inboxes used: type /reload to go on.",
   noinbox = "No inbox addons: run \"trailmate-bridge init\" and restart the game.",
-  nokeys = "The keys the chat uses are taken (Ctrl+Alt+Shift+F5 to F8).",
+  nokeys = "The keys the chat uses are taken: type /tm chat diag and send it.",
+  synced = "Your key bindings sync with Blizzard, so the game does not save them on this PC. " ..
+    "Type /tm chat local to keep them here (back with /tm chat sync).",
 }
 
 local function api()
@@ -116,8 +119,9 @@ function Chat.ask(text)
   local built, ctx = pcall(Chat.context or function() return "" end)
   ctx = built and type(ctx) == "string" and ctx or ""
   if ctx ~= "" and ctx ~= Chat.lastContext then
-    -- The context fits in one message: cut it, never the question.
-    local max = ns.Link.MAX_PAYLOAD * ns.Link.MAX_PARTS - 1
+    -- Short, so the question goes in one or two saves: cut the context,
+    -- never the question.
+    local max = Chat.MAX_CONTEXT
     if Chat.link:send("C", ctx:sub(1, max)) then
       Chat.lastContext = ctx
     end
@@ -227,6 +231,11 @@ function Chat.tick(now)
     return
   end
   local status = Chat.link:tick(now)
+  -- With bindings kept on Blizzard's servers, the game never writes the
+  -- file the bridge reads: say so, and how to change it.
+  if (status == "sending" or status == "nobridge") and ns.Api.bindingsSynced() then
+    status = "synced"
+  end
   local f = Chat.frame
   if f and f:IsShown() then
     local text = Chat.L[STATUS[status] or STATUS.idle]
@@ -236,4 +245,39 @@ function Chat.tick(now)
     f.status:SetText(text)
   end
   Chat.status = status
+end
+
+--- /tm chat local | sync: keep key bindings on this PC (the chat needs it)
+--- or on Blizzard's servers again.
+function Chat.setLocal(on)
+  ns.Api.setBindingsSynced(not on)
+  if on and Chat.link then
+    -- Save again now, so what waits on the keys reaches the file.
+    ns.Api.saveBindings()
+  end
+end
+
+--- Lines for /tm chat diag: what each key holds and how the link is.
+function Chat.diag()
+  local Api, link = ns.Api, Chat.link
+  local lines = {}
+  local _, set = pcall(GetCurrentBindingSet)
+  lines[#lines + 1] = ("binding set %s, synced with Blizzard %s"):format(tostring(set),
+    tostring(Api.bindingsSynced()))
+  for _, key in ipairs(ns.Link.KEYS) do
+    local action = Api.bindingAction(key)
+    local f = ns.Link.parse(action)
+    lines[#lines + 1] = ("%s: %s"):format(key, f and ("frame %d (message %d, part %d/%d)"):format(f.seq, f.msg,
+      f.part, f.count) or (action == "" and "free") or tostring(action))
+  end
+  if link then
+    lines[#lines + 1] = ("session %s, status %s, inbox %d (announced %d), frames waiting %d, sent up to %s"):format(
+      link.session, tostring(link.status), link.slot, link.announced or 0, #link.queue,
+      link.out and tostring(link.out.last) or "-")
+    lines[#lines + 1] = ("keys: %s; inbox: %s; bridge seen: %s"):format(tostring(link.noKeysWhy or "ok"),
+      tostring(link.noInbox or "ok"), link.bridgeSeen and "yes" or "not yet")
+  else
+    lines[#lines + 1] = "the link did not start"
+  end
+  return lines
 end

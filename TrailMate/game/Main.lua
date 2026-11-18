@@ -617,7 +617,10 @@ local function chatContext()
     end
   end
   local quests = {}
-  for _, q in ipairs(Api.questLog()) do
+  for i, q in ipairs(Api.questLog()) do
+    if i > 6 then -- short: the whole context fits in two saves
+      break
+    end
     quests[#quests + 1] = ("[%s] %s%s"):format(tostring(q.level or "?"), tostring(q.title), q.complete and " (done)"
       or "")
   end
@@ -1294,7 +1297,18 @@ end)
 alias({ "guide", "guia", "guía" }, guideCommand)
 alias({ "dungeon", "dungeons", "mazmorra", "mazmorras" }, dungeonCommand)
 alias({ "chat", "charla" }, function(rest)
-  if rest and rest ~= "" then
+  local word = (rest or ""):lower()
+  if word == "diag" then
+    for _, line in ipairs(ns.Chat.diag()) do
+      out("  " .. line)
+    end
+  elseif word == "local" then
+    ns.Chat.setLocal(true)
+    say(L["Key bindings are kept on this PC now, so the chat can use them. Back to Blizzard's servers: /tm chat sync."])
+  elseif word == "sync" then
+    ns.Chat.setLocal(false)
+    say(L["Key bindings sync with Blizzard again. The chat needs /tm chat local to work."])
+  elseif rest and rest ~= "" then
     ns.Chat.create()
     ns.Chat.frame:Show()
     ns.Chat.ask(rest)
