@@ -390,6 +390,10 @@ local function ids(v)
   return #list > 0 and list or nil
 end
 
+-- Quests Wowhead's Forever database does not have (its tooltip service said
+-- "not found" for these on 2026-11-18, of the 1777 the guides use).
+local NOT_IN_FOREVER = { [4389] = true, [6221] = true, [281143] = true }
+
 local needs, ordered = {}, {}
 for _, g in ipairs(guides) do
   for _, s in ipairs(g.steps) do
@@ -400,6 +404,7 @@ for _, g in ipairs(guides) do
         excl = ids(Q.field(db, "Quest", s.q, Q.QUEST.exclusiveTo)),
         crumb = Q.field(db, "Quest", s.q, Q.QUEST.breadcrumbFor),
         known = Q.field(db, "Quest", s.q, Q.QUEST.name) ~= nil,
+        absent = NOT_IN_FOREVER[s.q],
       }
       needs[s.q] = e
       ordered[#ordered + 1] = s.q
@@ -428,6 +433,9 @@ for _, q in ipairs(ordered) do
     if e[k] then
       parts[#parts + 1] = ("%s = { %s }"):format(k, table.concat(e[k], ", "))
     end
+  end
+  if e.absent then
+    parts[#parts + 1] = "absent = true"
   end
   if type(e.crumb) == "number" then
     parts[#parts + 1] = ("crumb = %d"):format(e.crumb)

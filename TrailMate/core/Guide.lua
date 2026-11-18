@@ -106,9 +106,13 @@ function Guide.unavailable(guide, who, needs, done, inLog)
   end
   for _, s in ipairs(guide.steps) do
     if s.q and fits(s.only, who) then
-      if s.t == "accept" and not gone[s.q] and not inLog(s.q) and not done(s.q) then
+      if needs and needs[s.q] and needs[s.q].absent then
+        gone[s.q] = "absent" -- not in Forever at all
+      elseif s.t == "accept" and not gone[s.q] and not inLog(s.q) and not done(s.q) then
         local e, why = needs and needs[s.q], nil
-        if e then
+        if e and e.absent then
+          why = "absent"
+        elseif e then
           -- A breadcrumb is gone once the quest it leads to is taken.
           if e.crumb and (had(e.crumb) or taken[e.crumb]) then
             why = "crumb"
