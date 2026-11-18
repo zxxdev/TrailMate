@@ -53,6 +53,8 @@ local esES = {
   ["Skipped: %s"] = "Saltado: %s",
   ["%s does not offer \"%s\" now: skipped (/tm undo brings it back)."] =
     "%s no ofrece «%s» ahora: lo salto (/tm deshaz lo recupera).",
+  ["Left out, you can no longer pick them up: %s."] = "Fuera de la guía, porque ya no puedes cogerlas: %s.",
+  ["Nothing left to do in this guide."] = "En esta guía ya no te queda nada por hacer.",
   ["Marked as done: %s"] = "Marcado como hecho: %s",
   ["Undone."] = "Deshecho.",
   ["Nothing to undo."] = "Nada que deshacer.",

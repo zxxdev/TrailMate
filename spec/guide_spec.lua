@@ -86,6 +86,53 @@ describe("Guide", function()
     end
   end)
 
+  it("leaves out Trollbane once Sigil of Strom is done: a breadcrumb (the user's case)", function()
+    assert(loadfile("TrailMate/data/GuideQuests.lua"))("TrailMate", ns)
+    -- The database says so: 638 only leads to 639.
+    assert.equals(639, ns.GUIDE_QUESTS[638].crumb)
+    local stv
+    for _, g in ipairs(ns.GUIDES) do
+      if g.name:find("^33%-34 Stranglethorn") and g.faction == "Horde" then
+        stv = g
+      end
+    end
+    local function has(plan, q)
+      for _, s in ipairs(plan.steps) do
+        if s.questID == q then
+          return true
+        end
+      end
+      return false
+    end
+    local none = function() return false end
+    local before = Guide.toPlan(stv, { who = hunter, L = L, needs = ns.GUIDE_QUESTS, done = none, inLog = none })
+    assert.is_true(has(before, 638))
+    -- Sigil of Strom handed in (done in Arathi): Trollbane is not offered any more.
+    local plan, gone = Guide.toPlan(stv, { who = hunter, L = L, needs = ns.GUIDE_QUESTS, inLog = none,
+      done = function(id) return id == 639 end })
+    assert.is_false(has(plan, 638)) -- not to pick up, do or hand in
+    assert.equals("crumb", gone[638])
+    assert.is_true(has(plan, 581)) -- the rest stays
+    assert.is_true(ns.Plan.validate(plan))
+  end)
+
+  it("leaves out a quest that needs another one first, unless the guide or the player did it", function()
+    local g = { name = "Test", faction = "Horde", min = 1, max = 60, steps = {
+      { t = "accept", q = 1, name = "First" },
+      { t = "turnin", q = 1, name = "First" },
+      { t = "accept", q = 2, name = "After first" },
+      { t = "accept", q = 3, name = "Needs one never done" },
+      { t = "accept", q = 4, name = "Closed by 2" },
+      { t = "accept", q = 5, name = "In the log already" },
+    } }
+    local needs = { [2] = { pre = { 1 } }, [3] = { preAll = { 99 } }, [4] = { excl = { 2 } }, [5] = { pre = { 98 } } }
+    local gone = Guide.unavailable(g, hunter, needs, function() return false end, function(id) return id == 5 end)
+    assert.same({ [3] = "pre", [4] = "excl" }, gone)
+    -- 99 done by the player in another guide: 3 can be picked up.
+    gone = Guide.unavailable(g, hunter, needs, function(id) return id == 99 end, function() return false end)
+    assert.is_nil(gone[3])
+  end)
+
   it("notices when the quest giver does not offer the step's quest (Trollbane at Grom'gol, the user's case)", function()
     local step = { type = "accept", questID = 638, npc = "Nimboya", text = "Pick up: Trollbane" }
     -- Nimboya offers other quests, not Trollbane: the guide must not wait.

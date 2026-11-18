@@ -467,6 +467,7 @@ end
 -- Follows the guide for this character (chosen, or by level): returns false
 -- when there is none (guides off, or none for this faction), so the plan is
 -- built from the quest log instead.
+local lastGone = {} -- quests the guide left out, by name (for the self-test)
 local function loadGuide(quiet)
   if cdb.prefs.guide == false then
     return false
@@ -476,11 +477,29 @@ local function loadGuide(quiet)
     return false
   end
   local g = ns.Guide.pick(list, Api.level() or 1, cdb.guideName, guideFinished)
-  local p = ns.Guide.toPlan(g, { who = who(), L = L, title = Api.knownQuestTitle, place = guidePlace })
+  -- What this character has done decides which quests it can still pick
+  -- up: a breadcrumb whose quest it took, or a quest that needs another
+  -- one first, is left out.
+  local inLog = {}
+  for _, q in ipairs(Api.questLog()) do
+    inLog[q.questID] = true
+  end
+  local p, gone = ns.Guide.toPlan(g, { who = who(), L = L, title = Api.knownQuestTitle, place = guidePlace,
+    needs = ns.GUIDE_QUESTS, done = function(id) return Api.turnedIn(id) == true end,
+    inLog = function(id) return inLog[id] == true end })
   local same = plan and plan.id == p.id
   loadPlan(p, true)
+  local left = {}
+  for q in pairs(gone) do
+    left[#left + 1] = Api.knownQuestTitle(q) or L["Quest %d"]:format(q)
+  end
+  table.sort(left)
+  lastGone = left
   if not (quiet or same) then
     say(L["Guide: %s (%d steps). Other guides: /tm guide."]:format(g.name, #p.steps))
+    if #left > 0 then
+      say(L["Left out, you can no longer pick them up: %s."]:format(table.concat(left, ", ")))
+    end
   end
   return true
 end
@@ -1582,9 +1601,9 @@ local function selfTest()
         places = places + (s.mapID and 1 or 0)
       end
     end
-    return true, ("%s; %d guides for you; now %s, %d quest steps with a place of %d; step %s"):format(
+    return true, ("%s; %d guides for you; now %s, %d quest steps with a place of %d; step %s; left out %d%s"):format(
       cdb.prefs.guide == false and "off" or "on", #list, now and now.name or "none (quest log plan)", places, quests,
-      tostring(current))
+      tostring(current), #lastGone, #lastGone > 0 and (" (" .. table.concat(lastGone, ", ") .. ")") or "")
   end)
   check("dungeons", function()
     local level = Api.level() or 1

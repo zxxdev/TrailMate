@@ -40,3 +40,4 @@ files["spec/"] = { std = "+busted" }
 -- lines are fine there.
 files["TrailMate/data/Guides.lua"] = { max_line_length = false }
 files["TrailMate/data/Dungeons.lua"] = { max_line_length = false }
+files["TrailMate/data/GuideQuests.lua"] = { max_line_length = false }

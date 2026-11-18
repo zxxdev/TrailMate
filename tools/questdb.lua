@@ -154,8 +154,13 @@ end
 
 -- The database -------------------------------------------------------------------
 
+-- Quest fields. 12: all of these quests first; 13: one of them first; 16:
+-- taking one of these closes this one; 27: this quest only leads to that
+-- one (a breadcrumb, gone once that one is taken); 28: the breadcrumbs that
+-- lead here. Checked on known cases (638 -> 639, 1362 -> 1365) on 2026-11-18.
 M.QUEST = { name = 1, startedBy = 2, finishedBy = 3, requiredLevel = 4, questLevel = 5, requiredRaces = 6,
-  objectivesText = 8, triggerEnd = 9, objectives = 10, preQuestSingle = 13, zoneOrSort = 17 }
+  requiredClasses = 7, objectivesText = 8, triggerEnd = 9, objectives = 10, preQuestGroup = 12, preQuestSingle = 13,
+  exclusiveTo = 16, zoneOrSort = 17, requiredMinRep = 19, breadcrumbFor = 27, breadcrumbs = 28 }
 M.NPC = { name = 1, minLevel = 4, maxLevel = 5, spawns = 7, zoneID = 9, friendlyToFaction = 13, subName = 14,
   npcFlags = 15 }
 M.OBJECT = { name = 1, spawns = 4 }
