@@ -6,7 +6,7 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 
 **It needs no other addon.** The arrow, the minimap and world map marks, the guides and the travel planner are all its own. Other addons can stay installed; TrailMate does not use them.
 
-> Status: early development. Screenshots arrive with version 0.1.0. Not affiliated with Blizzard Entertainment.
+> **Status: alpha (0.1.0-alpha).** It is played and tested on one character, a Horde hunter between levels 33 and 35, so expect rough edges: see [Known issues](#known-issues). Reports and pull requests are welcome ([CONTRIBUTING.md](CONTRIBUTING.md)). Not affiliated with Blizzard Entertainment.
 
 ## What it does today
 
@@ -138,6 +138,15 @@ lua tools/make_pin.lua     # media/Pin.tga: the map pin
 - 0.1.0: installable release, screenshots.
 - More companions (ChatGPT through its own CLI), and the companion proposing plans as validated data.
 - Measured accuracy and cost of the advice.
+
+## Known issues
+
+Seen in the game with this alpha; each one has an issue on GitHub.
+
+- **The arrow follows an old walked path.** After leaving a place, it can keep following the dots recorded on the way in, and the way back looks odd.
+- **Quest areas.** For a quest done in a large area, the arrow points at the area's middle: moving a little inside the area asks you to go back to the middle. When the same quest can be done in another area, the arrow still points at the first one.
+- **Choosing another step does not stick.** Picking a different quest in the window (or `/tm pick`) is soon taken back by the plan's own order, even when you stand next to the quest you chose.
+- **The companion chat is not confirmed end to end.** The question reaches the bridge (with `/tm chat local`); the answer through the inbox addons still has to be seen working in the game.
 
 ## Limitations
 
