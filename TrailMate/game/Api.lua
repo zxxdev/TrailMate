@@ -1169,3 +1169,40 @@ function Api.diagnose()
   end
   return lines
 end
+
+-- The chat link (core/Link.lua) -------------------------------------------------
+
+--- What a key does now ("" when nothing), or nil if the client cannot say.
+function Api.bindingAction(key)
+  return safe(GetBindingAction, key)
+end
+
+--- Puts an action on a key, or clears it (nil). True if the game took it.
+function Api.setBinding(key, action)
+  local ok = safe(SetBinding, key, action)
+  return ok ~= nil and ok ~= false
+end
+
+--- Saves the key bindings now: the game writes bindings-cache.wtf.
+function Api.saveBindings()
+  local set = safe(GetCurrentBindingSet)
+  if not set then
+    return false
+  end
+  local ok = try(SaveBindings, set)
+  return ok == true
+end
+
+function Api.inCombat()
+  return safe(InCombatLockdown) == true
+end
+
+--- Loads a load-on-demand addon: loaded, and the game's reason if not.
+function Api.loadAddOn(name)
+  local fn = (C_AddOns and C_AddOns.LoadAddOn) or rawget(_G, "LoadAddOn")
+  local ok, loaded, reason = try(fn, name)
+  if not ok then
+    return false, "ERROR"
+  end
+  return loaded == true or loaded == 1, reason
+end

@@ -281,6 +281,29 @@ local esES = {
   ["Dungeons by level: list, or plan one (quests first, then the entrance)"] =
     "Mazmorras por nivel: lista, o plan para una (misiones primero y luego la entrada)",
   ["Dungeon finished: back to your guide."] = "Mazmorra terminada: vuelves a tu guía.",
+  -- Companion chat.
+  ["Companion"] = "Compañero",
+  ["You: %s"] = "Tú: %s",
+  ["Companion: %s"] = "Compañero: %s",
+  ["Your companion answered."] = "Tu compañero te ha contestado.",
+  ["That is too long: write less, please."] = "Es demasiado largo: escribe algo más corto, por favor.",
+  ["New conversation."] = "Conversación nueva.",
+  ["New conversation"] = "Conversación nueva",
+  ["Write a question and press Enter."] = "Escribe una pregunta y pulsa Intro.",
+  ["Sending to the bridge..."] = "Enviando al puente...",
+  ["The bridge does not answer: is trailmate-bridge running on your PC?"] =
+    "El puente no contesta: ¿está trailmate-bridge en marcha en tu PC?",
+  ["Your companion is thinking..."] = "Tu compañero está pensando...",
+  ["Your companion could not answer: %s"] = "Tu compañero no ha podido contestar: %s",
+  ["No answer after three minutes. Try again."] = "Sin respuesta en tres minutos. Prueba otra vez.",
+  ["In combat: the chat waits."] = "En combate: el chat espera.",
+  ["All inboxes used: type /reload to go on."] = "Se han gastado todos los buzones: escribe /reload para seguir.",
+  ["No inbox addons: run \"trailmate-bridge init\" and restart the game."] =
+    "No hay buzones: ejecuta «trailmate-bridge init» y reinicia el juego.",
+  ["The keys the chat uses are taken (Ctrl+Alt+Shift+F5 to F8)."] =
+    "Las teclas que usa el chat están ocupadas (Ctrl+Alt+Mayús+F5 a F8).",
+  ["Talk to your AI companion (needs trailmate-bridge on your PC)"] =
+    "Habla con tu compañero de IA (necesita trailmate-bridge en tu PC)",
   ["Run the self-test and write it to the log"] = "Pasa el autotest y lo escribe en el registro",
   -- Talent plan.
   ["Talent plan"] = "Plan de talentos",

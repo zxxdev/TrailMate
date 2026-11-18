@@ -668,6 +668,67 @@ describe("addon smoke test", function()
     assert.is_nil(window.step.shown_text:find("Yenniku", 1, true))
   end)
 
+  it("chats with the companion through the key bindings and an inbox (the bridge simulated)", function()
+    local codec = {}
+    assert(loadfile("TrailMate/core/Link.lua"))("TrailMate", codec)
+    local live, saved, loaded, all = {}, {}, {}, {}
+    local body = ""
+    local added = {
+      GetBindingAction = function(key) return live[key] or "" end,
+      SetBinding = function(key, action) live[key] = action; return true end,
+      GetCurrentBindingSet = function() return 1 end,
+      SaveBindings = function()
+        for k in pairs(saved) do saved[k] = nil end
+        for k, v in pairs(live) do saved[k] = v end
+      end,
+    }
+    for k, v in pairs(added) do
+      rawset(_G, k, v)
+    end
+    -- The bridge: reads the saved frames, acknowledges them, answers.
+    _G.C_AddOns.LoadAddOn = function(name)
+      loaded[#loaded + 1] = name
+      local session, ack = nil, 0
+      for _, action in pairs(saved) do
+        local f = codec.Link.parse(action)
+        if f then
+          session, all[f.seq] = f.session, f.payload
+        end
+      end
+      while all[ack + 1] do
+        ack = ack + 1
+      end
+      body = table.concat(all, "", 1, ack)
+      if session then
+        local done = body:find("M¿Qué hago ahora%?$") ~= nil
+        _G.TrailMate_Inbox({ protocol = 1, session = session, ack = ack,
+          replies = done and { { id = 1, text = "Haz las misiones de Grom'gol." } } or nil })
+      end
+      return true
+    end
+    finally(function()
+      for k in pairs(added) do
+        rawset(_G, k, nil)
+      end
+      _G.C_AddOns.LoadAddOn = nil
+    end)
+    _G.SlashCmdList.TRAILMATE("chat ¿Qué hago ahora?")
+    for _ = 1, 80 do
+      eventFrame().scripts.OnUpdate(eventFrame(), 0.25)
+    end
+    local lines = _G.TrailMateCharDB.chat.lines
+    assert.same({ who = "me", text = "¿Qué hago ahora?" }, lines[#lines - 1])
+    assert.same({ who = "companion", text = "Haz las misiones de Grom'gol." }, lines[#lines])
+    -- The character's context went first, in its own message.
+    assert.matches("^CCharacter: HUNTER level 8", body)
+    assert.equals("TrailMate_Inbox_0001", loaded[1])
+    -- Done: nothing is left on the keys.
+    for _, key in ipairs(codec.Link.KEYS) do
+      assert.equals("", _G.GetBindingAction(key))
+    end
+    assert.matches("Tu compañero te ha contestado", notices[#notices])
+  end)
+
   it("lists the dungeons for level 34 and plans one: quests first, then the entrance", function()
     rawset(_G, "UnitLevel", function() return 34 end)
     rawset(_G, "UnitFactionGroup", function() return "Horde" end)
@@ -808,7 +869,7 @@ describe("addon smoke test", function()
     for _ in out:gmatch("%[[PF]A[SI][SL]%]") do
       checks = checks + 1
     end
-    assert.equals(20, checks)
+    assert.equals(21, checks)
     assert.matches("%[PASS%] dungeons: 19 in data", out)
     assert.equals(planBefore, _G.TrailMateCharDB.plan)
     assert.is_nil(_G.TrailMateCharDB.prefs.focusZone)

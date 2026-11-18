@@ -27,6 +27,7 @@ core\Trails.lua
 core\Hubs.lua
 core\Guide.lua
 core\Dungeons.lua
+core\Link.lua
 data\Routes.lua
 data\Hubs.lua
 data\Guides.lua
@@ -42,4 +43,5 @@ game\MinimapButton.lua
 game\Panel.lua
 game\TalentPreview.lua
 game\TalentPanel.lua
+game\Chat.lua
 game\Main.lua

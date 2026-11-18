@@ -21,7 +21,7 @@ local warnedLevel = {} -- levels already announced as "almost there"
 local warnedFull = false
 local questThrottle = ns.Throttle.new(0.3)
 local bagThrottle = ns.Throttle.new(1)
-local clock, sinceMove, sinceTarget, sinceArrow, sinceTalents, sinceTrail = 0, 0, 0, 0, 0, 0
+local clock, sinceMove, sinceTarget, sinceArrow, sinceTalents, sinceTrail, sinceChat = 0, 0, 0, 0, 0, 0, 0
 local trails -- TrailMateDB.trails: the ways walked, shared by the account's characters
 local trailPrev, trailLast -- last dot recorded, last position seen
 local lastPath -- the trail route the arrow follows now
@@ -587,6 +587,59 @@ local function dungeonCommand(rest)
   end
 end
 
+-- The companion chat --------------------------------------------------------------
+
+-- The character's state for the companion, as short lines of text: what
+-- TrailMate already shows the player, no names. Sent with the first
+-- question and again when it changes.
+local function chatContext()
+  local lines = {}
+  local function add(fmt, ...)
+    lines[#lines + 1] = fmt:format(...)
+  end
+  local xp, xpMax = Api.xp()
+  add("Character: %s level %d, %s (%s), XP %d%%, %s.", tostring(Api.class()), Api.level() or 0,
+    tostring(Api.race()), tostring(Api.faction()), xp and xpMax and xpMax > 0 and math.floor(xp / xpMax * 100) or 0,
+    ns.formatMoney and ns.formatMoney(Api.money() or 0) or tostring(Api.money()))
+  add("Where: %s.", table.concat(Api.zoneTexts(), " / "))
+  local free, total = Api.bagSpace()
+  add("Bags: %d of %d free.", free or 0, total or 0)
+  if plan then
+    local now = current and plan.steps[current]
+    add("Plan: %s. Now: %s%s.", tostring(plan.title or plan.id), now and now.text or "finished",
+      now and now.why and (" (" .. now.why .. ")") or "")
+    local nextSteps = {}
+    for i = (current or #plan.steps) + 1, math.min(#plan.steps, (current or 0) + 4) do
+      nextSteps[#nextSteps + 1] = plan.steps[i].text
+    end
+    if #nextSteps > 0 then
+      add("Then: %s.", table.concat(nextSteps, "; "))
+    end
+  end
+  local quests = {}
+  for _, q in ipairs(Api.questLog()) do
+    quests[#quests + 1] = ("[%s] %s%s"):format(tostring(q.level or "?"), tostring(q.title), q.complete and " (done)"
+      or "")
+  end
+  if #quests > 0 then
+    add("Quest log: %s.", table.concat(quests, ", "))
+  end
+  local talents = ns.TalentPanel.advice and ns.TalentPanel.advice()
+  if talents and talents.groups[1] then
+    add("Talents: %d to spend, build %s, next %s.", talents.points, L[talents.chosen.label],
+      talents.groups[1].talent.name)
+  end
+  local now = ns.Dungeons.forLevel(ns.DUNGEONS, who(), Api.level() or 1)
+  if #now > 0 then
+    local names = {}
+    for _, d in ipairs(now) do
+      names[#names + 1] = ("%s %d-%d"):format(d.name, d.min, d.max)
+    end
+    add("Dungeons for this level: %s.", table.concat(names, ", "))
+  end
+  return table.concat(lines, "\n")
+end
+
 function buildFromQuestLog(quiet)
   if loadGuide(quiet) then
     return
@@ -1116,6 +1169,7 @@ local HELP = {
   { "/tm trail | rastro on|off|show|export|clear", "Learn the ways you walk and follow them (dots on the map)" },
   { "/tm guide | guia [number|next|auto|off]", "Quest guides: list, choose one, or plan from your quest log" },
   { "/tm dungeon | mazmorra [number]", "Dungeons by level: list, or plan one (quests first, then the entrance)" },
+  { "/tm chat [question]", "Talk to your AI companion (needs trailmate-bridge on your PC)" },
   { "/tm talents | talentos", "Open your talents and say the next one" },
   { "/tm companion | compañero claude|chatgpt|none", "Icon colour of your AI companion" },
   { "/tm auto on|off", "Rebuild the plan by itself when it ends" },
@@ -1239,6 +1293,15 @@ alias({ "companion", "companero", "compañero" }, function(rest)
 end)
 alias({ "guide", "guia", "guía" }, guideCommand)
 alias({ "dungeon", "dungeons", "mazmorra", "mazmorras" }, dungeonCommand)
+alias({ "chat", "charla" }, function(rest)
+  if rest and rest ~= "" then
+    ns.Chat.create()
+    ns.Chat.frame:Show()
+    ns.Chat.ask(rest)
+  else
+    ns.Chat.toggle()
+  end
+end)
 alias({ "trail", "rastro" }, function(rest)
   local word = (rest or ""):lower()
   if word == "clear" or word == "borrar" then
@@ -1521,6 +1584,19 @@ local function selfTest()
       #(ns.DUNGEONS or {}), level, #list > 0 and table.concat(list, ", ") or "none",
       nextOne and nextOne.name or "none", tostring(ns.Dungeons.isDungeon(plan)))
   end)
+  check("chat", function()
+    -- What the link needs from the client, and whether the inboxes exist.
+    local link = ns.Chat.link
+    local info = (C_AddOns and C_AddOns.GetAddOnInfo) or rawget(_G, "GetAddOnInfo")
+    -- name, title, notes, loadable, reason
+    local ok, name, _, _, _, reason = pcall(info or error, ns.Link.inbox(1))
+    local first = ok and name ~= nil and reason ~= "MISSING"
+    local apis = type(rawget(_G, "SetBinding")) == "function" and type(rawget(_G, "SaveBindings")) == "function"
+      and type(rawget(_G, "GetBindingAction")) == "function"
+    return link ~= nil and apis, ("session %s, status %s, slot %s; bindings API %s; inbox 1 %s"):format(
+      tostring(link and link.session), tostring(link and link.status), tostring(link and link.slot), tostring(apis),
+      first and "present" or ("missing (" .. tostring(reason) .. "): run trailmate-bridge init"))
+  end)
   check("trails", function()
     local nodes, links = ns.Trails.counts(trails)
     local canvas, _, drawn = ns.MapTrail.state()
@@ -1659,6 +1735,7 @@ handlers.ADDON_LOADED = function(name)
   cdb.panel = cdb.panel or {}
   cdb.minimap = cdb.minimap or {}
   cdb.talents = cdb.talents or {}
+  cdb.chat = cdb.chat or {}
   cdb.arrivalDone = cdb.arrivalDone or {}
   TrailMateDB.log = TrailMateDB.log or {}
   ns.setLocale(GetLocale and GetLocale() or "enUS")
@@ -1673,6 +1750,7 @@ handlers.ADDON_LOADED = function(name)
   guard("icon", ns.Theme.setCompanion, cdb.prefs.companion)
   guard("talent plan", ns.TalentPanel.init, cdb.talents, L)
   guard("talent plan", ns.TalentPanel.attach)
+  guard("chat", ns.Chat.init, cdb.chat, L, chatContext)
   if cdb.plan then
     guard("plan", loadPlan, cdb.plan, true)
   else
@@ -2022,6 +2100,12 @@ frame:SetScript("OnUpdate", function(_, elapsed)
   if sinceTalents >= 1 then
     sinceTalents = 0
     guard("talent plan", talentTick)
+  end
+  -- The chat with the companion: frames out, answers in.
+  sinceChat = sinceChat + elapsed
+  if sinceChat >= 0.1 then
+    sinceChat = 0
+    guard("chat", ns.Chat.tick, clock)
   end
   if sinceArrow >= 0.05 then
     sinceArrow = 0
