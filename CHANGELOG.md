@@ -2,6 +2,11 @@
 
 Each version has its release on GitHub with the addon (`TrailMate-<version>.zip`, to copy into `World of Warcraft/_forever_/Interface/AddOns/`) and the companion bridge for Windows (`trailmate-bridge.exe`, optional).
 
+## 0.2.1-alpha
+
+- Fixed: the talent plan showed with the spellbook too. In this client they are one window with tabs; the plan now shows with the talents tab only.
+- The options page (Esc > Options > AddOns) says where a thanks in the game can go.
+
 ## 0.2.0-alpha
 
 Fixes and additions from playing the first alpha in Stranglethorn Vale.
