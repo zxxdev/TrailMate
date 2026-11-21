@@ -915,6 +915,13 @@ end
 
 local watchedByUs
 
+--- The game stops following any quest (as when the player unticks it).
+function Api.clearSuperTrack()
+  if C_SuperTrack and C_SuperTrack.SetSuperTrackedQuestID then
+    try(C_SuperTrack.SetSuperTrackedQuestID, 0)
+  end
+end
+
 --- Stops highlighting the quest TrailMate focused, and removes it from the
 --- objective tracker only if TrailMate was the one who added it.
 function Api.unfocusQuest()

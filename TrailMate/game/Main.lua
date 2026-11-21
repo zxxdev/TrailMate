@@ -131,8 +131,10 @@ local function updateTarget(force)
   -- A quest that needs an item used: a button to click.
   ns.ItemButton.set(step and step.type == "complete" and Api.questItem(step.questID) or nil)
   if changed then
-    ourFocus = step and step.questID
-    local focused = Api.focusQuest(ourFocus)
+    local focused = Api.focusQuest(step and step.questID)
+    -- What the game really follows now (it keeps the last one when this
+    -- step's quest is not in the log yet): that is TrailMate's, not a mark.
+    ourFocus = Api.superTrackedQuest() or (step and step.questID)
     if target then
       markMethod = Api.setArrow(target, step.text, focused)
     else
@@ -182,6 +184,7 @@ end
 -- Plan --------------------------------------------------------------------------
 
 local buildFromQuestLog
+local travelTo -- a trip to another zone (defined with the travel planner)
 local advanceGuide -- a guide is finished: go on to the next one
 
 -- The step window shows the trip while travelling to a chosen zone.
@@ -497,7 +500,7 @@ end
 -- when there is none (guides off, or none for this faction), so the plan is
 -- built from the quest log instead.
 local lastGone = {} -- quests the guide left out, by name (for the self-test)
-local function loadGuide(quiet)
+local function loadGuide(quiet, repick)
   if cdb.prefs.guide == false then
     return false
   end
@@ -512,7 +515,19 @@ local function loadGuide(quiet)
   if focus and not cdb.guideName and not ns.Guide.forZone(list, level, focus, guideFinished) then
     return false
   end
-  local g = ns.Guide.pick(list, level, cdb.guideName, guideFinished, focus or Api.position())
+  -- Rebuilt by itself (login, reload, a new quest): the guide being
+  -- followed stays while it is not finished, so crossing into the next zone
+  -- does not swap guides. Only "automatic" or choosing a zone (repick)
+  -- looks again by zone.
+  local chosen = cdb.guideName
+  if not (chosen or repick or focus) and ns.Guide.isGuide(plan) then
+    for _, g in ipairs(list) do
+      if plan.title == g.name and not guideFinished(g) then
+        chosen = g.name
+      end
+    end
+  end
+  local g = ns.Guide.pick(list, level, chosen, guideFinished, focus or Api.position())
   -- What this character has done decides which quests it can still pick
   -- up: a breadcrumb whose quest it took, or a quest that needs another
   -- one first, is left out.
@@ -573,7 +588,7 @@ local function guideCommand(rest)
     return
   elseif word == "on" or word == "si" or word == "sí" or word == "auto" then
     cdb.prefs.guide, cdb.guideName = nil, nil
-    buildFromQuestLog(false)
+    buildFromQuestLog(false, true)
     return
   elseif word == "next" or word == "siguiente" then
     local nextGuide = ns.Guide.after(list, currentGuide(list))
@@ -698,8 +713,8 @@ local function chatContext()
   return table.concat(lines, "\n")
 end
 
-function buildFromQuestLog(quiet)
-  if loadGuide(quiet) then
+function buildFromQuestLog(quiet, repick)
+  if loadGuide(quiet, repick) then
     return
   end
   local p, report = computeRoute()
@@ -771,33 +786,40 @@ local FIND = {
   vuelo = { role = "flight", label = "Flight master: %s" },
 }
 
-local declined -- the marked quest the player left: it stays followed in the game, not by the arrow
-
 local function backToPlan()
-  if detour then
-    declined = detour.marked
-    if detour.zone then
-      cdb.trip = nil -- the player leaves the trip
-    end
-    detour = nil
-    arrowStep = false
-    refresh()
+  if not detour then
+    return
   end
+  local marked = detour.marked
+  if detour.zone then
+    cdb.trip = nil -- the player leaves the trip
+  end
+  detour = nil
+  arrowStep = false
+  if marked then
+    -- The game stops following the marked quest (the guide's own quest is
+    -- followed again just below), so marking it again is a fresh click.
+    Api.clearSuperTrack()
+    -- Marked on the way to another zone: the trip goes on.
+    local trip, here = cdb.trip, Api.position()
+    if trip and here and here ~= trip.zone then
+      travelTo(trip.zone, trip.name or "?")
+      return
+    end
+  end
+  refresh()
 end
 
 -- The player marked a quest (the game follows it now): the arrow goes there
 -- and the window offers the way back to the guide.
 local function followMark()
   local questID = Api.superTrackedQuest()
-  if questID ~= declined then
-    declined = nil
-  end
   local step = plan and current and plan.steps[current]
   if detour and detour.marked and step and questID == step.questID then
     backToPlan() -- marked the guide's own quest: back to it
     return
   end
-  if questID == declined or (detour and detour.marked == questID) then
+  if detour and detour.marked == questID then
     return
   end
   local isMark = ns.Marked.isPlayerMark(questID, {
@@ -1006,7 +1028,7 @@ end
 
 -- Applies a trip: tells the player the steps and points the arrow at the
 -- first place to go, until they arrive.
-local function travelTo(mapID, name)
+function travelTo(mapID, name)
   local _, lines, target, item = planTrip(mapID, name)
   travelLines = lines
   detour = {
@@ -1039,7 +1061,7 @@ local function chooseZone(rest)
       detour, arrowStep = nil, false
     end
     say(L["Zone choice back to automatic."])
-    buildFromQuestLog(false)
+    buildFromQuestLog(false, true)
     return
   end
   local z = lastZones[tonumber(rest) or 0]
@@ -1053,11 +1075,11 @@ local function chooseZone(rest)
   if Api.position() == z.mapID then
     -- Already here: start with the place's quests and the hearthstone.
     cdb.arrival, cdb.arrivalDone = z.mapID, {}
-    buildFromQuestLog(false)
+    buildFromQuestLog(false, true)
   elseif (lastCounts[z.mapID] or 0) == 0 then
     say(L["No quests of yours there yet: pick some up when you arrive."])
   else
-    buildFromQuestLog(true)
+    buildFromQuestLog(true, true)
   end
   if Api.position() ~= z.mapID then
     travelTo(z.mapID, name)

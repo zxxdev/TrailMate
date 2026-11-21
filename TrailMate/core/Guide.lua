@@ -196,7 +196,7 @@ end
 -- Words of a note that speaks about the guide itself, not the game: a link,
 -- or asking for support. Lower case.
 local AUTHOR_WORDS = {
-  "http", "www%.", "%.com", "%.gg", "%.tv", "youtube", "twitch", "donat", "patreon", "paypal", "ko%-fi",
+  "http", "www%.", "%.com", "%.gg", "%.tv", "youtube", "twitch", "patreon", "paypal", "ko%-fi",
   "curseforge", "discord", "my work", "my guide", "written by",
 }
 

@@ -91,6 +91,8 @@ describe("Guide", function()
     assert.is_true(Guide.isAuthorNote({ t = "note", text = "Thanks for using my guide. There is a Paypal-Link." }))
     assert.is_false(Guide.isAuthorNote({ t = "note", text = "Fly to Booty Bay" }))
     assert.is_false(Guide.isAuthorNote({ t = "accept", q = 7820, name = "A Donation of Wool" }))
+    -- A note about the game that speaks of donating is kept.
+    assert.is_false(Guide.isAuthorNote({ t = "note", text = "Donate the wool at the tent, then fly back" }))
     for _, g in ipairs(Guide.list(ns.GUIDES, hunter)) do
       for _, s in ipairs(Guide.toPlan(g, { who = hunter, L = L }).steps) do
         assert.is_nil(s.text:lower():find("http"), s.text)

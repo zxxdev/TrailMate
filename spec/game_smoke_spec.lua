@@ -547,6 +547,15 @@ describe("addon smoke test", function()
     fire("PLAYER_ENTERING_WORLD", false, true)
     window = named.TrailMateFrame
     assert.equals("Viaje", window.counter.shown_text)
+    -- A quest marked on the way: back from it, the trip goes on (the review's case).
+    _G.C_SuperTrack.GetSuperTrackedQuestID = function() return superTracked end
+    superTracked = 11
+    fire("SUPER_TRACKING_CHANGED")
+    assert.equals("Tu misión marcada", window.title.shown_text)
+    window.back.scripts.OnClick(window.back)
+    assert.equals("Viaje", window.counter.shown_text)
+    assert.equals(1434, _G.TrailMateCharDB.trip.zone)
+    assert.equals(0, superTracked) -- the game no longer follows the marked quest
     -- Going back to the plan leaves the trip for good.
     _G.SlashCmdList.TRAILMATE("plan")
     assert.equals("Hacer: Lobos", window.step.shown_text)
