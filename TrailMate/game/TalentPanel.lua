@@ -60,7 +60,10 @@ function TalentPanel.attach()
   if TalentPanel.frame or TalentPanel.failed then
     return TalentPanel.frame
   end
-  local parent = host()
+  -- A child of the talents tab, so it shows and hides with it (the
+  -- spellbook tab of the same window does not show it); placed beside the
+  -- whole window.
+  local window, parent = host()
   if not (parent and TalentPanel.saved) then
     return nil
   end
@@ -70,7 +73,7 @@ function TalentPanel.attach()
   local template = BackdropTemplateMixin and "BackdropTemplate" or nil
   local f = CreateFrame("Frame", "TrailMateTalents", parent, template)
   f:SetSize(WIDTH, HEIGHT)
-  f:SetPoint("TOPLEFT", parent, "TOPRIGHT", 2, 0)
+  f:SetPoint("TOPLEFT", window, "TOPRIGHT", 2, 0)
   Theme.panel(f)
   Theme.header(f, L["Talent plan"], 28)
 

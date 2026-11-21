@@ -268,10 +268,23 @@ function Api.talentButton(tab, talent)
   return nil
 end
 
---- The game's talent window, whichever this client has, or nil.
+--- The game's talent window, whichever this client has, and the part of it
+--- that shows the talents: window, tab (or nil, nil). In the modern client
+--- the spellbook and the talents are one window with tabs; the talent plan
+--- belongs to the talents tab only, not to the spellbook.
 function Api.talentHost()
-  return rawget(_G, "PlayerTalentFrame") or rawget(_G, "TalentFrame") or rawget(_G, "PlayerSpellsFrame")
+  local window = rawget(_G, "PlayerTalentFrame") or rawget(_G, "TalentFrame") or rawget(_G, "PlayerSpellsFrame")
     or rawget(_G, "ClassTalentFrame")
+  if type(window) ~= "table" then
+    return nil, nil
+  end
+  for _, key in ipairs({ "TalentsFrame", "TalentsTab", "talentsFrame" }) do
+    local tab = rawget(window, key)
+    if type(tab) == "table" then
+      return window, tab
+    end
+  end
+  return window, window
 end
 
 --- Frames that may hold the modern talent buttons (window and its tab).
