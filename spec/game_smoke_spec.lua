@@ -61,8 +61,9 @@ local function install()
       end
       printed[#printed + 1] = table.concat(parts, " ")
     end,
-    CreateFrame = function(_, name)
+    CreateFrame = function(_, name, parent)
       local f = fakeObject(name)
+      rawset(f, "parentFrame", parent)
       frames[#frames + 1] = f
       if name then
         named[name] = f
@@ -622,6 +623,35 @@ describe("addon smoke test", function()
     assert.is_truthy(bags)
     assert.equals("Bolsas llenas (0 libres): ve a vender", bags.label.shown_text)
     assert.matches("ve a vender", notices[#notices])
+  end)
+
+  it("shows the talent plan with the talents tab only, not with the spellbook (the user's case)", function()
+    -- The modern client: one window with a spellbook tab and a talents tab.
+    local window = fakeObject("PlayerSpellsFrame")
+    local talents, spellbook = fakeObject("TalentsFrame"), fakeObject("SpellBookFrame")
+    rawset(window, "TalentsFrame", talents)
+    rawset(window, "SpellBookFrame", spellbook)
+    local added = {
+      GetNumTalentTabs = function() return 3 end,
+      GetTalentTabInfo = function(tab) return tab, "Tree " .. tab, "", "icon" .. tab, 0 end,
+      GetNumTalents = function() return 0 end,
+      GetTalentInfo = function() end,
+      GetUnspentTalentPoints = function() return 0 end,
+      PlayerSpellsFrame = window,
+    }
+    for k, v in pairs(added) do
+      rawset(_G, k, v)
+    end
+    finally(function()
+      for k in pairs(added) do
+        rawset(_G, k, nil)
+      end
+    end)
+    fire("ADDON_LOADED", "Blizzard_PlayerSpells")
+    local panel = named.TrailMateTalents
+    assert.is_table(panel)
+    -- Inside the talents tab, so it hides with it when the spellbook shows.
+    assert.equals(talents, panel.parentFrame)
   end)
 
   it("docks a talent plan to the talent window and lights up the next talent", function()
