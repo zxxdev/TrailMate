@@ -7,16 +7,19 @@
 -- colour):
 --   Icon.tga         no AI: TrailMate's purple
 --   Icon-claude.tga  Claude: orange
---   Icon-chatgpt.tga ChatGPT: white trail on a black badge
+--   Icon-chatgpt.tga ChatGPT: grey trail on a black badge
+-- and the same three as IconFace*.tga: only the face, with no ring, for the
+-- minimap button, where the game's own gold ring goes around it.
 --
--- Every shape is a signed distance, so the edges are smooth at 256 pixels
--- and stay sharp when the game shrinks the picture.
+-- Every shape is a signed distance, smoothed over one pixel. The pictures
+-- are 64 pixels, close to the size the game shows them at: the game does
+-- not blend a picture well when it shrinks it a lot (it looks pixelated).
 --
 -- Run it from the repository root (in the VM): lua tools/make_icon.lua
 
 local M = {}
 
-M.SIZE = 256
+M.SIZE = 64 -- near the size the game shows it at, so it never needs shrinking much
 
 M.STYLES = {
   default = { file = "Icon", fill = { 0.07, 0.11, 0.21 }, trail = { 0.61, 0.48, 0.83 } },
@@ -131,25 +134,30 @@ local function over(r, g, b, c, a)
 end
 
 --- Colour at pixel (px, py), top-left origin: r, g, b, a from 0 to 1.
-function M.pixel(px, py, style)
+--- face: only the inner face, filling the picture (for the minimap, where
+--- the game's own ring goes around it).
+function M.pixel(px, py, style, face)
   local half = M.SIZE / 2
-  local x, y = (px + 0.5 - half) / half, (half - (py + 0.5)) / half
-  local px1 = 1 / half -- one pixel, in these units
+  local zoom = face and M.R_FACE or 1
+  local x, y = (px + 0.5 - half) / half * zoom, (half - (py + 0.5)) / half * zoom
+  local px1 = zoom / half -- one pixel, in these units
   -- Coverage of "distance d is inside", smoothed over one pixel.
   local function cover(d)
     return clamp(0.5 - d / px1)
   end
   local rho = math.sqrt(x * x + y * y)
-  local alpha = cover(rho - M.R_OUT)
+  local alpha = cover(rho - (face and M.R_FACE or M.R_OUT))
   if alpha == 0 then
     return M.OUTLINE[1], M.OUTLINE[2], M.OUTLINE[3], 0
   end
   local r, g, b = M.OUTLINE[1], M.OUTLINE[2], M.OUTLINE[3]
-  -- The gold ring, with a crescent of shadow on its lower right.
-  local ringLit = math.sqrt((x + 0.07) ^ 2 + (y - 0.07) ^ 2) <= 0.90
-  r, g, b = over(r, g, b, ringLit and M.GOLD or M.GOLD_SHADE, cover(rho - M.R_RING))
-  r, g, b = over(r, g, b, M.OUTLINE, cover(rho - M.R_LINE))
-  local face = cover(rho - M.R_FACE)
+  if not face then
+    -- The gold ring, with a crescent of shadow on its lower right.
+    local ringLit = math.sqrt((x + 0.07) ^ 2 + (y - 0.07) ^ 2) <= 0.90
+    r, g, b = over(r, g, b, ringLit and M.GOLD or M.GOLD_SHADE, cover(rho - M.R_RING))
+    r, g, b = over(r, g, b, M.OUTLINE, cover(rho - M.R_LINE))
+  end
+  face = face and 1 or cover(rho - M.R_FACE)
   -- The face glows a little in the middle, so the paw stands out.
   local k = mix(1.5, 0.85, clamp(rho / M.R_FACE))
   r, g, b = over(r, g, b, { style.fill[1] * k, style.fill[2] * k, style.fill[3] * k }, face)
@@ -178,14 +186,14 @@ local function byte(v)
 end
 
 --- One style as an uncompressed 32-bit TGA file (rows bottom-up).
-function M.tga(style)
+function M.tga(style, face)
   local s = M.SIZE
   local out = { string.char(0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, s % 256, math.floor(s / 256), s % 256,
     math.floor(s / 256), 32, 8) }
   for py = s - 1, 0, -1 do
     local row = {}
     for px = 0, s - 1 do
-      local r, g, b, a = M.pixel(px, py, style)
+      local r, g, b, a = M.pixel(px, py, style, face)
       row[#row + 1] = byte(b) .. byte(g) .. byte(r) .. byte(a)
     end
     out[#out + 1] = table.concat(row)
@@ -196,11 +204,14 @@ end
 if arg and arg[0] and arg[0]:match("make_icon%.lua$") then
   local dir = arg[1] or "TrailMate/media"
   for _, style in pairs(M.STYLES) do
-    local path = ("%s/%s.tga"):format(dir, style.file)
-    local file = assert(io.open(path, "wb"))
-    file:write(M.tga(style))
-    file:close()
-    print(path)
+    for _, face in ipairs({ false, true }) do
+      local name = face and style.file:gsub("^Icon", "IconFace") or style.file
+      local path = ("%s/%s.tga"):format(dir, name)
+      local file = assert(io.open(path, "wb"))
+      file:write(M.tga(style, face))
+      file:close()
+      print(path)
+    end
   end
 end
 

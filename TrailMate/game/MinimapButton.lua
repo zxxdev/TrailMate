@@ -35,17 +35,17 @@ function MinimapButton.create(saved, L, onLeft, onRight)
   b:SetFrameLevel(8)
   b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   b:RegisterForDrag("LeftButton")
-  -- The icon is a whole badge (dark face, gold ring, dark outline), drawn
-  -- at 256 pixels, so it needs no border from the game.
+  b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+  -- Like every addon's minimap button: the icon's face (no ring of its own)
+  -- inside the game's gold ring.
   local icon = b:CreateTexture(nil, "ARTWORK")
-  icon:SetAllPoints()
-  ns.Theme.useIcon(icon)
-  -- Under the mouse the same picture lights up a little.
-  local glow = b:CreateTexture(nil, "HIGHLIGHT")
-  glow:SetAllPoints()
-  ns.Theme.useIcon(glow)
-  glow:SetBlendMode("ADD")
-  glow:SetAlpha(0.3)
+  icon:SetSize(20, 20)
+  icon:SetPoint("CENTER", b, "CENTER", 0, 0)
+  ns.Theme.useIcon(icon, true)
+  local border = b:CreateTexture(nil, "OVERLAY")
+  border:SetSize(50, 50)
+  border:SetPoint("TOPLEFT")
+  border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
 
   saved.angle = saved.angle or 200
   place(b, saved.angle)

@@ -1,36 +1,44 @@
--- TrailMate's look, in the style of the game: the gold border of Blizzard's
--- dialogs, a deep blue gradient, a round emblem with a gold ring and gold
--- titles. Besides the game's own textures, the addon has two pictures of its
--- own, drawn by scripts in tools/: the arrow and the icon. Nothing is
--- borrowed from other addons.
+-- TrailMate's look, in the style of the game: a sharp gold border, a deep
+-- blue gradient, the round badge and gold titles, with the game's own
+-- buttons. Besides the game's own textures, the addon has pictures of its
+-- own, drawn by scripts in tools/: the arrow, the pin and the icon. Nothing
+-- is borrowed from other addons.
 
 local _, ns = ...
 
 local Theme = {}
 ns.Theme = Theme
 
--- The icon: a cosy stone with a glowing paw print (tools/make_icon.lua).
--- The glow says who the companion is: gold with no AI, orange for Claude,
--- white on black stone for ChatGPT.
+-- The icon (tools/make_icon.lua): a badge with a gold ring, a paw print and
+-- a trail whose colour says who the companion is (purple with no AI, orange
+-- for Claude, grey on black for ChatGPT). "IconFace" is the same without
+-- the ring, for the minimap, where the game's own ring goes around it like
+-- every addon's button.
 local MEDIA = "Interface\\AddOns\\TrailMate\\media\\"
-Theme.ICONS = { none = MEDIA .. "Icon", claude = MEDIA .. "Icon-claude", chatgpt = MEDIA .. "Icon-chatgpt" }
-Theme.ICON = Theme.ICONS.none
+local SUFFIX = { none = "", claude = "-claude", chatgpt = "-chatgpt" }
+Theme.companion = "none"
 local iconTextures = {}
 
---- Shows the addon icon on a texture and keeps it in step with the companion.
-function Theme.useIcon(tex)
-  iconTextures[#iconTextures + 1] = tex
-  tex:SetTexture(Theme.ICON)
+local function iconPath(face)
+  return MEDIA .. (face and "IconFace" or "Icon") .. SUFFIX[Theme.companion]
+end
+Theme.iconPath = iconPath
+
+--- Shows the addon icon on a texture and keeps it in step with the
+--- companion. face: the version without the ring.
+function Theme.useIcon(tex, face)
+  iconTextures[#iconTextures + 1] = { tex = tex, face = face }
+  tex:SetTexture(iconPath(face))
 end
 
 --- "claude", "chatgpt" or anything else for none. Returns the kind used.
 function Theme.setCompanion(kind)
-  if not Theme.ICONS[kind] then
+  if not SUFFIX[kind] then
     kind = "none"
   end
-  Theme.ICON = Theme.ICONS[kind]
-  for _, tex in ipairs(iconTextures) do
-    tex:SetTexture(Theme.ICON)
+  Theme.companion = kind
+  for _, e in ipairs(iconTextures) do
+    e.tex:SetTexture(iconPath(e.face))
   end
   return kind
 end
@@ -149,95 +157,24 @@ function Theme.header(f, title, size, x, y)
   return emblem, text
 end
 
--- Buttons: flat and sharp like the borders. Navy with a dark gold edge;
--- lighter under the mouse (the HIGHLIGHT layer, shown by the game itself)
--- and darker while pressed. The main button of a window has the bright gold
--- edge and white text; the selected one (the open tab) is gold-filled; a
--- disabled one is grey. Two golds only: bright for what matters, dark for
--- the rest.
-Theme.BUTTON = {
-  top = { 0.15, 0.22, 0.38, 1 },
-  bottom = { 0.07, 0.10, 0.19, 1 },
-  hover = { 1, 1, 1, 0.08 },
-  pressed = { 0, 0, 0, 0.30 },
-  selectedTop = { 0.55, 0.40, 0.12, 1 },
-  selectedBottom = { 0.36, 0.25, 0.07, 1 },
-  disabledTop = { 0.10, 0.11, 0.14, 1 },
-  disabledBottom = { 0.06, 0.07, 0.09, 1 },
-  disabledEdge = { 0.35, 0.33, 0.30, 1 },
-}
+-- Buttons are the game's own (UIPanelButtonTemplate): this client draws
+-- them in HD, and the player knows them from every Blizzard window.
 
-local function setEdge(b, c)
-  b.edge:SetColorTexture(c[1], c[2], c[3], c[4] or 1)
-end
-
-local function buttonLook(b)
-  local c = Theme.BUTTON
-  local enabled = not (b.IsEnabled and b:IsEnabled() == false)
-  if not enabled then
-    gradient(b.fill, c.disabledBottom, c.disabledTop)
-    setEdge(b, c.disabledEdge)
-  elseif b.selected then
-    gradient(b.fill, c.selectedBottom, c.selectedTop)
-    setEdge(b, Theme.EDGE_GOLD)
-  else
-    gradient(b.fill, c.bottom, c.top)
-    setEdge(b, b.primary and Theme.EDGE_GOLD or Theme.EDGE_GOLD_DARK)
-  end
-  if b.SetNormalFontObject then
-    b:SetNormalFontObject((b.selected or b.primary) and "GameFontHighlight" or "GameFontNormal")
-  end
-end
-
---- Marks a button as selected (the open tab) or not.
+--- Marks a button as selected (the open tab, which cannot be clicked) or not.
 function Theme.select(b, on)
-  b.selected = on and true or nil
-  buttonLook(b)
+  b:SetEnabled(not on)
 end
 
---- Marks a button as the main one of its window.
+--- Marks a button as the main one of its window (the game's buttons have
+--- no such look: kept so the windows need not know).
 function Theme.primary(b)
-  b.primary = true
-  buttonLook(b)
   return b
 end
 
---- A TrailMate button with a click handler.
+--- A game button with a click handler.
 function Theme.button(parent, label, width, onClick)
-  local b = CreateFrame("Button", nil, parent)
+  local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
   b:SetSize(width or 110, 22)
-  local c = Theme.BUTTON
-  rect(b, "BACKGROUND", -8, 0, Theme.OUTLINE)
-  b.edge = rect(b, "BACKGROUND", -7, 1, Theme.EDGE_GOLD_DARK)
-  b.fill = rect(b, "BACKGROUND", -6, 2, c.top)
-  rect(b, "HIGHLIGHT", 0, 2, c.hover)
-  local pressed = rect(b, "ARTWORK", 0, 2, c.pressed)
-  if b.SetPushedTexture then
-    pcall(b.SetPushedTexture, b, pressed)
-  end
-  pressed:Hide()
-  local text = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  text:SetPoint("LEFT", 6, 0)
-  text:SetPoint("RIGHT", -6, 0)
-  if text.SetWordWrap then
-    text:SetWordWrap(false)
-  end
-  if b.SetFontString then
-    b:SetFontString(text)
-  end
-  if b.SetNormalFontObject then
-    b:SetNormalFontObject("GameFontNormal")
-    b:SetHighlightFontObject("GameFontHighlight")
-    b:SetDisabledFontObject("GameFontDisable")
-  end
-  if b.SetPushedTextOffset then
-    b:SetPushedTextOffset(1, -1)
-  end
-  buttonLook(b)
-  if b.HookScript then
-    b:HookScript("OnDisable", buttonLook)
-    b:HookScript("OnEnable", buttonLook)
-  end
   b:SetText(label)
   b:SetScript("OnClick", onClick)
   return b

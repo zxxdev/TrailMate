@@ -36,13 +36,26 @@ describe("icon picture", function()
     assert.is_true(r < 0.2)
   end)
 
+  it("has a face without the ring for the minimap, filling the picture", function()
+    local style = art.STYLES.default
+    -- Near the edge the badge is gold; the face is the dark fill there.
+    local r, g, b = art.pixel(half, 3, style)
+    assert.is_true(r > 0.6 and g > 0.4 and b < 0.3)
+    r, g, b = art.pixel(half, 3, style, true)
+    assert.is_true(r < 0.25 and g < 0.25 and b < 0.35)
+    local _, _, _, corner = art.pixel(0, 0, style, true)
+    assert.equals(0, corner)
+  end)
+
   it("matches the files the addon loads", function()
     for _, style in pairs(art.STYLES) do
-      local file = assert(io.open("TrailMate/media/" .. style.file .. ".tga", "rb"))
-      local data = file:read("*a")
-      file:close()
-      assert.equals(18 + art.SIZE * art.SIZE * 4, #data)
-      assert.equals(art.SIZE, data:byte(13) + data:byte(14) * 256)
+      for _, name in ipairs({ style.file, (style.file:gsub("^Icon", "IconFace")) }) do
+        local file = assert(io.open("TrailMate/media/" .. name .. ".tga", "rb"))
+        local data = file:read("*a")
+        file:close()
+        assert.equals(18 + art.SIZE * art.SIZE * 4, #data)
+        assert.equals(art.SIZE, data:byte(13) + data:byte(14) * 256)
+      end
     end
   end)
 end)
