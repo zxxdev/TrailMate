@@ -505,7 +505,14 @@ local function loadGuide(quiet)
   if #list == 0 then
     return false
   end
-  local g = ns.Guide.pick(list, Api.level() or 1, cdb.guideName, guideFinished)
+  -- The zone the player chose, else where the player is: a guide with a
+  -- part there wins. A chosen zone with no guide for it gets a route from
+  -- the quest log instead.
+  local level, focus = Api.level() or 1, cdb.prefs.focusZone
+  if focus and not cdb.guideName and not ns.Guide.forZone(list, level, focus, guideFinished) then
+    return false
+  end
+  local g = ns.Guide.pick(list, level, cdb.guideName, guideFinished, focus or Api.position())
   -- What this character has done decides which quests it can still pick
   -- up: a breadcrumb whose quest it took, or a quest that needs another
   -- one first, is left out.
@@ -1018,8 +1025,10 @@ end
 -- The player picks a zone: the route works there, and the travel planner
 -- shows the quickest way to get there.
 local function chooseZone(rest)
+  -- Choosing a zone, or automatic, also lets go of a guide fixed before:
+  -- the guide is picked again for that zone (or where the player is).
   if (rest or ""):lower() == "auto" then
-    cdb.prefs.focusZone = nil
+    cdb.prefs.focusZone, cdb.guideName = nil, nil
     say(L["Zone choice back to automatic."])
     buildFromQuestLog(false)
     return
@@ -1029,7 +1038,7 @@ local function chooseZone(rest)
     say(L["Type /tm strategy first, then /tm zone <number>."])
     return
   end
-  cdb.prefs.focusZone = z.mapID
+  cdb.prefs.focusZone, cdb.guideName = z.mapID, nil
   local name = Api.mapName(z.mapID) or z.name
   say(L["Next zone: %s."]:format(name))
   if Api.position() == z.mapID then
@@ -1302,7 +1311,14 @@ alias({ "done", "hecho" }, function()
   refresh()
 end)
 alias({ "undo", "deshaz" }, function()
-  say((progress and Plan.undo(progress)) and L["Undone."] or L["Nothing to undo."])
+  local id = progress and Plan.undo(progress)
+  local text
+  for _, step in ipairs(id and plan and plan.steps or {}) do
+    if step.id == id then
+      text = step.text
+    end
+  end
+  say(text and L["Undone: %s"]:format(text) or (id and L["Undone."]) or L["Nothing to undo."])
   refresh()
 end)
 alias({ "trainer", "instructor" }, adviseTrainer)

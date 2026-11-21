@@ -58,6 +58,7 @@ local esES = {
   ["Marked as done: %s"] = "Marcado como hecho: %s",
   ["Undone."] = "Deshecho.",
   ["Nothing to undo."] = "Nada que deshacer.",
+  ["Undone: %s"] = "Deshecho: %s",
   ["Step %d of %d"] = "Paso %d de %d",
   ["Arrow: %s"] = "Flecha: %s",
   ["no arrow available"] = "sin flecha disponible",

@@ -8,7 +8,7 @@ local _, ns = ...
 local UI = {}
 ns.UI = UI
 
-local WIDTH, HEIGHT = 330, 164
+local WIDTH, HEIGHT = 330, 172
 
 local function text(parent, template, x, y, width)
   local fs = parent:CreateFontString(nil, "OVERLAY", template)
@@ -106,14 +106,18 @@ function UI.create(saved)
   f.why = text(f, "GameFontNormalSmall", 36, -62)
   f.why:ClearAllPoints()
   f.why:SetPoint("TOPLEFT", f.step, "BOTTOMLEFT", 0, -6)
-  f.why:SetMaxLines(2)
+  f.why:SetMaxLines(1)
   f.why:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.warning))
-  -- The next steps: click one to do it now instead.
+  -- The next steps, under the "why" line: click one to do it now instead.
   f.rows = {}
   for i = 1, NEXT_ROWS do
     local b = CreateFrame("Button", nil, f)
     b:SetSize(WIDTH - 28, 14)
-    b:SetPoint("TOPLEFT", 14, -82 - (i - 1) * 14)
+    if i == 1 then
+      b:SetPoint("TOPLEFT", f.why, "BOTTOMLEFT", -22, -6)
+    else
+      b:SetPoint("TOPLEFT", f.rows[i - 1], "BOTTOMLEFT", 0, 0)
+    end
     b.label = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     b.label:SetPoint("LEFT", 2, 0)
     b.label:SetWidth(WIDTH - 32)
@@ -128,8 +132,17 @@ function UI.create(saved)
     f.rows[i] = b
   end
 
+  -- How the target is marked on the map: kept for the self-test, not shown
+  -- (its place is the Undo button's).
   f.arrow = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   f.arrow:SetPoint("BOTTOMLEFT", 16, 14)
+  f.arrow:Hide()
+  -- A Done or Skip by mistake is one click away from being undone.
+  f.undo = ns.Theme.button(f, "", 72, function()
+    run("undo")
+  end)
+  f.undo:SetSize(72, 20)
+  f.undo:SetPoint("BOTTOMLEFT", 12, 10)
   f.chips = {}
   for i = 1, CHIPS do
     f.chips[i] = chip(f, i)
@@ -202,8 +215,10 @@ end
 local function setButtons(f, L, visible)
   f.done:SetText(L["Done"])
   f.skip:SetText(L["Skip"])
+  f.undo:SetText(L["Undo"])
   f.done:SetShown(visible)
   f.skip:SetShown(visible)
+  f.undo:SetShown(visible)
   f.back:Hide()
 end
 
