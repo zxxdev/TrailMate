@@ -4,6 +4,7 @@
 ## Author: zxxdev
 ## Version: 0.2.2-alpha
 ## X-License: MIT
+## X-Curse-Project-ID: 1821539
 ## IconTexture: Interface\AddOns\TrailMate\media\Icon
 ## AddonCompartmentFunc: TrailMate_OnAddonCompartmentClick
 ## SavedVariables: TrailMateDB
