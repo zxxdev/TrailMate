@@ -536,8 +536,21 @@ describe("addon smoke test", function()
     assert.equals("Ve al maestro de vuelo: Hammerfall.", window.step.shown_text)
     assert.matches("Vuela de Hammerfall a Grom'gol%.$", output():match("[^\n]*Vuela[^\n]*"))
     assert.is_nil(output():find("Abre una vez un maestro de vuelo allí", 1, true))
+    -- A /reload on the way: the trip goes on (it used to be dropped, and the
+    -- guide's step came back as if the trip had been skipped: the user's case).
+    local saved = _G.TrailMateCharDB
+    assert.equals(1434, saved.trip.zone)
+    frames, named = {}, {}
+    rawset(_G, "TrailMateCharDB", saved)
+    loadAddon()
+    fire("ADDON_LOADED", "TrailMate")
+    fire("PLAYER_ENTERING_WORLD", false, true)
+    window = named.TrailMateFrame
+    assert.equals("Viaje", window.counter.shown_text)
+    -- Going back to the plan leaves the trip for good.
     _G.SlashCmdList.TRAILMATE("plan")
     assert.equals("Hacer: Lobos", window.step.shown_text)
+    assert.is_nil(_G.TrailMateCharDB.trip)
     rawset(_G, "C_TaxiMap", nil)
     rawset(_G, "CreateVector2D", nil)
   end)

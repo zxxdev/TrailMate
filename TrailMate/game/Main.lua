@@ -776,6 +776,9 @@ local declined -- the marked quest the player left: it stays followed in the gam
 local function backToPlan()
   if detour then
     declined = detour.marked
+    if detour.zone then
+      cdb.trip = nil -- the player leaves the trip
+    end
     detour = nil
     arrowStep = false
     refresh()
@@ -1014,6 +1017,9 @@ local function travelTo(mapID, name)
     zone = mapID,
     zoneName = name,
   }
+  -- Saved with the character, so a /reload or a new login on the way
+  -- resumes the trip instead of dropping it.
+  cdb.trip = { zone = mapID, name = name }
   updateTarget(true)
   for _, line in ipairs(lines) do
     say(line)
@@ -1028,7 +1034,10 @@ local function chooseZone(rest)
   -- Choosing a zone, or automatic, also lets go of a guide fixed before:
   -- the guide is picked again for that zone (or where the player is).
   if (rest or ""):lower() == "auto" then
-    cdb.prefs.focusZone, cdb.guideName = nil, nil
+    cdb.prefs.focusZone, cdb.guideName, cdb.trip = nil, nil, nil
+    if detour and detour.zone then
+      detour, arrowStep = nil, false
+    end
     say(L["Zone choice back to automatic."])
     buildFromQuestLog(false)
     return
@@ -1939,6 +1948,21 @@ handlers.PLAYER_ENTERING_WORLD = function(isLogin, isReload)
       and cdb.prefs.autoPlan ~= false then
       rebuildPending = true
     end
+    -- A trip to another zone saved before the /reload or the logout: go on
+    -- with it from here, unless the player already got there.
+    if cdb.trip and not detour then
+      after(2, function()
+        local trip, here = cdb.trip, Api.position()
+        if not trip or detour or not here then
+          return
+        end
+        if here == trip.zone then
+          cdb.trip = nil
+        else
+          guard("trip", travelTo, trip.zone, trip.name or "?")
+        end
+      end)
+    end
     questThrottle:mark()
   end
 end
@@ -2281,7 +2305,7 @@ frame:SetScript("OnUpdate", function(_, elapsed)
     -- Arrived in the zone the player chose: drop the detour and route it.
     if detour and detour.zone and Api.position() == detour.zone then
       cdb.arrival, cdb.arrivalDone = detour.zone, {}
-      detour, arrowStep = nil, false
+      detour, arrowStep, cdb.trip = nil, false, nil
       buildFromQuestLog(false)
     end
     if detour or (plan and current) then
