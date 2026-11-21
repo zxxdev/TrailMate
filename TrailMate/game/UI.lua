@@ -139,6 +139,13 @@ function UI.create(saved)
   end)
   f.done:SetSize(64, 20)
   f.done:SetPoint("RIGHT", f.skip, "LEFT", -4, 0)
+  -- While the arrow follows a quest the player marked: the way back.
+  f.back = ns.Theme.button(f, "", 132, function()
+    run("plan")
+  end)
+  f.back:SetSize(132, 20)
+  f.back:SetPoint("BOTTOMRIGHT", -12, 10)
+  f.back:Hide()
 
   f:SetScript("OnMouseUp", function(_, button)
     if button == "RightButton" then
@@ -185,6 +192,7 @@ local function setButtons(f, L, visible)
   f.skip:SetText(L["Skip"])
   f.done:SetShown(visible)
   f.skip:SetShown(visible)
+  f.back:Hide()
 end
 
 local function setStepLook(f, kind)
@@ -218,6 +226,27 @@ function UI.renderTravel(lines, L)
   setNext(f, rest)
   f.arrow:SetText(L["Back to the quests: /tm plan"])
   setButtons(f, L, false)
+end
+
+--- The arrow follows a quest the player marked. marked: { label, kind };
+--- waiting: the guide's current step text (or nil); guide: the plan is a
+--- guide (else a route). The guide's Done / Skip give way to the way back.
+function UI.renderMarked(marked, waiting, guide, L)
+  local f = UI.frame
+  if not f then
+    return
+  end
+  f.title:SetText(L["Your marked quest"])
+  f.counter:SetText("")
+  setStepLook(f, marked.kind or "complete")
+  f.step:SetText(marked.label or "")
+  f.why:SetText(waiting and L["Waiting in the guide: %s"]:format(waiting) or "")
+  f.why:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.muted))
+  setNext(f, {})
+  f.arrow:SetText("")
+  setButtons(f, L, false)
+  f.back:SetText(guide and L["Back to the guide"] or L["Back to the route"])
+  f.back:Show()
 end
 
 --- Draws the plan state. Any argument may be nil.

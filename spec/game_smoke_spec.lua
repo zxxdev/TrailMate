@@ -261,6 +261,54 @@ describe("addon smoke test", function()
     assert.is_nil(watched[10])
   end)
 
+  it("follows a quest the player marks, with a button back to the route (the user's case)", function()
+    _G.C_QuestLog.GetQuestsOnMap = function()
+      return { { questID = 10, x = 0.3, y = 0.3 }, { questID = 11, x = 0.6, y = 0.6 } }
+    end
+    _G.C_SuperTrack.GetSuperTrackedQuestID = function() return superTracked end
+    _G.SlashCmdList.TRAILMATE("diario")
+    local window = named.TrailMateFrame
+    assert.equals("Hacer: Lobos", window.step.shown_text)
+    -- TrailMate's own choice (Lobos) is not the player's mark.
+    fire("SUPER_TRACKING_CHANGED")
+    assert.equals("Hacer: Lobos", window.step.shown_text)
+    assert.is_false(window.back.visible)
+    -- The player clicks Jabalies (done, in this fake): the arrow goes to hand it in.
+    superTracked = 11
+    fire("SUPER_TRACKING_CHANGED")
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.1)
+    assert.equals("Tu misión marcada", window.title.shown_text)
+    assert.equals("Entregar: Jabalies", window.step.shown_text)
+    assert.equals("Te espera en la guía: Hacer: Lobos", window.why.shown_text)
+    assert.equals("Entregar: Jabalies", named.TrailMateArrow.label.shown_text)
+    assert.is_true(window.back.visible)
+    assert.equals("Volver a la ruta", window.back.shown_text)
+    assert.matches("Flecha a la misión que has marcado: Entregar: Jabalies", output())
+    -- The button goes back: the guide's quest is followed again.
+    window.back.scripts.OnClick(window.back)
+    assert.equals("Hacer: Lobos", window.step.shown_text)
+    assert.equals(10, superTracked)
+    assert.is_false(window.back.visible)
+  end)
+
+  it("goes back to the route by itself when the marked quest leaves the log", function()
+    _G.C_SuperTrack.GetSuperTrackedQuestID = function() return superTracked end
+    _G.SlashCmdList.TRAILMATE("diario")
+    superTracked = 11
+    fire("SUPER_TRACKING_CHANGED")
+    local window = named.TrailMateFrame
+    assert.is_true(window.back.visible)
+    local jabalies = table.remove(quests, 2)
+    finally(function()
+      quests[2] = jabalies
+    end)
+    fire("QUEST_REMOVED", 11)
+    tick()
+    assert.equals("Hacer: Lobos", window.step.shown_text)
+    assert.is_false(window.back.visible)
+    assert.matches("ya no está en el diario", output())
+  end)
+
   it("rebuilds an automatic plan on login and explains the route", function()
     _G.SlashCmdList.TRAILMATE("diario")
     local saved = _G.TrailMateCharDB

@@ -78,6 +78,14 @@ local esES = {
   ["Self-test done: %d passed, %d failed. Copy the Log tab and send it."] =
     "Autotest terminado: %d bien, %d mal. Copia la pestaña Registro y envíala.",
   ["Back to the quests: /tm plan"] = "Volver a las misiones: /tm plan",
+  ["Back to the guide"] = "Volver a la guía",
+  ["Back to the route"] = "Volver a la ruta",
+  ["Your marked quest"] = "Tu misión marcada",
+  ["Waiting in the guide: %s"] = "Te espera en la guía: %s",
+  ["Arrow on the quest you marked: %s. The guide waits."] =
+    "Flecha a la misión que has marcado: %s. La guía te espera.",
+  ["Your marked quest is no longer in the log: back to the guide."] =
+    "Tu misión marcada ya no está en el diario: vuelves a la guía.",
   ["Route to %s (about %s):"] = "Viaje a %s (unos %s):",
   ["Use your hearthstone (%s)."] = "Usa tu piedra de hogar (%s).",
   ["Fly from %s to %s."] = "Vuela de %s a %s.",

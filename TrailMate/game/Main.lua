@@ -13,6 +13,8 @@ local atlas -- TrailMateDB.atlas, shared by the account's characters
 local plan, progress, current, statuses
 local arrowStep, markMethod
 local detour -- { target, label }: takes over the arrow for a moment
+local ourFocus -- the quest TrailMate asked the game to follow
+local quietUntil -- until then, a quest the game follows is not the player's mark
 local lastAdvice = {}
 local lastProgress = {}
 local lastCounts = {} -- quests worth doing per zone, from the last route
@@ -129,7 +131,8 @@ local function updateTarget(force)
   -- A quest that needs an item used: a button to click.
   ns.ItemButton.set(step and step.type == "complete" and Api.questItem(step.questID) or nil)
   if changed then
-    local focused = Api.focusQuest(step and step.questID)
+    ourFocus = step and step.questID
+    local focused = Api.focusQuest(ourFocus)
     if target then
       markMethod = Api.setArrow(target, step.text, focused)
     else
@@ -185,15 +188,41 @@ local advanceGuide -- a guide is finished: go on to the next one
 local function render()
   if detour and detour.zone then
     ns.UI.renderTravel(travelLines, L)
+  elseif detour and detour.marked then
+    local step = plan and current and plan.steps[current]
+    ns.UI.renderMarked(detour, step and step.text, ns.Guide.isGuide(plan), L)
   else
     ns.UI.render(plan, current, statuses, L, markMethod)
   end
 end
 
+-- The quest the player marked: what the arrow says and where it points (the
+-- objectives, then the turn-in once done). False when it has left the log
+-- (handed in or dropped): the detour ends and the guide leads again.
+local function updateMarked()
+  local log = facts().questLog
+  local entry = questInfo(detour.marked)
+  local view = ns.Marked.view(detour.marked, Api.questTitle(detour.marked) or (entry and entry.title), log, L)
+  if not view then
+    detour, arrowStep = nil, false
+    say(L["Your marked quest is no longer in the log: back to the guide."])
+    return false
+  end
+  detour.label, detour.kind = view.text, view.kind
+  detour.target = questTarget(detour.marked, view.kind == "turnin")
+  detour.item = view.kind == "complete" and Api.questItem(detour.marked) or nil
+  return true
+end
+
 local function refresh()
+  if detour and detour.marked then
+    updateMarked()
+  end
   if not plan then
     render()
-    if not detour then
+    if detour then
+      updateTarget()
+    else
       ns.Arrow.setTarget(nil)
     end
     return
@@ -735,12 +764,47 @@ local FIND = {
   vuelo = { role = "flight", label = "Flight master: %s" },
 }
 
+local declined -- the marked quest the player left: it stays followed in the game, not by the arrow
+
 local function backToPlan()
   if detour then
+    declined = detour.marked
     detour = nil
     arrowStep = false
     refresh()
   end
+end
+
+-- The player marked a quest (the game follows it now): the arrow goes there
+-- and the window offers the way back to the guide.
+local function followMark()
+  local questID = Api.superTrackedQuest()
+  if questID ~= declined then
+    declined = nil
+  end
+  local step = plan and current and plan.steps[current]
+  if detour and detour.marked and step and questID == step.questID then
+    backToPlan() -- marked the guide's own quest: back to it
+    return
+  end
+  if questID == declined or (detour and detour.marked == questID) then
+    return
+  end
+  local isMark = ns.Marked.isPlayerMark(questID, {
+    ours = ourFocus, following = step and step.questID, now = Api.now(), quietUntil = quietUntil,
+    questLog = facts().questLog,
+  })
+  if not isMark then
+    return
+  end
+  detour = { marked = questID }
+  if not updateMarked() then
+    return
+  end
+  say(L["Arrow on the quest you marked: %s. The guide waits."]:format(detour.label))
+  arrowStep = false
+  updateTarget()
+  render()
 end
 
 local function findNpc(rest)
@@ -1736,6 +1800,15 @@ end
 local frame = CreateFrame("Frame")
 local handlers = {}
 
+-- Right after a quest is taken, handed in or dropped (and at login), the game
+-- may choose a quest to follow by itself: that is not a mark of the player's.
+local function quiet(seconds)
+  local now = Api.now()
+  if now then
+    quietUntil = math.max(quietUntil or 0, now + seconds)
+  end
+end
+
 handlers.ADDON_LOADED = function(name)
   if name ~= addonName then
     -- The game's talent window loads on demand: dock the talent plan to it.
@@ -1797,6 +1870,7 @@ local rebuildPending = false
 
 handlers.PLAYER_ENTERING_WORLD = function(isLogin, isReload)
   if cdb then
+    quiet(ns.Marked.QUIET_LOGIN)
     arrowStep = false
     updateAlerts()
     -- A guide is reloaded too (the guide data may be newer), and with no
@@ -1824,7 +1898,20 @@ handlers.QUEST_LOG_UPDATE = function()
   end
   questChanged()
 end
-handlers.QUEST_REMOVED = questChanged
+
+handlers.QUEST_REMOVED = function()
+  quiet(ns.Marked.QUIET)
+  questChanged()
+end
+
+handlers.SUPER_TRACKING_CHANGED = function()
+  if cdb then
+    -- Read a moment later: TrailMate's own choice may still be on its way.
+    after(0.2, function()
+      guard("marked quest", followMark)
+    end)
+  end
+end
 
 handlers.ZONE_CHANGED_NEW_AREA = function()
   -- Left the zone just arrived in: the arrival guide is over.
@@ -1860,6 +1947,7 @@ end
 
 handlers.QUEST_ACCEPTED = function(a, b)
   local questID = b or a
+  quiet(ns.Marked.QUIET)
   -- Learn who gave it and where.
   local q = questInfo(questID)
   local npc = Api.npc()
@@ -1879,6 +1967,7 @@ handlers.QUEST_ACCEPTED = function(a, b)
 end
 
 handlers.QUEST_TURNED_IN = function(questID)
+  quiet(ns.Marked.QUIET)
   local npc = Api.npc()
   Atlas.recordFinish(atlas, questID, { npcID = npc and npc.id }, playerPoint())
   if npc then
