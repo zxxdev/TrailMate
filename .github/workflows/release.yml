@@ -4,9 +4,13 @@ name: Release
 # publishes it as a GitHub release:
 #   TrailMate-<version>.zip   the addon, to copy into Interface/AddOns
 #   trailmate-bridge.exe      the companion bridge for Windows (optional)
+# and uploads the zip to CurseForge (the project id is in the .toc on main,
+# the API token in the CF_API_TOKEN secret; the bridge is not uploaded there:
+# CurseForge takes no programs).
 # An older tag (made before this file existed) is released by running the
 # workflow by hand with that tag: the code comes from the tag, the notes
-# from CHANGELOG.md on main.
+# from CHANGELOG.md on main. A release that already exists is kept, so the
+# same run can send an older version to CurseForge.
 on:
   push:
     tags: ["v*"]
@@ -15,6 +19,10 @@ on:
       tag:
         description: "Tag to release, for example v0.1.0-alpha"
         required: true
+      curseforge:
+        description: "Also upload it to CurseForge"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -101,7 +109,49 @@ jobs:
           # shows only a normal release as the latest on the repository's
           # front page. A new tag becomes the latest; an older one released
           # by hand does not take its place.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "The release $TAG exists already: kept as it is."
+            exit 0
+          fi
           latest="--latest"
           if [ "$EVENT" = "workflow_dispatch" ]; then latest="--latest=false"; fi
           gh release create "$TAG" "dist/$ADDON-$VERSION.zip" dist/trailmate-bridge.exe \
             --title "$ADDON $VERSION" --notes-file notes.md --verify-tag "$latest"
+
+      - name: Upload the zip to CurseForge
+        if: github.event_name == 'push' || inputs.curseforge
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          # WoW Forever's game version on CurseForge.
+          CF_GAME_VERSION: "1.60.1"
+        run: |
+          if [ -z "$CF_API_TOKEN" ]; then
+            echo "No CF_API_TOKEN secret: not uploading to CurseForge."
+            exit 0
+          fi
+          project=$(sed -n 's/^## X-Curse-Project-ID: *//p' "$ADDON/$ADDON.toc" | tr -d '\r')
+          if [ -z "$project" ]; then
+            echo "No X-Curse-Project-ID in $ADDON.toc on main: not uploading to CurseForge."
+            exit 0
+          fi
+          api="https://wow.curseforge.com/api"
+          ids=$(curl -fsS -H "X-Api-Token: $CF_API_TOKEN" "$api/game/versions" \
+            | jq -c --arg v "$CF_GAME_VERSION" '[.[] | select(.name == $v) | .id]')
+          echo "CurseForge game versions named $CF_GAME_VERSION: $ids"
+          if [ "$(echo "$ids" | jq length)" != 1 ]; then
+            echo "Expected exactly one game version $CF_GAME_VERSION." >&2
+            exit 1
+          fi
+          case "$VERSION" in
+            *alpha*) type=alpha ;;
+            *beta*) type=beta ;;
+            *) type=release ;;
+          esac
+          jq -n --rawfile log notes.md --arg name "$ADDON $VERSION" --arg type "$type" --argjson versions "$ids" \
+            '{changelog: $log, changelogType: "markdown", displayName: $name, gameVersions: $versions, releaseType: $type}' \
+            > cf-metadata.json
+          curl -fsS -H "X-Api-Token: $CF_API_TOKEN" \
+            -F "metadata=<cf-metadata.json" -F "file=@dist/$ADDON-$VERSION.zip" \
+            "$api/projects/$project/upload-file"
+          echo
+          echo "Uploaded $ADDON $VERSION to CurseForge project $project as $type."
