@@ -64,7 +64,7 @@ end
 
 -- Places to bring the arrow back to, if it was dragged where it is lost.
 Arrow.PLACES = {
-  top = { "TOP", 0, -140 }, -- top of the screen, in the middle (where it starts)
+  top = { "TOP", 0, -16 }, -- right at the top of the screen, in the middle
   center = { "CENTER", 0, 60 }, -- the middle of the screen, a little above the character
 }
 
