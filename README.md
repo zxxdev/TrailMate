@@ -8,7 +8,7 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 
 **It needs no other addon.** The arrow, the minimap and world map marks, the guides and the travel planner are all its own. Other addons can stay installed; TrailMate does not use them.
 
-> **Status: alpha (0.2.2-alpha).** It is played and tested on one character, a Horde hunter between levels 33 and 36, so expect rough edges: see [Known issues](#known-issues). Reports and pull requests are welcome, in English or Spanish ([CONTRIBUTING.md](CONTRIBUTING.md)). Not affiliated with Blizzard Entertainment.
+> **Status: alpha (0.3.0-alpha).** It is played and tested on one character, a Horde hunter between levels 33 and 36, so expect rough edges: see [Known issues](#known-issues). Reports and pull requests are welcome, in English or Spanish ([CONTRIBUTING.md](CONTRIBUTING.md)). Not affiliated with Blizzard Entertainment.
 
 ## Screenshots
 
@@ -44,7 +44,7 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 | Self-test | `/tm test` checks everything that can be checked without you doing anything and writes PASS or FAIL lines to the Log tab, ready to copy. It changes nothing. |
 | Panel and log | `/tm` or the minimap button opens a panel with Route, Zones, Trainer, Bags and Log tabs. Everything TrailMate says is kept in the log, which you can select and copy. |
 
-The addon speaks your game's language: Spanish when the client is in Spanish, English otherwise.
+The addon speaks your game's language: English and Spanish (the languages it is tested in), and German, French, Italian, Portuguese (Brazil), Russian, Korean and Chinese (simplified and traditional), translated with AI: corrections are welcome (see [CONTRIBUTING.md](CONTRIBUTING.md)). Quest and NPC names come from the game itself; the guides' own notes stay in English.
 
 ## Install
 

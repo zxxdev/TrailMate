@@ -43,3 +43,6 @@ files["spec/"] = { std = "+busted" }
 files["TrailMate/data/Guides.lua"] = { max_line_length = false }
 files["TrailMate/data/Dungeons.lua"] = { max_line_length = false }
 files["TrailMate/data/GuideQuests.lua"] = { max_line_length = false }
+
+-- Translations: long texts on one line read better there.
+files["TrailMate/core/locales/"] = { max_line_length = false }

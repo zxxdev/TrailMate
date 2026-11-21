@@ -29,6 +29,10 @@ cd bridge && gofmt -l . && go vet ./... && go test ./...
 
 The CI runs the same checks, and a pull request is merged only when they pass.
 
+## Fix a translation
+
+The texts are in English in the code; Spanish is in `TrailMate/core/Locale.lua` and every other language in `TrailMate/core/locales/` (`deDE.lua`, `frFR.lua`, `itIT.lua`, `ptBR.lua`, `ruRU.lua`, `koKR.lua`, `zhCN.lua`, `zhTW.lua`). Those were translated with AI, so a native speaker's eye is welcome: change the text on the right, keep the English key on the left as it is, and keep its `%s` and `%d` in the same order (a test checks it). A text missing from a file shows in English.
+
 ## Rules the addon keeps
 
 - **It advises, it never plays.** No key presses, movement, buying, selling or spending on the player's behalf.

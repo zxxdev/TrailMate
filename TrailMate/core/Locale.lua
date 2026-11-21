@@ -1,5 +1,6 @@
--- Strings shown to the player. Keys are the English text; esES overrides.
--- Missing keys fall back to the key itself. Pure Lua 5.1.
+-- Strings shown to the player. Keys are the English text; each language
+-- overrides them (Spanish here, the rest in core/locales/). Missing keys fall
+-- back to the key itself. Pure Lua 5.1.
 
 local _, ns = ...
 
@@ -387,15 +388,22 @@ local L = setmetatable({}, {
   end,
 })
 
---- Fills ns.L for the given locale ("esES", "enUS", ...).
+-- Translations by the game's locale code. Spanish is here; the other
+-- languages are in core/locales/, one file each, loaded after this one.
+ns.LOCALES = ns.LOCALES or {}
+ns.LOCALES.esES = esES
+-- The same language for another region.
+local SAME = { esMX = "esES" }
+
+--- Fills ns.L for the given locale ("esES", "deDE", ...). English, and any
+--- locale with no file, shows the keys themselves.
 function ns.setLocale(locale)
   for k in pairs(L) do
     L[k] = nil
   end
-  if locale == "esES" or locale == "esMX" then
-    for k, v in pairs(esES) do
-      L[k] = v
-    end
+  local t = ns.LOCALES[SAME[locale] or locale]
+  for k, v in pairs(t or {}) do
+    L[k] = v
   end
 end
 
