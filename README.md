@@ -8,7 +8,17 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 
 **It needs no other addon.** The arrow, the minimap and world map marks, the guides and the travel planner are all its own. Other addons can stay installed; TrailMate does not use them.
 
-> **Status: alpha (0.1.0-alpha).** It is played and tested on one character, a Horde hunter between levels 33 and 35, so expect rough edges: see [Known issues](#known-issues). Reports and pull requests are welcome, in English or Spanish ([CONTRIBUTING.md](CONTRIBUTING.md)). Not affiliated with Blizzard Entertainment.
+> **Status: alpha (0.2.0-alpha).** It is played and tested on one character, a Horde hunter between levels 33 and 36, so expect rough edges: see [Known issues](#known-issues). Reports and pull requests are welcome, in English or Spanish ([CONTRIBUTING.md](CONTRIBUTING.md)). Not affiliated with Blizzard Entertainment.
+
+## Screenshots
+
+| The step window, following a guide | The arrow, with the distance |
+|---|---|
+| ![The step window: the guide for Stranglethorn Vale, 83 of 91 steps done, the current step and the next ones, and the Undo, Done and Skip buttons](docs/images/step-window.png) | ![The arrow pointing at the next step, 1.9 km away](docs/images/arrow.png) |
+| **On a trip: the hearthstone first** | **The button to use it, under the arrow** |
+| ![The step window on a trip to Stranglethorn Vale: use your hearthstone, then walk](docs/images/trip-window.png) | ![The hearthstone button under the arrow's text](docs/images/hearthstone-button.png) |
+| **On the minimap, like other addons' buttons** | |
+| ![The TrailMate button with the paw on the edge of the minimap](docs/images/minimap-button.png) | |
 
 ## What it does today
 
@@ -30,7 +40,7 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 | Travel planner | The quickest way to a zone, comparing walking, flights you have learned, your hearthstone when it is ready, and ships or zeppelins across continents (Orgrimmar to Grom'gol, for example). |
 | Learns as you play | Its own atlas, shared by your characters: quest givers, turn-ins, trainers, vendors, innkeepers and flight masters, from what the game showed you. |
 | Companion chat | `/tm chat` opens a small window to talk to your AI companion about your character. Your question goes with your current state (level, zone, plan, quest log, next talent), never names. It needs the bridge program running on your PC (see below). The companion has no tools: it only answers. |
-| Companion icon | The icon is a worn stone with a glowing paw. Its glow follows your AI companion (`/tm companion claude` or `chatgpt`). |
+| Companion icon | The icon is a round badge with a gold ring, a white paw print and a winding trail. The trail takes the colour of your AI companion (`/tm companion claude` or `chatgpt`). |
 | Self-test | `/tm test` checks everything that can be checked without you doing anything and writes PASS or FAIL lines to the Log tab, ready to copy. It changes nothing. |
 | Panel and log | `/tm` or the minimap button opens a panel with Route, Zones, Trainer, Bags and Log tabs. Everything TrailMate says is kept in the log, which you can select and copy. |
 
@@ -38,7 +48,7 @@ The addon speaks your game's language: Spanish when the client is in Spanish, En
 
 ## Install
 
-1. Copy the `TrailMate` folder into `World of Warcraft/_forever_/Interface/AddOns/`.
+1. Download `TrailMate-<version>.zip` from the latest [release](https://github.com/zxxdev/TrailMate/releases) and unzip it into `World of Warcraft/_forever_/Interface/AddOns/` (you get a `TrailMate` folder there). What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 2. Restart the game (after an update with new pictures, `/reload` is not enough).
 3. Click the TrailMate button on the minimap, or type `/tm`. `/tm help` lists the commands; English and Spanish both work (`/tm guide` or `/tm guía`).
 
@@ -46,6 +56,7 @@ The addon speaks your game's language: Spanish when the client is in Spanish, En
 
 The addon cannot reach the internet, so a small program on your PC, `trailmate-bridge`, carries the messages. It reads the questions the game saves in its key bindings file and writes the answers into small inbox addons. How and why is in [ADR 0001](docs/adr/0001-companion-bridge.md); the idea comes from [Witchcraft](https://github.com/Geraldlol/witchcraft).
 
+0. Download `trailmate-bridge.exe` from the same [release](https://github.com/zxxdev/TrailMate/releases) (built by CI from this repository).
 1. Sign in once to Claude Code in a terminal (`claude`), with your own account.
 2. Make the inboxes, then restart the game:
    `trailmate-bridge init --game "C:\Program Files (x86)\World of Warcraft\_forever_"`
@@ -88,6 +99,8 @@ The chat uses the keys `Ctrl+Alt+Shift+F1` to `F8` while a message goes out, and
 | `/tm reserve <gold>` · `/tm reserva <oro>` | Gold the trainer advice never spends |
 | `/tm auto on\|off` | Rebuild the plan by itself when it ends |
 | `/tm show` / `/tm hide` | Show or hide the window |
+| `/tm minimap` | Show or hide the minimap button |
+| `/tm options` | TrailMate's page in Esc > Options > AddOns |
 | `/tm clear` · `/tm borrar` | Remove the plan |
 | `/tm test` | Self-test, written to the log |
 | `/tm diag` | What this client exposes, for bug reports (no personal data) |
@@ -133,13 +146,13 @@ The pictures are drawn by code, so they can be checked by tests and rebuilt at a
 
 ```bash
 lua tools/make_arrow.lua   # media/Arrow.tga: the arrow, 128 angles
-lua tools/make_icon.lua    # media/Icon*.tga: the stone with the paw, one per companion
+lua tools/make_icon.lua    # media/Icon*.tga: the badge with the paw, one per companion
 lua tools/make_pin.lua     # media/Pin.tga: the map pin
 ```
 
 ## Roadmap
 
-- 0.1.0: installable release, screenshots.
+- TrailMate deciding by itself what to do next (the quest database, your quest log and the AI companion), with the guides as optional help.
 - More companions (ChatGPT through its own CLI), and the companion proposing plans as validated data.
 - Measured accuracy and cost of the advice.
 

@@ -60,10 +60,17 @@ type recorder struct {
 	prompts []string
 	fail    bool
 	resets  int
+	// gate, when set, holds the answer until the test closes it: the test
+	// can then see the "thinking" state for sure, instead of racing the
+	// answer (it failed in CI when the answer came first).
+	gate chan struct{}
 }
 
 func (r *recorder) Ask(_ context.Context, q string) (string, error) {
 	r.prompts = append(r.prompts, q)
+	if r.gate != nil {
+		<-r.gate
+	}
 	if r.fail {
 		return "", errors.New("Not logged in")
 	}
@@ -76,7 +83,7 @@ var _ companion.Companion = (*recorder)(nil)
 
 func TestAQuestionWithItsContextGetsAnAnswerInTheInboxes(t *testing.T) {
 	dir, bindings := game(t)
-	r := &recorder{}
+	r := &recorder{gate: make(chan struct{})}
 	b := New(dir, r, t.Logf)
 	b.Pause = func() {}
 	if b.Ring != 100 {
@@ -95,6 +102,7 @@ func TestAQuestionWithItsContextGetsAnAnswerInTheInboxes(t *testing.T) {
 	if got := inboxText(t, dir, 6); strings.Contains(got, "ack") {
 		t.Fatalf("inbox 6 was written: %s", got)
 	}
+	close(r.gate) // now the companion answers
 	b.Settle()
 	if err := b.Step(ctx); err != nil {
 		t.Fatal(err)

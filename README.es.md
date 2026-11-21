@@ -8,7 +8,19 @@ Un entrenador de subida de nivel para **World of Warcraft: Forever** (versión 1
 
 **No necesita ningún otro addon.** La flecha, las marcas del minimapa y del mapa del mundo, las guías y el planificador de viajes son suyos. Puedes tener otros addons instalados; TrailMate no los usa.
 
-> **Estado: alfa (0.1.0-alpha).** Se juega y se prueba con un solo personaje, un cazador de la Horda entre los niveles 33 y 35, así que habrá cosas por pulir: mira los [problemas conocidos](#problemas-conocidos). Los avisos de fallos y las pull requests son bienvenidos, en inglés o en español ([CONTRIBUTING.es.md](CONTRIBUTING.es.md)). Sin relación con Blizzard Entertainment.
+> **Estado: alfa (0.2.0-alpha).** Se juega y se prueba con un solo personaje, un cazador de la Horda entre los niveles 33 y 36, así que habrá cosas por pulir: mira los [problemas conocidos](#problemas-conocidos). Los avisos de fallos y las pull requests son bienvenidos, en inglés o en español ([CONTRIBUTING.es.md](CONTRIBUTING.es.md)). Sin relación con Blizzard Entertainment.
+
+## Capturas
+
+| La ventana de pasos, siguiendo una guía | La flecha, con la distancia |
+|---|---|
+| ![La ventana de pasos: la guía de Tuercespina, 83 de 91 pasos hechos, el paso actual y los siguientes, y los botones Deshacer, Hecho y Saltar](docs/images/step-window.png) | ![La flecha apuntando al siguiente paso, a 1,9 km](docs/images/arrow.png) |
+| **De viaje: primero la piedra de hogar** | **El botón para usarla, bajo la flecha** |
+| ![La ventana de pasos en un viaje a Tuercespina: usa tu piedra de hogar y luego camina](docs/images/trip-window.png) | ![El botón de la piedra de hogar bajo el texto de la flecha](docs/images/hearthstone-button.png) |
+| **En el minimapa, como los botones de otros addons** | |
+| ![El botón de TrailMate con la huella en el borde del minimapa](docs/images/minimap-button.png) | |
+
+Las capturas son del juego en inglés; con el cliente en español, el addon habla en español.
 
 ## Qué hace hoy
 
@@ -30,7 +42,7 @@ Un entrenador de subida de nivel para **World of Warcraft: Forever** (versión 1
 | Planificador de viajes | La forma más rápida de llegar a una zona: compara ir andando, los vuelos que tienes aprendidos, la piedra de hogar si está lista, y barcos o zepelines entre continentes (por ejemplo, de Orgrimmar a Grom'gol). |
 | Aprende mientras juegas | Su propio atlas, compartido por tus personajes: quién da y quién recoge cada misión, instructores, vendedores, posaderos y maestros de vuelo, según lo que te ha enseñado el juego. |
 | Chat con el compañero | `/tm chat` abre una ventana pequeña para hablar con tu compañero de IA sobre tu personaje. Tu pregunta va con tu estado actual (nivel, zona, plan, diario, siguiente talento), nunca con nombres. Necesita el programa puente en tu PC (mira más abajo). El compañero no tiene herramientas: solo contesta. |
-| Icono del compañero | El icono es una piedra gastada con una huella que brilla. El brillo sigue a tu compañero de IA (`/tm compañero claude` o `chatgpt`). |
+| Icono del compañero | El icono es una medalla con aro dorado, una huella blanca y un sendero. El sendero toma el color de tu compañero de IA (`/tm compañero claude` o `chatgpt`). |
 | Autotest | `/tm test` comprueba todo lo que se puede comprobar sin que hagas nada y escribe líneas PASS o FAIL en la pestaña Registro, listas para copiar. No cambia nada. |
 | Panel y registro | `/tm` o el botón del minimapa abre un panel con las pestañas Ruta, Zonas, Instructor, Bolsas y Registro. Todo lo que dice TrailMate se guarda en el registro, que puedes seleccionar y copiar. |
 
@@ -38,7 +50,7 @@ El addon sale en el idioma de tu juego: español si el cliente está en español
 
 ## Instalación
 
-1. Copia la carpeta `TrailMate` en `World of Warcraft/_forever_/Interface/AddOns/`.
+1. Descarga `TrailMate-<versión>.zip` de la última [versión publicada](https://github.com/zxxdev/TrailMate/releases) y descomprímelo en `World of Warcraft/_forever_/Interface/AddOns/` (queda ahí una carpeta `TrailMate`). Lo que cambia en cada versión está en [CHANGELOG.md](CHANGELOG.md) (en inglés).
 2. Reinicia el juego (después de una actualización con imágenes nuevas, `/reload` no basta).
 3. Pulsa el botón de TrailMate en el minimapa o escribe `/tm`. `/tm ayuda` lista los comandos; funcionan en inglés y en español (`/tm guide` o `/tm guía`).
 
@@ -46,6 +58,7 @@ El addon sale en el idioma de tu juego: español si el cliente está en español
 
 El addon no puede conectarse a internet, así que un programa pequeño en tu PC, `trailmate-bridge`, lleva los mensajes. Lee las preguntas que el juego guarda en su fichero de teclas y escribe las respuestas en unos addons pequeños que hacen de buzón. El cómo y el porqué están en el [ADR 0001](docs/adr/0001-companion-bridge.md) (en inglés); la idea viene de [Witchcraft](https://github.com/Geraldlol/witchcraft).
 
+0. Descarga `trailmate-bridge.exe` de la misma [versión publicada](https://github.com/zxxdev/TrailMate/releases) (lo compila la CI a partir de este repositorio).
 1. Inicia sesión una vez en Claude Code en una terminal (`claude`), con tu propia cuenta.
 2. Crea los buzones y reinicia el juego:
    `trailmate-bridge init --game "C:\Program Files (x86)\World of Warcraft\_forever_"`
@@ -88,6 +101,8 @@ El chat usa las teclas `Ctrl+Alt+Mayús+F1` a `F8` mientras sale un mensaje, y l
 | `/tm reserva <oro>` · `/tm reserve` | Oro que el consejo del instructor nunca gasta |
 | `/tm auto on\|off` | Rehace el plan solo cuando se acaba |
 | `/tm mostrar` / `/tm ocultar` | Muestra u oculta la ventana |
+| `/tm minimapa` | Muestra u oculta el botón del minimapa |
+| `/tm opciones` | La página de TrailMate en Esc > Opciones > AddOns |
 | `/tm borrar` · `/tm clear` | Quita el plan |
 | `/tm test` | Autotest, escrito en el registro |
 | `/tm diag` | Qué ofrece este cliente, para avisar de fallos (sin datos personales) |
@@ -133,13 +148,13 @@ Las imágenes se dibujan con código, así que los tests las comprueban y se pue
 
 ```bash
 lua tools/make_arrow.lua   # media/Arrow.tga: la flecha, 128 ángulos
-lua tools/make_icon.lua    # media/Icon*.tga: la piedra con la huella, una por compañero
+lua tools/make_icon.lua    # media/Icon*.tga: la medalla con la huella, una por compañero
 lua tools/make_pin.lua     # media/Pin.tga: el alfiler del mapa
 ```
 
 ## Próximos pasos
 
-- 0.1.0: versión instalable, con capturas.
+- Que TrailMate decida por sí mismo qué hacer (la base de datos de misiones, tu diario y el compañero de IA), con las guías como ayuda opcional.
 - Más compañeros (ChatGPT con su propio programa de terminal), y que el compañero proponga planes como datos validados.
 - Medir el acierto y el coste de los consejos.
 
