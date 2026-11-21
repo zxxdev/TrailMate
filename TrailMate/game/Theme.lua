@@ -74,12 +74,32 @@ local function rgb(c)
 end
 Theme.rgb = rgb
 
--- A flat rectangle inset from the frame's edges, on a draw sub-level.
+-- n screen pixels in this frame's units, so 1-pixel lines stay 1 pixel at
+-- any UI scale (one UI unit is 1.875 pixels at 1440p, for example).
+local function pixels(f, n)
+  if n == 0 or not (PixelUtil and PixelUtil.GetNearestPixelSize and f.GetEffectiveScale) then
+    return n
+  end
+  local ok, scale = pcall(f.GetEffectiveScale, f)
+  if not (ok and type(scale) == "number" and scale > 0) then
+    return n
+  end
+  local ok2, size = pcall(PixelUtil.GetNearestPixelSize, n, scale, n)
+  return (ok2 and type(size) == "number") and size or n
+end
+
+-- A flat rectangle inset n screen pixels from the frame's edges, on a draw
+-- sub-level.
 local function rect(f, layer, sub, inset, c)
   local t = f:CreateTexture(nil, layer, nil, sub)
-  t:SetPoint("TOPLEFT", inset, -inset)
-  t:SetPoint("BOTTOMRIGHT", -inset, inset)
+  local d = pixels(f, inset)
+  t:SetPoint("TOPLEFT", d, -d)
+  t:SetPoint("BOTTOMRIGHT", -d, d)
   t:SetColorTexture(c[1], c[2], c[3], c[4] or 1)
+  if t.SetSnapToPixelGrid then
+    pcall(t.SetSnapToPixelGrid, t, false)
+    pcall(t.SetTexelSnappingBias, t, 0)
+  end
   return t
 end
 
@@ -99,18 +119,18 @@ end
 function Theme.panel(f)
   rect(f, "BACKGROUND", -8, 0, Theme.OUTLINE)
   rect(f, "BACKGROUND", -7, 1, Theme.EDGE_GOLD)
-  rect(f, "BACKGROUND", -6, 4, Theme.EDGE_GOLD_DARK)
+  rect(f, "BACKGROUND", -6, 4, Theme.OUTLINE)
   local bg = rect(f, "BACKGROUND", -5, Theme.INSET, Theme.BG_TOP)
   gradient(bg, Theme.BG_BOTTOM, Theme.BG_TOP)
   return bg
 end
 
 --- The addon icon (a round badge with its own gold ring) in the top-left
---- corner of a frame. Returns the holder frame.
-function Theme.emblem(f, size)
+--- corner of a frame, at x, y (10, -9 by default). Returns the holder frame.
+function Theme.emblem(f, size, x, y)
   local holder = CreateFrame("Frame", nil, f)
   holder:SetSize(size, size)
-  holder:SetPoint("TOPLEFT", 10, -9)
+  holder:SetPoint("TOPLEFT", x or 10, y or -9)
   holder:SetFrameLevel((f:GetFrameLevel() or 1) + 5)
   local icon = holder:CreateTexture(nil, "ARTWORK")
   icon:SetAllPoints()
@@ -119,9 +139,9 @@ function Theme.emblem(f, size)
 end
 
 --- Emblem plus a gold title next to it. Returns emblem, title.
-function Theme.header(f, title, size)
+function Theme.header(f, title, size, x, y)
   size = size or 28
-  local emblem = Theme.emblem(f, size)
+  local emblem = Theme.emblem(f, size, x, y)
   local text = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
   text:SetPoint("LEFT", emblem, "RIGHT", 8, 0)
   text:SetText(title)
@@ -129,29 +149,57 @@ function Theme.header(f, title, size)
   return emblem, text
 end
 
--- Buttons: flat and sharp like the borders. Navy with a gold edge; lighter
--- under the mouse (the HIGHLIGHT layer, shown by the game itself), darker
--- while pressed, and gold-filled when disabled, which the panel uses for the
--- open tab.
+-- Buttons: flat and sharp like the borders. Navy with a dark gold edge;
+-- lighter under the mouse (the HIGHLIGHT layer, shown by the game itself)
+-- and darker while pressed. The main button of a window has the bright gold
+-- edge and white text; the selected one (the open tab) is gold-filled; a
+-- disabled one is grey. Two golds only: bright for what matters, dark for
+-- the rest.
 Theme.BUTTON = {
-  edge = { 0.80, 0.60, 0.20, 1 },
   top = { 0.15, 0.22, 0.38, 1 },
   bottom = { 0.07, 0.10, 0.19, 1 },
-  hover = { 1, 1, 1, 0.12 },
+  hover = { 1, 1, 1, 0.08 },
   pressed = { 0, 0, 0, 0.30 },
   selectedTop = { 0.55, 0.40, 0.12, 1 },
   selectedBottom = { 0.36, 0.25, 0.07, 1 },
+  disabledTop = { 0.10, 0.11, 0.14, 1 },
+  disabledBottom = { 0.06, 0.07, 0.09, 1 },
+  disabledEdge = { 0.35, 0.33, 0.30, 1 },
 }
 
-local function buttonLook(b, selected)
+local function setEdge(b, c)
+  b.edge:SetColorTexture(c[1], c[2], c[3], c[4] or 1)
+end
+
+local function buttonLook(b)
   local c = Theme.BUTTON
-  if selected then
+  local enabled = not (b.IsEnabled and b:IsEnabled() == false)
+  if not enabled then
+    gradient(b.fill, c.disabledBottom, c.disabledTop)
+    setEdge(b, c.disabledEdge)
+  elseif b.selected then
     gradient(b.fill, c.selectedBottom, c.selectedTop)
-    b.edge:SetColorTexture(Theme.EDGE_GOLD[1], Theme.EDGE_GOLD[2], Theme.EDGE_GOLD[3], 1)
+    setEdge(b, Theme.EDGE_GOLD)
   else
     gradient(b.fill, c.bottom, c.top)
-    b.edge:SetColorTexture(c.edge[1], c.edge[2], c.edge[3], c.edge[4])
+    setEdge(b, b.primary and Theme.EDGE_GOLD or Theme.EDGE_GOLD_DARK)
   end
+  if b.SetNormalFontObject then
+    b:SetNormalFontObject((b.selected or b.primary) and "GameFontHighlight" or "GameFontNormal")
+  end
+end
+
+--- Marks a button as selected (the open tab) or not.
+function Theme.select(b, on)
+  b.selected = on and true or nil
+  buttonLook(b)
+end
+
+--- Marks a button as the main one of its window.
+function Theme.primary(b)
+  b.primary = true
+  buttonLook(b)
+  return b
 end
 
 --- A TrailMate button with a click handler.
@@ -160,7 +208,7 @@ function Theme.button(parent, label, width, onClick)
   b:SetSize(width or 110, 22)
   local c = Theme.BUTTON
   rect(b, "BACKGROUND", -8, 0, Theme.OUTLINE)
-  b.edge = rect(b, "BACKGROUND", -7, 1, c.edge)
+  b.edge = rect(b, "BACKGROUND", -7, 1, Theme.EDGE_GOLD_DARK)
   b.fill = rect(b, "BACKGROUND", -6, 2, c.top)
   rect(b, "HIGHLIGHT", 0, 2, c.hover)
   local pressed = rect(b, "ARTWORK", 0, 2, c.pressed)
@@ -180,19 +228,15 @@ function Theme.button(parent, label, width, onClick)
   if b.SetNormalFontObject then
     b:SetNormalFontObject("GameFontNormal")
     b:SetHighlightFontObject("GameFontHighlight")
-    b:SetDisabledFontObject("GameFontHighlight")
+    b:SetDisabledFontObject("GameFontDisable")
   end
   if b.SetPushedTextOffset then
     b:SetPushedTextOffset(1, -1)
   end
-  buttonLook(b, false)
+  buttonLook(b)
   if b.HookScript then
-    b:HookScript("OnDisable", function(self)
-      buttonLook(self, true)
-    end)
-    b:HookScript("OnEnable", function(self)
-      buttonLook(self, false)
-    end)
+    b:HookScript("OnDisable", buttonLook)
+    b:HookScript("OnEnable", buttonLook)
   end
   b:SetText(label)
   b:SetScript("OnClick", onClick)

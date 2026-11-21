@@ -33,7 +33,7 @@ read_globals = {
   "GetZoneText", "GetSubZoneText", "GetMinimapZoneText", "C_QuestLog", "GetQuestLogSpecialItemInfo", "GetItemIcon", "GameTooltip", "CreateColor", "C_Texture", "C_TaxiMap", "Enum", "GetBindLocation", "GetItemCooldown", "GetItemCount", "GetTaxiMapID", "GetTime",
   "SetBinding", "SaveBindings", "GetBindingAction", "GetCurrentBindingSet", "GetAddOnInfo", "SetCVar",
   "Settings", "SettingsPanel", "HideUIPanel", "InterfaceOptions_AddCategory", "InterfaceOptionsFrame",
-  "InterfaceOptionsFrame_OpenToCategory",
+  "InterfaceOptionsFrame_OpenToCategory", "PixelUtil",
 }
 
 files["spec/"] = { std = "+busted" }

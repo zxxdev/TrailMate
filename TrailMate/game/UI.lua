@@ -144,11 +144,13 @@ function UI.create(saved)
   end)
   f.done:SetSize(64, 20)
   f.done:SetPoint("RIGHT", f.skip, "LEFT", -4, 0)
+  ns.Theme.primary(f.done)
   -- While the arrow follows a quest the player marked: the way back.
   f.back = ns.Theme.button(f, "", 132, function()
     run("plan")
   end)
   f.back:SetSize(132, 20)
+  ns.Theme.primary(f.back)
   f.back:SetPoint("BOTTOMRIGHT", -12, 10)
   f.back:Hide()
 

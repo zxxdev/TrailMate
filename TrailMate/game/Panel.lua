@@ -209,7 +209,7 @@ function Panel.show(name)
   end
   for tabName, page in pairs(f.pages) do
     page:SetShown(tabName == name)
-    f.tabs[tabName]:SetEnabled(tabName ~= name)
+    ns.Theme.select(f.tabs[tabName], tabName == name)
   end
   Panel.current = name
   Panel.saved.tab = name

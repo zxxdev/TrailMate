@@ -26,13 +26,15 @@ function Options.create(L, actions)
   local Theme = ns.Theme
   local f = CreateFrame("Frame")
   f.name = "TrailMate"
-  Theme.header(f, "TrailMate", 40)
+  local emblem, title = Theme.header(f, "TrailMate", 40, 16, -16)
+  title:ClearAllPoints()
+  title:SetPoint("TOPLEFT", emblem, "TOPRIGHT", 8, -2)
   local version = Theme.label(f, "GameFontDisableSmall")
-  version:SetPoint("TOPLEFT", 60, -34)
+  version:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
   version:SetText(L["Version %s"]:format(actions.version()))
 
   local about = Theme.label(f, "GameFontHighlight")
-  about:SetPoint("TOPLEFT", 16, -64)
+  about:SetPoint("TOPLEFT", emblem, "BOTTOMLEFT", 0, -14)
   about:SetWidth(W - 32)
   about:SetText(L["Leveling coach: a route that decides, an arrow, trainer and vendor advice. Advises, never plays."])
 
@@ -42,18 +44,25 @@ function Options.create(L, actions)
     { "Show or hide the minimap button", actions.minimap },
     { "Commands in the chat (/tm help)", actions.help, true },
   }
+  local last
   for i, a in ipairs(list) do
-    local b = Theme.button(f, L[a[1]], 260, function()
+    local b = Theme.button(f, L[a[1]], 300, function()
       if a[3] then
         closeOptions()
       end
       a[2]()
     end)
     b:SetHeight(26)
-    b:SetPoint("TOPLEFT", 16, -104 - (i - 1) * 34)
+    if i == 1 then
+      b:SetPoint("TOPLEFT", about, "BOTTOMLEFT", 0, -16)
+      Theme.primary(b)
+    else
+      b:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, -8)
+    end
+    last = b
   end
   local tip = Theme.label(f, "GameFontNormalSmall")
-  tip:SetPoint("TOPLEFT", 16, -104 - #list * 34 - 8)
+  tip:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, -16)
   tip:SetWidth(W - 32)
   tip:SetTextColor(Theme.rgb(Theme.COLORS.muted))
   tip:SetText(L["Tip: /tm opens the panel; click a quest in your tracker and the arrow follows it."])
