@@ -8,7 +8,7 @@ Un entrenador de subida de nivel para **World of Warcraft: Forever** (versión 1
 
 **No necesita ningún otro addon.** La flecha, las marcas del minimapa y del mapa del mundo, las guías y el planificador de viajes son suyos. Puedes tener otros addons instalados; TrailMate no los usa.
 
-> **Estado: alfa (0.1.0-alpha).** Se juega y se prueba con un solo personaje, un cazador de la Horda entre los niveles 33 y 35, así que habrá cosas por pulir: mira los [problemas conocidos](#problemas-conocidos). Los avisos de fallos y las pull requests son bienvenidos, en inglés o en español ([CONTRIBUTING.es.md](CONTRIBUTING.es.md)). Sin relación con Blizzard Entertainment.
+> **Estado: alfa (0.2.0-alpha).** Se juega y se prueba con un solo personaje, un cazador de la Horda entre los niveles 33 y 35, así que habrá cosas por pulir: mira los [problemas conocidos](#problemas-conocidos). Los avisos de fallos y las pull requests son bienvenidos, en inglés o en español ([CONTRIBUTING.es.md](CONTRIBUTING.es.md)). Sin relación con Blizzard Entertainment.
 
 ## Qué hace hoy
 
@@ -38,7 +38,7 @@ El addon sale en el idioma de tu juego: español si el cliente está en español
 
 ## Instalación
 
-1. Copia la carpeta `TrailMate` en `World of Warcraft/_forever_/Interface/AddOns/`.
+1. Descarga `TrailMate-<versión>.zip` de la última [versión publicada](https://github.com/zxxdev/TrailMate/releases) y descomprímelo en `World of Warcraft/_forever_/Interface/AddOns/` (queda ahí una carpeta `TrailMate`). Lo que cambia en cada versión está en [CHANGELOG.md](CHANGELOG.md) (en inglés).
 2. Reinicia el juego (después de una actualización con imágenes nuevas, `/reload` no basta).
 3. Pulsa el botón de TrailMate en el minimapa o escribe `/tm`. `/tm ayuda` lista los comandos; funcionan en inglés y en español (`/tm guide` o `/tm guía`).
 
@@ -46,6 +46,7 @@ El addon sale en el idioma de tu juego: español si el cliente está en español
 
 El addon no puede conectarse a internet, así que un programa pequeño en tu PC, `trailmate-bridge`, lleva los mensajes. Lee las preguntas que el juego guarda en su fichero de teclas y escribe las respuestas en unos addons pequeños que hacen de buzón. El cómo y el porqué están en el [ADR 0001](docs/adr/0001-companion-bridge.md) (en inglés); la idea viene de [Witchcraft](https://github.com/Geraldlol/witchcraft).
 
+0. Descarga `trailmate-bridge.exe` de la misma [versión publicada](https://github.com/zxxdev/TrailMate/releases) (lo compila la CI a partir de este repositorio).
 1. Inicia sesión una vez en Claude Code en una terminal (`claude`), con tu propia cuenta.
 2. Crea los buzones y reinicia el juego:
    `trailmate-bridge init --game "C:\Program Files (x86)\World of Warcraft\_forever_"`
@@ -141,7 +142,8 @@ lua tools/make_pin.lua     # media/Pin.tga: el alfiler del mapa
 
 ## Próximos pasos
 
-- 0.1.0: versión instalable, con capturas.
+- Que TrailMate decida por sí mismo qué hacer (la base de datos de misiones, tu diario y el compañero de IA), con las guías como ayuda opcional.
+- Capturas.
 - Más compañeros (ChatGPT con su propio programa de terminal), y que el compañero proponga planes como datos validados.
 - Medir el acierto y el coste de los consejos.
 

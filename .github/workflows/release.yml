@@ -1,0 +1,102 @@
+name: Release
+
+# Pushing a tag such as v0.2.0-alpha builds what players download and
+# publishes it as a GitHub release:
+#   TrailMate-<version>.zip   the addon, to copy into Interface/AddOns
+#   trailmate-bridge.exe      the companion bridge for Windows (optional)
+# An older tag (made before this file existed) is released by running the
+# workflow by hand with that tag: the code comes from the tag, the notes
+# from CHANGELOG.md on main.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release, for example v0.1.0-alpha"
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  ADDON: TrailMate
+  TAG: ${{ inputs.tag || github.ref_name }}
+
+jobs:
+  release:
+    name: Build the zip and the bridge, and publish the release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # to create the release
+    steps:
+      - name: Checkout main (for the notes)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: main
+          fetch-depth: 0 # the whole history and the tags
+
+      - name: Check out the tag's code
+        run: |
+          git rev-parse --verify --quiet "refs/tags/$TAG" >/dev/null
+          # Only tags on main are released.
+          git merge-base --is-ancestor "refs/tags/$TAG" origin/main
+          git worktree add src "refs/tags/$TAG"
+
+      - name: Check that the tag matches the version in the .toc
+        run: |
+          version=$(sed -n 's/^## Version: *//p' "src/$ADDON/$ADDON.toc" | tr -d '\r')
+          if [ "v$version" != "$TAG" ]; then
+            echo "The tag is $TAG but $ADDON.toc says $version." >&2
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Build the zip
+        run: |
+          mkdir -p dist
+          # The addon folder as it is in the repository, with the license
+          # and the README that must travel with the code.
+          cp -r "src/$ADDON" "dist/$ADDON"
+          cp src/LICENSE src/README.md "dist/$ADDON/"
+          (cd dist && zip -qr "$ADDON-$VERSION.zip" "$ADDON")
+          unzip -l "dist/$ADDON-$VERSION.zip" | tail -3
+
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.4"
+          cache: false
+
+      - name: Build the bridge for Windows
+        working-directory: src/bridge
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: "0"
+          GOTOOLCHAIN: local
+        run: |
+          go build -trimpath -ldflags "-s -w" -o ../../dist/trailmate-bridge.exe ./cmd/trailmate-bridge
+          ls -l ../../dist/trailmate-bridge.exe
+
+      - name: Take this version's notes from the changelog
+        run: |
+          # The section whose heading is exactly this version: "## 0.2.0-alpha"
+          # or "## 0.2.0-alpha (date)", never "## 0.2.0-alpha.1".
+          awk -v version="$VERSION" '
+            BEGIN { gsub(/\./, "\\.", version) }
+            $0 ~ ("^## " version "( |$)") { found = 1; next }
+            /^## / { found = 0 }
+            found
+          ' CHANGELOG.md > notes.md
+          test -s notes.md
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pre=""
+          case "$VERSION" in *-*) pre="--prerelease" ;; esac
+          gh release create "$TAG" "dist/$ADDON-$VERSION.zip" dist/trailmate-bridge.exe \
+            --title "$ADDON $VERSION" --notes-file notes.md --verify-tag $pre

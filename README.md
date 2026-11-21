@@ -8,7 +8,7 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 
 **It needs no other addon.** The arrow, the minimap and world map marks, the guides and the travel planner are all its own. Other addons can stay installed; TrailMate does not use them.
 
-> **Status: alpha (0.1.0-alpha).** It is played and tested on one character, a Horde hunter between levels 33 and 35, so expect rough edges: see [Known issues](#known-issues). Reports and pull requests are welcome, in English or Spanish ([CONTRIBUTING.md](CONTRIBUTING.md)). Not affiliated with Blizzard Entertainment.
+> **Status: alpha (0.2.0-alpha).** It is played and tested on one character, a Horde hunter between levels 33 and 35, so expect rough edges: see [Known issues](#known-issues). Reports and pull requests are welcome, in English or Spanish ([CONTRIBUTING.md](CONTRIBUTING.md)). Not affiliated with Blizzard Entertainment.
 
 ## What it does today
 
@@ -38,7 +38,7 @@ The addon speaks your game's language: Spanish when the client is in Spanish, En
 
 ## Install
 
-1. Copy the `TrailMate` folder into `World of Warcraft/_forever_/Interface/AddOns/`.
+1. Download `TrailMate-<version>.zip` from the latest [release](https://github.com/zxxdev/TrailMate/releases) and unzip it into `World of Warcraft/_forever_/Interface/AddOns/` (you get a `TrailMate` folder there). What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 2. Restart the game (after an update with new pictures, `/reload` is not enough).
 3. Click the TrailMate button on the minimap, or type `/tm`. `/tm help` lists the commands; English and Spanish both work (`/tm guide` or `/tm guía`).
 
@@ -46,6 +46,7 @@ The addon speaks your game's language: Spanish when the client is in Spanish, En
 
 The addon cannot reach the internet, so a small program on your PC, `trailmate-bridge`, carries the messages. It reads the questions the game saves in its key bindings file and writes the answers into small inbox addons. How and why is in [ADR 0001](docs/adr/0001-companion-bridge.md); the idea comes from [Witchcraft](https://github.com/Geraldlol/witchcraft).
 
+0. Download `trailmate-bridge.exe` from the same [release](https://github.com/zxxdev/TrailMate/releases) (built by CI from this repository).
 1. Sign in once to Claude Code in a terminal (`claude`), with your own account.
 2. Make the inboxes, then restart the game:
    `trailmate-bridge init --game "C:\Program Files (x86)\World of Warcraft\_forever_"`
@@ -141,7 +142,8 @@ lua tools/make_pin.lua     # media/Pin.tga: the map pin
 
 ## Roadmap
 
-- 0.1.0: installable release, screenshots.
+- TrailMate deciding by itself what to do next (the quest database, your quest log and the AI companion), with the guides as optional help.
+- Screenshots.
 - More companions (ChatGPT through its own CLI), and the companion proposing plans as validated data.
 - Measured accuracy and cost of the advice.
 
