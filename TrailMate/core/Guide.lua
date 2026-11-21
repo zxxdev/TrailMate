@@ -67,17 +67,19 @@ function Guide.covers(g, mapID)
   return mapID ~= nil and stepsOn(g, mapID) >= Guide.ZONE_STEPS
 end
 
---- The first unfinished guide with a part on this map that suits the level
---- (it starts at most one level above it and ends at most ZONE_BELOW below
---- it), or nil.
+--- The unfinished guide with the biggest part on this map among those that
+--- suit the level (it starts at most one level above it and ends at most
+--- ZONE_BELOW below it), or nil. A guide that only passes through the zone
+--- (a few steps on the way out) loses to the zone's own guide.
 function Guide.forZone(list, level, mapID, finished)
+  local best, most = nil, 0
   for _, g in ipairs(list) do
     if g.min <= level + 1 and g.max >= level - Guide.ZONE_BELOW and Guide.covers(g, mapID)
-      and not (finished and finished(g)) then
-      return g
+      and not (finished and finished(g)) and stepsOn(g, mapID) > most then
+      best, most = g, stepsOn(g, mapID)
     end
   end
-  return nil
+  return best
 end
 
 --- The guide to follow: the one chosen by name if it still exists; else

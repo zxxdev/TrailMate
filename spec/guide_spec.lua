@@ -69,8 +69,8 @@ describe("Guide", function()
 
   it("picks the guide for the zone the player is in (the user's case: level 36 in Stranglethorn)", function()
     local list = Guide.list(ns.GUIDES, hunter)
-    -- By level alone, 36 goes to Desolace.
-    assert.equals("36-39 Desolace", Guide.pick(list, 36).name)
+    -- By level alone, 36 goes on to the next guide in the order.
+    assert.equals("34-35 Dalaran City", Guide.pick(list, 36).name)
     -- In Stranglethorn, the Stranglethorn guide (up to 3 levels below) wins.
     assert.equals("33-34 Stranglethorn Vale", Guide.pick(list, 36, nil, nil, 1434).name)
     -- Once it is finished, the next one with a part there.
@@ -80,7 +80,7 @@ describe("Guide", function()
     assert.are_not.equal("33-34 Stranglethorn Vale", nextHere.name)
     -- A zone with no guide for the level: by level, as before.
     assert.is_nil(Guide.forZone(list, 36, 999999))
-    assert.equals("36-39 Desolace", Guide.pick(list, 36, nil, nil, 999999).name)
+    assert.equals("34-35 Dalaran City", Guide.pick(list, 36, nil, nil, 999999).name)
     -- A chosen guide still wins.
     assert.equals("36-39 Desolace", Guide.pick(list, 36, "36-39 Desolace", nil, 1434).name)
   end)
