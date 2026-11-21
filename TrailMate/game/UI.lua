@@ -209,6 +209,19 @@ function UI.setShown(shown)
   UI.frame:SetShown(shown)
 end
 
+--- Steps aside for a while (in a dungeon with nothing to do there) without
+--- changing the player's choice to show or hide the window.
+function UI.setAway(away)
+  if not UI.frame then
+    return
+  end
+  if away or UI.saved.hidden then
+    UI.frame:Hide()
+  else
+    UI.frame:Show()
+  end
+end
+
 local function goldCounter(f)
   local g = ns.Theme.GOLD
   f.counter:SetTextColor(g[1], g[2], g[3])
@@ -255,6 +268,29 @@ function UI.renderTravel(lines, L)
   end
   setNext(f, rest)
   f.arrow:SetText(L["Back to the quests: /tm plan"])
+  setButtons(f, L, false)
+end
+
+--- Inside a dungeon with quests of the log to do there: { name, quests =
+--- { { name } } }. No arrow and no Done / Skip: the guide waits outside.
+function UI.renderDungeon(d, L)
+  local f = UI.frame
+  if not f then
+    return
+  end
+  f.title:SetText(d.name)
+  f.counter:SetText(L["Dungeon"])
+  goldCounter(f)
+  setStepLook(f, "complete")
+  local names = {}
+  for _, q in ipairs(d.quests) do
+    names[#names + 1] = q.name
+  end
+  f.step:SetText(L["Do here: %s"]:format(table.concat(names, ", ")))
+  f.why:SetText(L["The guide waits outside."])
+  f.why:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.muted))
+  setNext(f, {})
+  f.arrow:SetText("")
   setButtons(f, L, false)
 end
 

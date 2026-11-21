@@ -114,7 +114,31 @@ local function stepTarget(step)
   return nil
 end
 
+-- Inside a dungeon: { name, quests } (the quests of the log to do in there),
+-- or nil outside. Worked out on each refresh.
+local inDungeon
+
+local function dungeonHere()
+  local inside, name, mapID = Api.dungeon()
+  if not inside then
+    return nil
+  end
+  local d = ns.Dungeons.here(ns.DUNGEONS, mapID, name)
+  local log = {}
+  for _, q in ipairs(Api.questLog()) do
+    log[q.questID] = { complete = q.complete }
+  end
+  return { name = d and d.name or name or "?", quests = ns.Dungeons.toDoHere(d, log) }
+end
+
 local function updateTarget(force)
+  -- In a dungeon the arrow has nothing to point at: the game gives no place
+  -- inside, and the guide's next step is outside.
+  ns.Arrow.setAway(inDungeon ~= nil)
+  if inDungeon then
+    ns.ItemButton.set(nil)
+    return
+  end
   if detour then
     ns.Arrow.setTarget(detour.target, detour.label, detour.item and L["Click the item to use it"])
     ns.ItemButton.set(detour.item)
@@ -189,6 +213,15 @@ local advanceGuide -- a guide is finished: go on to the next one
 
 -- The step window shows the trip while travelling to a chosen zone.
 local function render()
+  -- In a dungeon: the window shows the quests to do in there, or steps
+  -- aside when there are none (the guide waits outside).
+  ns.UI.setAway(inDungeon ~= nil and #inDungeon.quests == 0)
+  if inDungeon then
+    if #inDungeon.quests > 0 then
+      ns.UI.renderDungeon(inDungeon, L)
+    end
+    return
+  end
   if detour and detour.zone then
     ns.UI.renderTravel(travelLines, L)
   elseif detour and detour.marked then
@@ -218,6 +251,11 @@ local function updateMarked()
 end
 
 local function refresh()
+  local wasInDungeon = inDungeon ~= nil
+  inDungeon = dungeonHere()
+  if wasInDungeon ~= (inDungeon ~= nil) then
+    arrowStep = false -- in or out of a dungeon: the arrow is set again
+  end
   if detour and detour.marked then
     updateMarked()
   end

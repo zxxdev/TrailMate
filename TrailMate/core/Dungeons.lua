@@ -146,3 +146,28 @@ end
 function Dungeons.isDungeon(plan)
   return type(plan) == "table" and type(plan.id) == "string" and plan.id:find("^dungeon%-") ~= nil
 end
+
+--- The dungeon whose inside map is mapID, or the one called name (the
+--- game's instance name, when the map is not known), or nil.
+function Dungeons.here(list, mapID, name)
+  for _, d in ipairs(list or {}) do
+    if (mapID and d.inside == mapID) or (name and d.name == name) then
+      return d
+    end
+  end
+  return nil
+end
+
+--- The quests of this dungeon in the quest log ({ [questID] = { complete } })
+--- with something still to do inside: { { q, name } }. Handed in or done
+--- ones are not listed (they are done outside).
+function Dungeons.toDoHere(d, questLog)
+  local out = {}
+  for _, q in ipairs(d and d.quests or {}) do
+    local entry = questLog and questLog[q.q]
+    if entry and not entry.complete then
+      out[#out + 1] = { q = q.q, name = q.name }
+    end
+  end
+  return out
+end
