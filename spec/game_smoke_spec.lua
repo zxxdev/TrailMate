@@ -407,6 +407,14 @@ describe("addon smoke test", function()
     assert.equals("Hacer: Lobos", arrow.label.shown_text)
     _G.SlashCmdList.TRAILMATE("flecha no")
     assert.is_false(arrow.visible)
+    -- Lost off screen? Back to the middle (and on again), remembered.
+    _G.SlashCmdList.TRAILMATE("flecha centro")
+    assert.same({ "CENTER", "CENTER", 0, 60 }, { _G.TrailMateCharDB.arrow.point, _G.TrailMateCharDB.arrow.relPoint,
+      _G.TrailMateCharDB.arrow.x, _G.TrailMateCharDB.arrow.y })
+    assert.is_false(_G.TrailMateCharDB.arrow.disabled)
+    assert.matches("Flecha colocada en el centro de la pantalla", output())
+    _G.SlashCmdList.TRAILMATE("flecha arriba")
+    assert.equals("TOP", _G.TrailMateCharDB.arrow.point)
   end)
 
   it("adds quest givers shown on the map and rebuilds when a new quest is accepted", function()

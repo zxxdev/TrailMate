@@ -42,6 +42,8 @@ function Options.create(L, actions)
     { "Open the TrailMate panel", actions.panel, true },
     { "Show or hide the step window", actions.steps },
     { "Show or hide the minimap button", actions.minimap },
+    { "Arrow to the top of the screen", actions.arrowTop },
+    { "Arrow to the middle of the screen", actions.arrowCenter },
     { "Commands in the chat (/tm help)", actions.help, true },
   }
   local last

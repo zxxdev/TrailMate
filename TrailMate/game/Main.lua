@@ -1261,6 +1261,7 @@ local HELP = {
   { "/tm tracking on|off  (rastreos si|no)", "Skip hunter tracking spells" },
   { "/tm reserve | reserva <gold>", "Gold the trainer advice never spends" },
   { "/tm arrow | flecha on|off", "Show or hide the arrow" },
+  { "/tm arrow | flecha top|center  (arriba|centro)", "Bring the arrow back to the top or the middle of the screen" },
   { "/tm trail | rastro on|off|show|export|clear", "Learn the ways you walk and follow them (dots on the map)" },
   { "/tm guide | guia [number|next|auto|off]", "Quest guides: list, choose one, or plan from your quest log" },
   { "/tm dungeon | mazmorra [number]", "Dungeons by level: list, or plan one (quests first, then the entrance)" },
@@ -1461,8 +1462,18 @@ alias({ "trail", "rastro" }, function(rest)
   say(L["Trails: %s, %d dots and %d joins learned."]:format(cdb.prefs.trails == false and L["off"] or L["on"],
     nodes, links))
 end)
+local ARROW_PLACES = { top = "top", arriba = "top", center = "center", centre = "center", centro = "center" }
+
 alias({ "arrow", "flecha" }, function(rest)
-  cdb.arrow.disabled = not yes(rest)
+  local where = ARROW_PLACES[(rest or ""):lower()]
+  if where then
+    -- Bring it back where it can be seen (and turn it on).
+    cdb.arrow.disabled = false
+    ns.Arrow.place(where)
+    say(where == "top" and L["Arrow moved to the top of the screen."] or L["Arrow moved to the middle of the screen."])
+  else
+    cdb.arrow.disabled = not yes(rest)
+  end
   ns.Arrow.update()
 end)
 alias({ "auto" }, function(rest)
@@ -1892,6 +1903,12 @@ handlers.ADDON_LOADED = function(name)
       ns.UI.setShown(cdb.ui.hidden == true)
     end,
     minimap = toggleMinimapButton,
+    arrowTop = function()
+      COMMANDS.arrow("top")
+    end,
+    arrowCenter = function()
+      COMMANDS.arrow("center")
+    end,
     help = COMMANDS.help,
     version = version,
   })

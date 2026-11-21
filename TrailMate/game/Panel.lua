@@ -58,6 +58,7 @@ local function buildRoute(page)
   local actions = {
     { "New route", "questlog" }, { "Skip step", "skip" }, { "Done", "done" }, { "Undo", "undo" },
     { "Back to plan", "plan" }, { "Clear route", "clear" },
+    { "Arrow to the top", "arrow top" }, { "Arrow to the middle", "arrow center" },
   }
   for i, a in ipairs(actions) do
     local b = ns.Theme.button(page, L[a[1]], 148, function()
@@ -65,7 +66,7 @@ local function buildRoute(page)
     end)
     b:SetPoint("TOPLEFT", 12 + ((i - 1) % 3) * 152, -8 - math.floor((i - 1) / 3) * 26)
   end
-  page.text = textArea(page, -64)
+  page.text = textArea(page, -90)
 end
 
 local function buildZones(page)
