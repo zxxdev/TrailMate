@@ -102,6 +102,9 @@ local esES = {
   ["Commands in the chat (/tm help)"] = "Órdenes en el chat (/tm ayuda)",
   ["Tip: /tm opens the panel; click a quest in your tracker and the arrow follows it."] =
     "Consejo: /tm abre el panel; haz clic en una misión del rastreador y la flecha la sigue.",
+  ["(Horde, Europe server)"] = "(Horda, servidor de Europa)",
+  ["TrailMate is free. To say thanks in the game, send gold or items by mail to %s."] =
+    "TrailMate es gratis. Si quieres darme las gracias en el juego, envía oro u objetos por correo a %s.",
   ["Find TrailMate in Esc > Options > AddOns."] = "TrailMate está en Esc > Opciones > AddOns.",
   ["TrailMate's page in Esc > Options > AddOns"] = "La página de TrailMate en Esc > Opciones > AddOns",
   ["Route to %s (about %s):"] = "Viaje a %s (unos %s):",

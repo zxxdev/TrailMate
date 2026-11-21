@@ -177,6 +177,10 @@ Seen in the game with this alpha; each one has an issue on GitHub.
 
 [Azeroth Companion](https://github.com/nardo86/azeroth-companion) (MIT) pioneered the addon-plus-desktop-app pattern for in-game AI chat. [Witchcraft](https://github.com/Geraldlol/witchcraft) (MIT) found how to carry messages both ways without a reload on this client; TrailMate's bridge takes that idea with its own code and gives the model no tools. TrailMate is a coach first, and works without any AI.
 
+## Thanks in the game
+
+TrailMate is free. If it helps you level and you want to say thanks in the game, gold or items by mail are welcome: **Zeus Volkanov**, Horde, on the Europe server of WoW Forever.
+
 ## License
 
 [MIT](LICENSE).
