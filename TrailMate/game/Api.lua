@@ -704,6 +704,18 @@ function Api.turnedIn(questID)
 end
 
 --- mapID, x, y of the player (x and y from 0 to 1). Any of them may be nil.
+--- Inside a dungeon or a raid: true, the instance's name, and the map the
+--- game shows there (may be nil). False elsewhere (battlegrounds too).
+function Api.dungeon()
+  local inside, kind = safe(IsInInstance)
+  if not (inside and (kind == "party" or kind == "raid")) then
+    return false
+  end
+  local name = safe(GetInstanceInfo)
+  local mapID = C_Map and C_Map.GetBestMapForUnit and safe(C_Map.GetBestMapForUnit, "player")
+  return true, type(name) == "string" and name or nil, type(mapID) == "number" and mapID or nil
+end
+
 function Api.position()
   if not (C_Map and C_Map.GetBestMapForUnit and C_Map.GetPlayerMapPosition) then
     return nil

@@ -253,6 +253,44 @@ describe("addon smoke test", function()
     assert.equals("Plan terminado.", window.step.shown_text)
   end)
 
+  it("steps aside in a dungeon with nothing to do there, and shows what is (the user's case)", function()
+    _G.SlashCmdList.TRAILMATE("diario")
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.1)
+    local window, arrow = named.TrailMateFrame, named.TrailMateArrow
+    assert.equals("Hacer: Lobos", window.step.shown_text)
+    assert.is_true(arrow.visible)
+    -- Inside the Scarlet Monastery (map 302) with no quest of it in the log.
+    rawset(_G, "IsInInstance", function() return true, "party" end)
+    rawset(_G, "GetInstanceInfo", function() return "Scarlet Monastery" end)
+    finally(function()
+      rawset(_G, "IsInInstance", nil)
+      rawset(_G, "GetInstanceInfo", nil)
+      table.remove(quests, 3)
+    end)
+    _G.C_Map.GetBestMapForUnit = function() return 302 end
+    fire("PLAYER_ENTERING_WORLD", false, false)
+    tick()
+    assert.is_false(window.visible)
+    assert.is_false(arrow.visible)
+    -- With one of its quests in the log: the window shows it, still no arrow.
+    quests[3] = { questID = 1051, title = "Vorrel's Revenge", isHeader = false }
+    fire("QUEST_LOG_UPDATE")
+    tick()
+    assert.is_true(window.visible)
+    assert.equals("Hacer aquí: Vorrel's Revenge", window.step.shown_text)
+    assert.equals("Mazmorra", window.counter.shown_text)
+    assert.is_false(arrow.visible)
+    -- Out again: the guide's step and its arrow are back.
+    rawset(_G, "IsInInstance", function() return false end)
+    _G.C_Map.GetBestMapForUnit = function() return 1429 end
+    fire("PLAYER_ENTERING_WORLD", false, false)
+    tick()
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.1)
+    assert.is_true(window.visible)
+    assert.equals("Hacer: Lobos", window.step.shown_text)
+    assert.is_true(arrow.visible)
+  end)
+
   it("highlights the current quest in the log and on the map, and cleans up after itself", function()
     _G.SlashCmdList.TRAILMATE("diario")
     assert.equals(10, superTracked)

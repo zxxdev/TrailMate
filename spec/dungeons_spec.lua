@@ -29,6 +29,19 @@ describe("Dungeons", function()
     return out
   end
 
+  it("knows which dungeon the player is in and what of the quest log is done there (the user's case)", function()
+    local sm = Dungeons.here(data, 302)
+    assert.equals("Scarlet Monastery", sm.name)
+    assert.equals(sm, Dungeons.here(data, nil, "Scarlet Monastery")) -- by the instance's name
+    assert.is_nil(Dungeons.here(data, 1434, "Somewhere else"))
+    -- In the monastery with Stranglethorn quests only: nothing to do here.
+    assert.same({}, Dungeons.toDoHere(sm, { [201] = { complete = false } }))
+    -- One of its quests to do, one already done (handed in outside).
+    local here = Dungeons.toDoHere(sm, { [1051] = { complete = false }, [1113] = { complete = true } })
+    assert.same({ { q = 1051, name = "Vorrel's Revenge" } }, here)
+    assert.same({}, Dungeons.toDoHere(nil, { [1051] = {} })) -- an unknown dungeon
+  end)
+
   it("has every 1-60 dungeon with an entrance and the level of its enemies", function()
     assert.equals(19, #data)
     for _, d in ipairs(data) do

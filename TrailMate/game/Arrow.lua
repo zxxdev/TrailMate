@@ -81,6 +81,15 @@ function Arrow.place(where)
   return true
 end
 
+--- Hides the arrow for a while (in a dungeon) without changing the
+--- player's choice to show it.
+function Arrow.setAway(away)
+  if Arrow.away ~= away then
+    Arrow.away = away
+    Arrow.update()
+  end
+end
+
 --- Points the arrow at target ({ mapID, x, y }) with a label, or hides it.
 --- note: what to say when there is no place to point at (nil: "not known").
 function Arrow.setTarget(target, label, note)
@@ -144,7 +153,7 @@ function Arrow.update()
   end
   local target = Arrow.target
   local pin = ns.MinimapPin
-  if Arrow.saved.disabled or not (target or Arrow.labelText) then
+  if Arrow.saved.disabled or Arrow.away or not (target or Arrow.labelText) then
     f:Hide()
     pin.hide()
     return
