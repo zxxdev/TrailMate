@@ -8,7 +8,17 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 
 **It needs no other addon.** The arrow, the minimap and world map marks, the guides and the travel planner are all its own. Other addons can stay installed; TrailMate does not use them.
 
-> **Status: alpha (0.2.0-alpha).** It is played and tested on one character, a Horde hunter between levels 33 and 35, so expect rough edges: see [Known issues](#known-issues). Reports and pull requests are welcome, in English or Spanish ([CONTRIBUTING.md](CONTRIBUTING.md)). Not affiliated with Blizzard Entertainment.
+> **Status: alpha (0.2.0-alpha).** It is played and tested on one character, a Horde hunter between levels 33 and 36, so expect rough edges: see [Known issues](#known-issues). Reports and pull requests are welcome, in English or Spanish ([CONTRIBUTING.md](CONTRIBUTING.md)). Not affiliated with Blizzard Entertainment.
+
+## Screenshots
+
+| The step window, following a guide | The arrow, with the distance |
+|---|---|
+| ![The step window: the guide for Stranglethorn Vale, 83 of 91 steps done, the current step and the next ones, and the Undo, Done and Skip buttons](docs/images/step-window.png) | ![The arrow pointing at the next step, 1.9 km away](docs/images/arrow.png) |
+| **On a trip: the hearthstone first** | **The button to use it, under the arrow** |
+| ![The step window on a trip to Stranglethorn Vale: use your hearthstone, then walk](docs/images/trip-window.png) | ![The hearthstone button under the arrow's text](docs/images/hearthstone-button.png) |
+| **On the minimap, like other addons' buttons** | |
+| ![The TrailMate button with the paw on the edge of the minimap](docs/images/minimap-button.png) | |
 
 ## What it does today
 
@@ -143,7 +153,6 @@ lua tools/make_pin.lua     # media/Pin.tga: the map pin
 ## Roadmap
 
 - TrailMate deciding by itself what to do next (the quest database, your quest log and the AI companion), with the guides as optional help.
-- Screenshots.
 - More companions (ChatGPT through its own CLI), and the companion proposing plans as validated data.
 - Measured accuracy and cost of the advice.
 

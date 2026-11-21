@@ -8,7 +8,19 @@ Un entrenador de subida de nivel para **World of Warcraft: Forever** (versión 1
 
 **No necesita ningún otro addon.** La flecha, las marcas del minimapa y del mapa del mundo, las guías y el planificador de viajes son suyos. Puedes tener otros addons instalados; TrailMate no los usa.
 
-> **Estado: alfa (0.2.0-alpha).** Se juega y se prueba con un solo personaje, un cazador de la Horda entre los niveles 33 y 35, así que habrá cosas por pulir: mira los [problemas conocidos](#problemas-conocidos). Los avisos de fallos y las pull requests son bienvenidos, en inglés o en español ([CONTRIBUTING.es.md](CONTRIBUTING.es.md)). Sin relación con Blizzard Entertainment.
+> **Estado: alfa (0.2.0-alpha).** Se juega y se prueba con un solo personaje, un cazador de la Horda entre los niveles 33 y 36, así que habrá cosas por pulir: mira los [problemas conocidos](#problemas-conocidos). Los avisos de fallos y las pull requests son bienvenidos, en inglés o en español ([CONTRIBUTING.es.md](CONTRIBUTING.es.md)). Sin relación con Blizzard Entertainment.
+
+## Capturas
+
+| La ventana de pasos, siguiendo una guía | La flecha, con la distancia |
+|---|---|
+| ![La ventana de pasos: la guía de Tuercespina, 83 de 91 pasos hechos, el paso actual y los siguientes, y los botones Deshacer, Hecho y Saltar](docs/images/step-window.png) | ![La flecha apuntando al siguiente paso, a 1,9 km](docs/images/arrow.png) |
+| **De viaje: primero la piedra de hogar** | **El botón para usarla, bajo la flecha** |
+| ![La ventana de pasos en un viaje a Tuercespina: usa tu piedra de hogar y luego camina](docs/images/trip-window.png) | ![El botón de la piedra de hogar bajo el texto de la flecha](docs/images/hearthstone-button.png) |
+| **En el minimapa, como los botones de otros addons** | |
+| ![El botón de TrailMate con la huella en el borde del minimapa](docs/images/minimap-button.png) | |
+
+Las capturas son del juego en inglés; con el cliente en español, el addon habla en español.
 
 ## Qué hace hoy
 
@@ -143,7 +155,6 @@ lua tools/make_pin.lua     # media/Pin.tga: el alfiler del mapa
 ## Próximos pasos
 
 - Que TrailMate decida por sí mismo qué hacer (la base de datos de misiones, tu diario y el compañero de IA), con las guías como ayuda opcional.
-- Capturas.
 - Más compañeros (ChatGPT con su propio programa de terminal), y que el compañero proponga planes como datos validados.
 - Medir el acierto y el coste de los consejos.
 
