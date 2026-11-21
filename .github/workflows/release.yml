@@ -95,8 +95,13 @@ jobs:
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
         run: |
-          pre=""
-          case "$VERSION" in *-*) pre="--prerelease" ;; esac
+          # A normal release even for an alpha (its name says so): GitHub
+          # shows only a normal release as the latest on the repository's
+          # front page. A new tag becomes the latest; an older one released
+          # by hand does not take its place.
+          latest="--latest"
+          if [ "$EVENT" = "workflow_dispatch" ]; then latest="--latest=false"; fi
           gh release create "$TAG" "dist/$ADDON-$VERSION.zip" dist/trailmate-bridge.exe \
-            --title "$ADDON $VERSION" --notes-file notes.md --verify-tag $pre
+            --title "$ADDON $VERSION" --notes-file notes.md --verify-tag "$latest"
