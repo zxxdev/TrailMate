@@ -81,7 +81,9 @@ local esES = {
   ["Back to the guide"] = "Volver a la guía",
   ["Back to the route"] = "Volver a la ruta",
   ["Your marked quest"] = "Tu misión marcada",
-  ["Waiting in the guide: %s"] = "Te espera en la guía: %s",
+  ["Next in the guide - %s"] = "Siguiente en la guía - %s",
+  ["Guide paused"] = "Guía en pausa",
+  ["Route paused"] = "Ruta en pausa",
   ["Arrow on the quest you marked: %s. The guide waits."] =
     "Flecha a la misión que has marcado: %s. La guía te espera.",
   ["Your marked quest is no longer in the log: back to the guide."] =

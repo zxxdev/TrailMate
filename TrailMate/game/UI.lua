@@ -101,7 +101,12 @@ function UI.create(saved)
   f.icon:SetSize(18, 18)
   f.icon:SetPoint("TOPLEFT", 14, -40)
   f.step = text(f, "GameFontHighlight", 36, -42)
+  f.step:SetMaxLines(2)
+  -- Under the step text, so a long quest name never runs over it.
   f.why = text(f, "GameFontNormalSmall", 36, -62)
+  f.why:ClearAllPoints()
+  f.why:SetPoint("TOPLEFT", f.step, "BOTTOMLEFT", 0, -6)
+  f.why:SetMaxLines(2)
   f.why:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.warning))
   -- The next steps: click one to do it now instead.
   f.rows = {}
@@ -187,6 +192,11 @@ function UI.setShown(shown)
   UI.frame:SetShown(shown)
 end
 
+local function goldCounter(f)
+  local g = ns.Theme.GOLD
+  f.counter:SetTextColor(g[1], g[2], g[3])
+end
+
 local function setButtons(f, L, visible)
   f.done:SetText(L["Done"])
   f.skip:SetText(L["Skip"])
@@ -215,6 +225,7 @@ function UI.renderTravel(lines, L)
   end
   f.title:SetText(L["Travel"])
   f.counter:SetText(L["Travel"])
+  goldCounter(f)
   setStepLook(f, "goto")
   f.step:SetText(lines[2] and (lines[2]:gsub("^%- ", "")) or (lines[1] or ""))
   f.why:SetText(lines[1] or "")
@@ -237,10 +248,11 @@ function UI.renderMarked(marked, waiting, guide, L)
     return
   end
   f.title:SetText(L["Your marked quest"])
-  f.counter:SetText("")
+  f.counter:SetText(guide and L["Guide paused"] or L["Route paused"])
+  f.counter:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.muted))
   setStepLook(f, marked.kind or "complete")
   f.step:SetText(marked.label or "")
-  f.why:SetText(waiting and L["Waiting in the guide: %s"]:format(waiting) or "")
+  f.why:SetText(waiting and L["Next in the guide - %s"]:format(waiting) or "")
   f.why:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.muted))
   setNext(f, {})
   f.arrow:SetText("")
@@ -256,6 +268,7 @@ function UI.render(plan, current, statuses, L, arrowMethod)
     return
   end
   f.title:SetText(plan and plan.title or "TrailMate")
+  goldCounter(f)
   f.why:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.warning))
   if not plan or not current then
     local empty = L["No plan loaded. Type /tm questlog to build one from your quest log."]
