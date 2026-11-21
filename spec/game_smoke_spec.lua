@@ -262,13 +262,14 @@ describe("addon smoke test", function()
   end)
 
   it("follows a quest the player marks, with a button back to the route (the user's case)", function()
-    _G.C_QuestLog.GetQuestsOnMap = function()
-      return { { questID = 10, x = 0.3, y = 0.3 }, { questID = 11, x = 0.6, y = 0.6 } }
-    end
     _G.C_SuperTrack.GetSuperTrackedQuestID = function() return superTracked end
     _G.SlashCmdList.TRAILMATE("diario")
     local window = named.TrailMateFrame
     assert.equals("Hacer: Lobos", window.step.shown_text)
+    -- Jabalies shows on the map once the route is made (it stays out of it).
+    _G.C_QuestLog.GetQuestsOnMap = function()
+      return { { questID = 10, x = 0.3, y = 0.3 }, { questID = 11, x = 0.6, y = 0.6 } }
+    end
     -- TrailMate's own choice (Lobos) is not the player's mark.
     fire("SUPER_TRACKING_CHANGED")
     assert.equals("Hacer: Lobos", window.step.shown_text)
