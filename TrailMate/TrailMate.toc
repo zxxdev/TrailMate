@@ -2,7 +2,7 @@
 ## Title: |cff9b7bd4TrailMate|r
 ## Notes: Leveling coach: a route that decides, an arrow, trainer and vendor advice. Advises, never plays.
 ## Author: zxxdev
-## Version: 0.2.2-alpha
+## Version: 0.3.0-alpha
 ## X-License: MIT
 ## X-Curse-Project-ID: 1821539
 ## IconTexture: Interface\AddOns\TrailMate\media\Icon
