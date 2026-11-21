@@ -179,6 +179,10 @@ Vistos en el juego con esta alfa; cada uno tiene su issue en GitHub.
 
 [Azeroth Companion](https://github.com/nardo86/azeroth-companion) (MIT) abrió el camino de un addon más un programa de escritorio para chatear con una IA dentro del juego. [Witchcraft](https://github.com/Geraldlol/witchcraft) (MIT) descubrió cómo llevar mensajes en los dos sentidos sin recargar en este cliente; el puente de TrailMate toma esa idea con código propio y no le da herramientas al modelo. TrailMate es ante todo un entrenador, y funciona sin ninguna IA.
 
+## Darme las gracias en el juego
+
+TrailMate es gratis. Si te ayuda a subir de nivel y quieres darme las gracias en el juego, se agradece oro u objetos por correo a **Zeus Volkanov**, de la Horda, en el servidor de Europa de WoW Forever.
+
 ## Licencia
 
 [MIT](LICENSE).

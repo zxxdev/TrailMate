@@ -68,6 +68,12 @@ function Options.create(L, actions)
   tip:SetWidth(W - 32)
   tip:SetTextColor(Theme.rgb(Theme.COLORS.muted))
   tip:SetText(L["Tip: /tm opens the panel; click a quest in your tracker and the arrow follows it."])
+  -- The author's character, for a thanks in the game (the author asked for it).
+  local thanks = Theme.label(f, "GameFontHighlightSmall")
+  thanks:SetPoint("TOPLEFT", tip, "BOTTOMLEFT", 0, -16)
+  thanks:SetWidth(W - 32)
+  thanks:SetText(L["TrailMate is free. To say thanks in the game, send gold or items by mail to %s."]
+    :format("Zeus Volkanov " .. L["(Horde, Europe server)"]))
 
   if Settings and Settings.RegisterCanvasLayoutCategory and Settings.RegisterAddOnCategory then
     local ok, category = pcall(Settings.RegisterCanvasLayoutCategory, f, "TrailMate")
