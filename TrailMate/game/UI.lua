@@ -91,8 +91,9 @@ function UI.create(saved)
   ns.Theme.movable(f, saved)
   ns.Theme.panel(f)
   local _, title = ns.Theme.header(f, "TrailMate", 28)
-  title:SetWidth(WIDTH - 110)
+  title:SetWidth(WIDTH - 150)
   title:SetJustifyH("LEFT")
+  title:SetMaxLines(1)
   f.title = title
   f.counter = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   f.counter:SetPoint("TOPRIGHT", -14, -15)
@@ -122,6 +123,7 @@ function UI.create(saved)
     b.label:SetPoint("LEFT", 2, 0)
     b.label:SetWidth(WIDTH - 32)
     b.label:SetJustifyH("LEFT")
+    b.label:SetMaxLines(1)
     b.label:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.muted))
     b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
     b:SetScript("OnClick", function(self)
@@ -142,7 +144,7 @@ function UI.create(saved)
     run("undo")
   end)
   f.undo:SetSize(72, 20)
-  f.undo:SetPoint("BOTTOMLEFT", 12, 10)
+  f.undo:SetPoint("BOTTOMLEFT", 14, 10)
   f.chips = {}
   for i = 1, CHIPS do
     f.chips[i] = chip(f, i)
@@ -284,7 +286,14 @@ function UI.render(plan, current, statuses, L, arrowMethod)
   if not f then
     return
   end
-  f.title:SetText(plan and plan.title or "TrailMate")
+  -- Say what is being followed: a guide, or TrailMate's own route.
+  local title = plan and plan.title or "TrailMate"
+  if plan and ns.Guide.isGuide(plan) then
+    title = L["Guide: %s"]:format(title)
+  elseif plan then
+    title = L["Route: %s"]:format(title)
+  end
+  f.title:SetText(title)
   goldCounter(f)
   f.why:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.warning))
   if not plan or not current then
@@ -299,7 +308,15 @@ function UI.render(plan, current, statuses, L, arrowMethod)
     return
   end
   local step = plan.steps[current]
-  f.counter:SetText(L["Step %d of %d"]:format(current, #plan.steps))
+  -- How far along: steps done or skipped, not the place of the current one
+  -- (a step chosen from the list would make that look further than it is).
+  local passed = 0
+  for i = 1, #plan.steps do
+    if statuses and (statuses[i] == "done" or statuses[i] == "skipped") then
+      passed = passed + 1
+    end
+  end
+  f.counter:SetText(L["%d of %d done"]:format(passed, #plan.steps))
   setStepLook(f, step.type)
   f.step:SetText(step.text)
   f.why:SetText(step.why or "")
