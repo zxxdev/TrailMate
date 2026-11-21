@@ -311,6 +311,36 @@ describe("addon smoke test", function()
     assert.matches("ya no está en el diario", output())
   end)
 
+  it("has its page in Esc > Options > AddOns, and hides the minimap button when asked", function()
+    install()
+    rawset(_G, "TrailMateDB", nil)
+    rawset(_G, "TrailMateCharDB", nil)
+    local seen = {}
+    rawset(_G, "Settings", {
+      RegisterCanvasLayoutCategory = function(frame, name)
+        seen.frame, seen.name = frame, name
+        return { GetID = function() return 7 end }
+      end,
+      RegisterAddOnCategory = function(category) seen.category = category end,
+      OpenToCategory = function(id) seen.opened = id end,
+    })
+    rawset(_G, "Minimap", fakeObject("Minimap"))
+    finally(function()
+      rawset(_G, "Settings", nil)
+      rawset(_G, "Minimap", nil)
+    end)
+    loadAddon()
+    fire("ADDON_LOADED", "TrailMate")
+    assert.equals("TrailMate", seen.name)
+    assert.is_table(seen.category)
+    _G.SlashCmdList.TRAILMATE("opciones")
+    assert.equals(7, seen.opened)
+    _G.SlashCmdList.TRAILMATE("minimapa")
+    assert.is_true(_G.TrailMateCharDB.minimap.hidden)
+    _G.SlashCmdList.TRAILMATE("minimapa")
+    assert.is_false(_G.TrailMateCharDB.minimap.hidden)
+  end)
+
   it("rebuilds an automatic plan on login and explains the route", function()
     _G.SlashCmdList.TRAILMATE("diario")
     local saved = _G.TrailMateCharDB

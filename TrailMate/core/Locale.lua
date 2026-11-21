@@ -88,6 +88,18 @@ local esES = {
     "Flecha a la misión que has marcado: %s. La guía te espera.",
   ["Your marked quest is no longer in the log: back to the guide."] =
     "Tu misión marcada ya no está en el diario: vuelves a la guía.",
+  ["Version %s"] = "Versión %s",
+  ["Leveling coach: a route that decides, an arrow, trainer and vendor advice. Advises, never plays."] =
+    "Entrenador para subir de nivel: una ruta que decide, una flecha y consejos de instructor y vendedor. "
+    .. "Aconseja, nunca juega.",
+  ["Open the TrailMate panel"] = "Abrir el panel de TrailMate",
+  ["Show or hide the step window"] = "Mostrar u ocultar la ventana de pasos",
+  ["Show or hide the minimap button"] = "Mostrar u ocultar el botón del minimapa",
+  ["Commands in the chat (/tm help)"] = "Órdenes en el chat (/tm ayuda)",
+  ["Tip: /tm opens the panel; click a quest in your tracker and the arrow follows it."] =
+    "Consejo: /tm abre el panel; haz clic en una misión del rastreador y la flecha la sigue.",
+  ["Find TrailMate in Esc > Options > AddOns."] = "TrailMate está en Esc > Opciones > AddOns.",
+  ["TrailMate's page in Esc > Options > AddOns"] = "La página de TrailMate en Esc > Opciones > AddOns",
   ["Route to %s (about %s):"] = "Viaje a %s (unos %s):",
   ["Use your hearthstone (%s)."] = "Usa tu piedra de hogar (%s).",
   ["Fly from %s to %s."] = "Vuela de %s a %s.",

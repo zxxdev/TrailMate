@@ -43,6 +43,7 @@ game\MapTrail.lua
 game\MinimapPin.lua
 game\MinimapButton.lua
 game\Panel.lua
+game\Options.lua
 game\TalentPreview.lua
 game\TalentPanel.lua
 game\Chat.lua

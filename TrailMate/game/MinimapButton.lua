@@ -35,22 +35,17 @@ function MinimapButton.create(saved, L, onLeft, onRight)
   b:SetFrameLevel(8)
   b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
   b:RegisterForDrag("LeftButton")
-  b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
-
-  -- A dark disc behind the icon, so the map never shows through it.
-  local disc = b:CreateTexture(nil, "BACKGROUND")
-  disc:SetSize(24, 24)
-  disc:SetPoint("CENTER", b, "CENTER", 0, 0)
-  disc:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+  -- The icon is a whole badge (dark face, gold ring, dark outline), drawn
+  -- at 256 pixels, so it needs no border from the game.
   local icon = b:CreateTexture(nil, "ARTWORK")
-  icon:SetSize(18, 18)
-  icon:SetPoint("CENTER", b, "CENTER", 0, 0)
+  icon:SetAllPoints()
   ns.Theme.useIcon(icon)
-  icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-  local border = b:CreateTexture(nil, "OVERLAY")
-  border:SetSize(53, 53)
-  border:SetPoint("TOPLEFT")
-  border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+  -- Under the mouse the same picture lights up a little.
+  local glow = b:CreateTexture(nil, "HIGHLIGHT")
+  glow:SetAllPoints()
+  ns.Theme.useIcon(glow)
+  glow:SetBlendMode("ADD")
+  glow:SetAlpha(0.3)
 
   saved.angle = saved.angle or 200
   place(b, saved.angle)

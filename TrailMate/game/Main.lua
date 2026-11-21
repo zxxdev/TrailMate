@@ -1260,6 +1260,8 @@ local HELP = {
   { "/tm companion | compañero claude|chatgpt|none", "Icon colour of your AI companion" },
   { "/tm auto on|off", "Rebuild the plan by itself when it ends" },
   { "/tm show | hide  (mostrar | ocultar)", "Show or hide the window" },
+  { "/tm minimap | minimapa", "Show or hide the minimap button" },
+  { "/tm options | opciones", "TrailMate's page in Esc > Options > AddOns" },
   { "/tm clear | borrar", "Remove the plan" },
   { "/tm diag", "What this client exposes (for bug reports)" },
   { "/tm test | selftest", "Run the self-test and write it to the log" },
@@ -1480,6 +1482,21 @@ end)
 alias({ "panel" }, function()
   ns.Panel.toggle()
 end)
+alias({ "options", "opciones" }, function()
+  if not ns.Options.open() then
+    say(L["Find TrailMate in Esc > Options > AddOns."])
+  end
+end)
+
+-- The minimap button: shown or hidden, remembered per character.
+local function toggleMinimapButton()
+  local b = ns.MinimapButton.button
+  cdb.minimap.hidden = not cdb.minimap.hidden
+  if b then
+    b:SetShown(not cdb.minimap.hidden)
+  end
+end
+alias({ "minimap", "minimapa" }, toggleMinimapButton)
 
 SLASH_TRAILMATE1 = "/tm"
 SLASH_TRAILMATE2 = "/trailmate"
@@ -1853,6 +1870,15 @@ handlers.ADDON_LOADED = function(name)
   guard("minimap button", ns.MinimapButton.create, cdb.minimap, L, ns.Panel.toggle, function()
     ns.UI.setShown(cdb.ui.hidden == true)
   end)
+  guard("options page", ns.Options.create, L, {
+    panel = ns.Panel.toggle,
+    steps = function()
+      ns.UI.setShown(cdb.ui.hidden == true)
+    end,
+    minimap = toggleMinimapButton,
+    help = COMMANDS.help,
+    version = version,
+  })
   guard("icon", ns.Theme.setCompanion, cdb.prefs.companion)
   guard("talent plan", ns.TalentPanel.init, cdb.talents, L)
   guard("talent plan", ns.TalentPanel.attach)
