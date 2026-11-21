@@ -46,7 +46,7 @@ Las capturas son del juego en inglés; con el cliente en español, el addon habl
 | Autotest | `/tm test` comprueba todo lo que se puede comprobar sin que hagas nada y escribe líneas PASS o FAIL en la pestaña Registro, listas para copiar. No cambia nada. |
 | Panel y registro | `/tm` o el botón del minimapa abre un panel con las pestañas Ruta, Zonas, Instructor, Bolsas y Registro. Todo lo que dice TrailMate se guarda en el registro, que puedes seleccionar y copiar. |
 
-El addon sale en el idioma de tu juego: español si el cliente está en español, y si no, en inglés.
+El addon sale en el idioma de tu juego: inglés y español (los idiomas en los que se prueba), y alemán, francés, italiano, portugués (Brasil), ruso, coreano y chino (simplificado y tradicional), traducidos con IA: se agradecen correcciones (mira [CONTRIBUTING.es.md](CONTRIBUTING.es.md)). Los nombres de misiones y personajes los da el propio juego; las notas de las guías siguen en inglés.
 
 ## Instalación
 

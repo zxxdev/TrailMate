@@ -29,6 +29,10 @@ cd bridge && gofmt -l . && go vet ./... && go test ./...
 
 La CI pasa las mismas comprobaciones, y una pull request solo se fusiona cuando pasan.
 
+## Corregir una traducción
+
+Los textos están en inglés en el código; el español está en `TrailMate/core/Locale.lua` y cada uno de los demás idiomas en `TrailMate/core/locales/` (`deDE.lua`, `frFR.lua`, `itIT.lua`, `ptBR.lua`, `ruRU.lua`, `koKR.lua`, `zhCN.lua`, `zhTW.lua`). Esos se tradujeron con IA, así que se agradece la mirada de alguien nativo: cambia el texto de la derecha, deja tal cual la clave en inglés de la izquierda y mantén sus `%s` y `%d` en el mismo orden (lo comprueba una prueba). Un texto que falte en un fichero sale en inglés.
+
 ## Las reglas del addon
 
 - **Aconseja, nunca juega.** Nada de pulsar teclas, moverse, comprar, vender ni gastar por el jugador.

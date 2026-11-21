@@ -44,7 +44,7 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 | Self-test | `/tm test` checks everything that can be checked without you doing anything and writes PASS or FAIL lines to the Log tab, ready to copy. It changes nothing. |
 | Panel and log | `/tm` or the minimap button opens a panel with Route, Zones, Trainer, Bags and Log tabs. Everything TrailMate says is kept in the log, which you can select and copy. |
 
-The addon speaks your game's language: Spanish when the client is in Spanish, English otherwise.
+The addon speaks your game's language: English and Spanish (the languages it is tested in), and German, French, Italian, Portuguese (Brazil), Russian, Korean and Chinese (simplified and traditional), translated with AI: corrections are welcome (see [CONTRIBUTING.md](CONTRIBUTING.md)). Quest and NPC names come from the game itself; the guides' own notes stay in English.
 
 ## Install
 
