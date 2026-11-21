@@ -2,6 +2,10 @@
 
 Each version has its release on GitHub with the addon (`TrailMate-<version>.zip`, to copy into `World of Warcraft/_forever_/Interface/AddOns/`) and the companion bridge for Windows (`trailmate-bridge.exe`, optional).
 
+## 0.2.2-alpha
+
+- In a dungeon, the arrow and the step window step aside: the guide's next step is outside. When the quest log has quests of that dungeon, the window lists them instead ("Do here: ..."). Leaving brings the guide back.
+
 ## 0.2.1-alpha
 
 - Fixed: the talent plan showed with the spellbook too. In this client they are one window with tabs; the plan now shows with the talents tab only.
