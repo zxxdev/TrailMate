@@ -32,12 +32,13 @@ describe("Geo", function()
     near(d, y)
     x = Geo.edgeOffset(10, 75, 75, "SQUARE")
     near(75, x) -- held to the right side
-    -- A corner shape is square only in its corner.
+    -- A minimap in the top-left corner of the screen is round only in its
+    -- top-left quarter (the names other addons use for the shapes).
     x = Geo.edgeOffset(135, 75, 75, "CORNER-TOPLEFT")
-    near(-((math.sqrt(2 * 75 * 75) - 10) * math.sqrt(2) / 2), x)
+    near(-75 * math.sqrt(2) / 2, x)
     x, y = Geo.edgeOffset(-45, 75, 75, "CORNER-TOPLEFT")
-    near(75 * math.sqrt(2) / 2, x)
-    near(-75 * math.sqrt(2) / 2, y)
+    near(d, x)
+    near(-d, y)
   end)
 
   it("measures yards with the map size", function()
