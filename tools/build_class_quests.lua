@@ -133,6 +133,82 @@ if listIds then
   return
 end
 
+-- The same step of a chain, once per capital: same name and a quest needed
+-- first in common (Call of Earth 1517 from Canaga Earthcaller, 1520 from
+-- Seer Ravenfeather and 92467 from Windshaper Boro all follow 1516). The
+-- database does not close one when another is taken, so taking one closes
+-- its siblings here. A quest that needs two of them at once would mean they
+-- are not the same step: the build stops then.
+local siblings, sibGroups = 0, {}
+for _, quests in pairs(byClass) do
+  -- Union-find over the quests of one name that share a quest needed first.
+  local parent = {}
+  local function root(q)
+    while parent[q] ~= q do
+      q = parent[q]
+    end
+    return q
+  end
+  local byNeed = {}
+  for _, q in ipairs(quests) do
+    parent[q] = q
+    for _, list in ipairs({ q.pre or {}, q.preAll or {} }) do
+      for _, p in ipairs(list) do
+        local key = q.name .. "|" .. p
+        if byNeed[key] then
+          parent[root(q)] = root(byNeed[key])
+        else
+          byNeed[key] = q
+        end
+      end
+    end
+  end
+  local groups = {}
+  for _, q in ipairs(quests) do
+    local r = root(q)
+    groups[r] = groups[r] or {}
+    table.insert(groups[r], q)
+  end
+  for _, group in pairs(groups) do
+    if #group > 1 then
+      local ids = {}
+      for _, q in ipairs(group) do
+        ids[#ids + 1] = q.q
+      end
+      table.sort(ids)
+      sibGroups[#sibGroups + 1] = group[1].name .. ": " .. table.concat(ids, ", ")
+      for _, q in ipairs(quests) do
+        local inGroup = 0
+        for _, p in ipairs(q.preAll or {}) do
+          for _, id in ipairs(ids) do
+            inGroup = inGroup + (p == id and 1 or 0)
+          end
+        end
+        assert(inGroup < 2, ("%d needs two of %s at once"):format(q.q, sibGroups[#sibGroups]))
+      end
+    end
+    for _, q in ipairs(group) do
+      local excl, seen = {}, {}
+      for _, id in ipairs(q.excl or {}) do
+        excl[#excl + 1], seen[id] = id, true
+      end
+      for _, other in ipairs(group) do
+        if other ~= q and not seen[other.q] then
+          excl[#excl + 1], seen[other.q] = other.q, true
+          siblings = siblings + 1
+        end
+      end
+      table.sort(excl)
+      q.excl = #excl > 0 and excl or nil
+    end
+  end
+end
+table.sort(sibGroups)
+for _, g in ipairs(sibGroups) do
+  print("  same step: " .. g)
+end
+print(("%d closings added between the same step in different capitals"):format(siblings))
+
 -- Output ------------------------------------------------------------------------
 
 local function quote(s)

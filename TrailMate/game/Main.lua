@@ -729,8 +729,10 @@ local function classContext(level, log)
   }
 end
 
-local function classQuests()
-  return ns.ClassQuests.forNow(classList(), classContext())
+-- level: the player's when nil (at a level up, the event's: UnitLevel may
+-- still say the old one).
+local function classQuests(level)
+  return ns.ClassQuests.forNow(classList(), classContext(level))
 end
 
 -- "Call of Fire (Kranal Fiss, The Barrens)".
@@ -770,8 +772,8 @@ end
 
 -- Says which class quests opened up, once each (after login and at each new
 -- level). The full list is always in /tm class.
-local function announceClassQuests()
-  local news = ns.ClassQuests.news((classQuests()), cdb.classQuestsSeen)
+local function announceClassQuests(level)
+  local news = ns.ClassQuests.news((classQuests(level)), cdb.classQuestsSeen)
   if #news == 0 then
     return
   end
@@ -2308,9 +2310,10 @@ handlers.PLAYER_LEVEL_UP = function(level)
   questChanged()
   if type(level) == "number" and cdb then
     remindAtLevel(level)
-    -- The game tells the new level before UnitLevel has it.
+    -- With the event's level: UnitLevel may not have it yet. A moment
+    -- later, so the quest log is up to date too.
     after(1, function()
-      guard("class quests", announceClassQuests)
+      guard("class quests", announceClassQuests, level)
     end)
   end
 end

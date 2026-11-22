@@ -176,6 +176,18 @@ describe("ClassQuests", function()
       assert.equals(6061, readyNames("HUNTER", 10, 6)["Taming the Beast"]) -- Tauren: Yaw Sharpmane
     end)
 
+    it("does not offer the same step from another capital while doing it (the reviewer's case)", function()
+      local orc = CQ.raceBit(2)
+      -- 1516 handed in, 1517 (Canaga) in the log: 1520 (Seer Ravenfeather,
+      -- same step in Thunder Bluff) is closed.
+      local ready = readyNames("SHAMAN", 4, 2, { [1516] = true })
+      assert.is_number(ready["Call of Earth"])
+      local doing = CQ.forNow(data.SHAMAN, ctx(4, orc, { [1516] = true }, { [1517] = true }))
+      assert.same({}, names(doing))
+      -- 1517 handed in too: the next step is 1518, not 1520.
+      assert.equals(1518, readyNames("SHAMAN", 4, 2, { [1516] = true, [1517] = true })["Call of Earth"])
+    end)
+
     it("keeps a troll shaman in the Valley of Trials for Call of Earth (the user's case)", function()
       -- In Durotar (1411): distances there, none to Zephras Isle (2521).
       local function inDurotar(q)
