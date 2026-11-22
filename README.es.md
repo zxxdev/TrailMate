@@ -8,7 +8,7 @@ Un entrenador de subida de nivel para **World of Warcraft: Forever** (versión 1
 
 **No necesita ningún otro addon.** La flecha, las marcas del minimapa y del mapa del mundo, las guías y el planificador de viajes son suyos. Puedes tener otros addons instalados; TrailMate no los usa.
 
-> **Estado: alfa (0.3.0-alpha).** Se juega y se prueba con un solo personaje, un cazador de la Horda entre los niveles 33 y 36, así que habrá cosas por pulir: mira los [problemas conocidos](#problemas-conocidos). Los avisos de fallos y las pull requests son bienvenidos, en inglés o en español ([CONTRIBUTING.es.md](CONTRIBUTING.es.md)). Sin relación con Blizzard Entertainment.
+> **Estado: beta (0.4.0-beta).** Se juega y se prueba sobre todo con un personaje, un cazador de la Horda entre los niveles 33 y 37; las misiones de clase se comprobaron además con un chamán trol de nivel 1. Habrá cosas por pulir: mira los [problemas conocidos](#problemas-conocidos). Los avisos de fallos y las pull requests son bienvenidos, en inglés o en español ([CONTRIBUTING.es.md](CONTRIBUTING.es.md)). Sin relación con Blizzard Entertainment.
 
 ## Capturas
 
@@ -163,7 +163,7 @@ lua tools/make_pin.lua     # media/Pin.tga: el alfiler del mapa
 
 ## Problemas conocidos
 
-Vistos en el juego con esta alfa; cada uno tiene su issue en GitHub.
+Vistos en el juego; cada uno tiene su issue en GitHub.
 
 - **La flecha sigue un camino andado antiguo.** Al salir de un sitio, puede seguir los puntos que grabó al entrar, y la vuelta se ve rara.
 - **Zonas de misión.** En una misión que se hace en una zona grande, la flecha apunta al centro de la zona: si te mueves un poco dentro, te pide volver al centro. Si la misma misión se puede hacer en otra zona, la flecha sigue apuntando a la primera.

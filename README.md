@@ -8,7 +8,7 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 
 **It needs no other addon.** The arrow, the minimap and world map marks, the guides and the travel planner are all its own. Other addons can stay installed; TrailMate does not use them.
 
-> **Status: alpha (0.3.0-alpha).** It is played and tested on one character, a Horde hunter between levels 33 and 36, so expect rough edges: see [Known issues](#known-issues). Reports and pull requests are welcome, in English or Spanish ([CONTRIBUTING.md](CONTRIBUTING.md)). Not affiliated with Blizzard Entertainment.
+> **Status: beta (0.4.0-beta).** It is played and tested mostly on one character, a Horde hunter between levels 33 and 37; the class quests were also checked on a level 1 troll shaman. Expect rough edges: see [Known issues](#known-issues). Reports and pull requests are welcome, in English or Spanish ([CONTRIBUTING.md](CONTRIBUTING.md)). Not affiliated with Blizzard Entertainment.
 
 ## Screenshots
 
@@ -161,7 +161,7 @@ lua tools/make_pin.lua     # media/Pin.tga: the map pin
 
 ## Known issues
 
-Seen in the game with this alpha; each one has an issue on GitHub.
+Seen in the game; each one has an issue on GitHub.
 
 - **The arrow follows an old walked path.** After leaving a place, it can keep following the dots recorded on the way in, and the way back looks odd.
 - **Quest areas.** For a quest done in a large area, the arrow points at the area's middle: moving a little inside the area asks you to go back to the middle. When the same quest can be done in another area, the arrow still points at the first one.
