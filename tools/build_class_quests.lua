@@ -181,16 +181,16 @@ for _, quests in pairs(byClass) do
   end
   for _, group in pairs(groups) do
     if #group > 1 then
-      local ids = {}
+      local members = {}
       for _, q in ipairs(group) do
-        ids[#ids + 1] = q.q
+        members[#members + 1] = q.q
       end
-      table.sort(ids)
-      sibGroups[#sibGroups + 1] = group[1].name .. ": " .. table.concat(ids, ", ")
+      table.sort(members)
+      sibGroups[#sibGroups + 1] = group[1].name .. ": " .. table.concat(members, ", ")
       for _, q in ipairs(quests) do
         local inGroup = 0
         for _, p in ipairs(q.preAll or {}) do
-          for _, id in ipairs(ids) do
+          for _, id in ipairs(members) do
             inGroup = inGroup + (p == id and 1 or 0)
           end
         end
