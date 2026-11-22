@@ -126,7 +126,8 @@ describe("ClassQuests", function()
 
     it("has every class, each quest once, with a level and a place to start", function()
       local seen = {}
-      for _, class in ipairs({ "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }) do
+      local classes = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
+      for _, class in ipairs(classes) do
         assert.is_true(#data[class] > 20, class)
         for _, q in ipairs(data[class]) do
           assert.is_nil(seen[q.q], "twice: " .. q.q)

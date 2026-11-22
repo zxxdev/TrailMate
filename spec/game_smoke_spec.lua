@@ -1016,6 +1016,7 @@ describe("addon smoke test", function()
     fire("PLAYER_LEVEL_UP", 10)
     -- The breadcrumbs from other trainers lead to it: only the quest itself.
     assert.matches("Misiones de clase para ti: Taming the Beast %(Thotar%)%. Escribe /tm clase para ir%.", output())
+    printed = {}
     fire("PLAYER_LEVEL_UP", 10)
     assert.is_nil(output():find("Misiones de clase para ti", 1, true))
     _G.SlashCmdList.TRAILMATE("clase")

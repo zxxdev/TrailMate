@@ -30,7 +30,9 @@ local MAX_LEVEL = 59
 
 -- Class quests Wowhead's Forever database does not have: its tooltip
 -- service said "not found" for these on 2026-11-22, of the ids --ids lists.
-local NOT_IN_FOREVER = {}
+local NOT_IN_FOREVER = {
+  [2358] = true, -- Horns of Nez'ra (rogue, Redridge)
+}
 
 local function hasBit(mask, bit)
   return math.floor(mask / bit) % 2 == 1
