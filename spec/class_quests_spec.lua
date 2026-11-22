@@ -108,6 +108,51 @@ describe("ClassQuests", function()
     assert.same({ "A 1", "B 2" }, names(CQ.news(ready, nil)))
   end)
 
+  describe("with the data of Forever", function()
+    local data
+
+    before_each(function()
+      assert(loadfile("TrailMate/data/ClassQuests.lua"))("TrailMate", ns)
+      data = ns.CLASS_QUESTS
+    end)
+
+    local function readyNames(class, level, raceID, done)
+      local out = {}
+      for _, q in ipairs((CQ.forNow(data[class], ctx(level, CQ.raceBit(raceID), done)))) do
+        out[q.name] = q.q
+      end
+      return out
+    end
+
+    it("has every class, each quest once, with a level and a place to start", function()
+      local seen = {}
+      for _, class in ipairs({ "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }) do
+        assert.is_true(#data[class] > 20, class)
+        for _, q in ipairs(data[class]) do
+          assert.is_nil(seen[q.q], "twice: " .. q.q)
+          seen[q.q] = true
+          assert.is_string(q.name)
+          assert.is_true(q.req >= 1 and q.req <= 59 and q.level <= 59, q.name)
+          assert.is_true(q.m > 0 and q.x >= 0 and q.x <= 1 and q.y >= 0 and q.y <= 1, q.name)
+        end
+      end
+    end)
+
+    it("gives each class the quests the user asked for", function()
+      -- Shaman totems: earth at 4 (a Tauren), fire at 10 (an Orc).
+      assert.is_number(readyNames("SHAMAN", 4, 6)["Call of Earth"])
+      assert.is_number(readyNames("SHAMAN", 10, 2)["Call of Fire"])
+      -- Warlock: the mount at 40.
+      assert.is_number(readyNames("WARLOCK", 40, 2)["Summon Felsteed"])
+      -- Paladin: resurrection at 12 (Human), Forever's undead paladin mount at 40.
+      assert.is_number(readyNames("PALADIN", 12, 1)["The Tome of Divinity"])
+      assert.equals(94971, readyNames("PALADIN", 40, 5)["A Paladin's Steed"])
+      -- Hunter: the first pet at 10, each race from its own trainer.
+      assert.equals(6062, readyNames("HUNTER", 10, 2)["Taming the Beast"]) -- Orc: Thotar
+      assert.equals(6061, readyNames("HUNTER", 10, 6)["Taming the Beast"]) -- Tauren: Yaw Sharpmane
+    end)
+  end)
+
   it("makes a valid plan: pick it up at the giver, do it, hand it in", function()
     local q = { q = 1525, name = "Call of Fire", level = 12, req = 10, m = 1413, x = 0.5, y = 0.4,
       npc = "Telf Joolam", tm = 1413, tx = 0.6, ty = 0.3, tnpc = "Telf Joolam" }
