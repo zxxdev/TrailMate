@@ -84,6 +84,29 @@ describe("ClassQuests", function()
     assert.same({ "Call of Fire 2", "Etched Note 1" }, names(ready))
   end)
 
+  it("waits a level or two for a nearer giver of the same quest", function()
+    local quests = {
+      { q = 1, name = "Call of Earth", level = 4, req = 3, m = 2 }, -- far away, opens at 3
+      { q = 2, name = "Call of Earth", level = 4, req = 4, m = 1 }, -- next door, opens at 4
+      { q = 3, name = "Call of Fire", level = 10, req = 3, m = 2 }, -- far, but no nearer one: offered
+    }
+    local yards = { [1] = 40 } -- map 2 is another continent: no distance
+    local function near(q)
+      return yards[q.m]
+    end
+    local ready, soon, soonLevel = CQ.forNow(quests, ctx(3, ORC, {}, {}, near))
+    assert.same({ "Call of Fire 3" }, names(ready))
+    assert.same({ "Call of Earth 2" }, names(soon))
+    assert.equals(4, soonLevel)
+    assert.same({ "Call of Fire 3", "Call of Earth 2" }, names((CQ.forNow(quests, ctx(4, ORC, {}, {}, near)))))
+    -- Too many levels to wait: the far one now.
+    quests[2].req = 3 + CQ.WAIT_LEVELS + 1
+    assert.same({ "Call of Fire 3", "Call of Earth 1" }, names((CQ.forNow(quests, ctx(3, ORC, {}, {}, near)))))
+    -- Without distances, what is open now.
+    quests[2].req = 4
+    assert.same({ "Call of Fire 3", "Call of Earth 1" }, names((CQ.forNow(quests, ctx(3, ORC)))))
+  end)
+
   it("goes straight to a quest when its breadcrumb is ready too", function()
     local quests = {
       { q = 1, name = "Heeding the Call", level = 10, req = 10, crumb = 2 },
@@ -151,6 +174,20 @@ describe("ClassQuests", function()
       -- Hunter: the first pet at 10, each race from its own trainer.
       assert.equals(6062, readyNames("HUNTER", 10, 2)["Taming the Beast"]) -- Orc: Thotar
       assert.equals(6061, readyNames("HUNTER", 10, 6)["Taming the Beast"]) -- Tauren: Yaw Sharpmane
+    end)
+
+    it("keeps a troll shaman in the Valley of Trials for Call of Earth (the user's case)", function()
+      -- In Durotar (1411): distances there, none to Zephras Isle (2521).
+      local function inDurotar(q)
+        return q.m == 1411 and 50 or nil
+      end
+      local troll = CQ.raceBit(8)
+      local ready, soon, soonLevel = CQ.forNow(data.SHAMAN, ctx(3, troll, {}, {}, inDurotar))
+      assert.same({}, ready)
+      assert.equals(4, soonLevel)
+      assert.same({ "Call of Earth 1516" }, names(soon)) -- Canaga Earthcaller
+      ready = CQ.forNow(data.SHAMAN, ctx(4, troll, {}, {}, inDurotar))
+      assert.same({ "Call of Earth 1516" }, names(ready))
     end)
   end)
 

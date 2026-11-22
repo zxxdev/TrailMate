@@ -75,6 +75,11 @@ function ClassQuests.status(q, ctx)
   return "ready"
 end
 
+-- A nearer version of a quest that opens this many levels later is worth
+-- the wait: a troll shaman takes Call of Earth in the Valley of Trials at
+-- 4, not on Zephras Isle at 3.
+ClassQuests.WAIT_LEVELS = 2
+
 -- One quest per name: the same step is often offered by several trainers
 -- (one per capital). Keeps the nearest when distance(q) gives yards, else
 -- the first.
@@ -97,6 +102,8 @@ end
 --- per name with the nearest giver, highest level first) and soon (the ones that open at
 --- the next level that brings any, with that level). quests: the class's
 --- list (ns.CLASS_QUESTS[class]); ctx as in status, plus distance(q).
+--- A ready quest waits when a nearer one of the same name opens within
+--- WAIT_LEVELS levels.
 function ClassQuests.forNow(quests, ctx)
   local ready, waiting, soonLevel = {}, {}, nil
   for _, q in ipairs(quests or {}) do
@@ -108,7 +115,24 @@ function ClassQuests.forNow(quests, ctx)
       soonLevel = math.min(soonLevel or q.req, q.req)
     end
   end
-  ready = oneByName(ready, ctx.distance)
+  -- Ready and soon-to-open quests compete by name: if the nearest is not
+  -- open yet, that name waits.
+  local candidates = {}
+  for _, q in ipairs(ready) do
+    candidates[#candidates + 1] = q
+  end
+  for _, q in ipairs(waiting) do
+    if q.req <= ctx.level + ClassQuests.WAIT_LEVELS then
+      candidates[#candidates + 1] = q
+    end
+  end
+  local open = {}
+  for _, q in ipairs(oneByName(candidates, ctx.distance)) do
+    if q.req <= ctx.level then
+      open[#open + 1] = q
+    end
+  end
+  ready = open
   -- A breadcrumb only leads to another quest: if that one can be picked up
   -- too, go straight to it.
   local readyIds, direct = {}, {}
