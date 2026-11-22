@@ -182,6 +182,10 @@ describe("ClassQuests", function()
         return q.m == 1411 and 50 or nil
       end
       local troll = CQ.raceBit(8)
+      -- At level 1, what comes next is Canaga's at 4, not the island's at 3.
+      local _, next1, level1 = CQ.forNow(data.SHAMAN, ctx(1, troll, {}, {}, inDurotar))
+      assert.equals(4, level1)
+      assert.same({ "Call of Earth 1516" }, names(next1))
       local ready, soon, soonLevel = CQ.forNow(data.SHAMAN, ctx(3, troll, {}, {}, inDurotar))
       assert.same({}, ready)
       assert.equals(4, soonLevel)

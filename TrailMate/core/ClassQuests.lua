@@ -98,21 +98,18 @@ local function oneByName(list, distance)
   return out
 end
 
---- The class quests for this character: ready (can be picked up now, one
---- per name with the nearest giver, highest level first) and soon (the ones that open at
---- the next level that brings any, with that level). quests: the class's
---- list (ns.CLASS_QUESTS[class]); ctx as in status, plus distance(q).
---- A ready quest waits when a nearer one of the same name opens within
---- WAIT_LEVELS levels.
-function ClassQuests.forNow(quests, ctx)
-  local ready, waiting, soonLevel = {}, {}, nil
+-- The quests to offer at ctx.level: one per name with the nearest giver;
+-- a name waits when its nearest giver opens within WAIT_LEVELS levels.
+-- Also returns the lowest level a waiting quest needs (or nil).
+local function offer(quests, ctx)
+  local ready, waiting, nextLevel = {}, {}, nil
   for _, q in ipairs(quests or {}) do
     local s = ClassQuests.status(q, ctx)
     if s == "ready" then
       ready[#ready + 1] = q
     elseif s == "level" then
       waiting[#waiting + 1] = q
-      soonLevel = math.min(soonLevel or q.req, q.req)
+      nextLevel = math.min(nextLevel or q.req, q.req)
     end
   end
   -- Ready and soon-to-open quests compete by name: if the nearest is not
@@ -151,13 +148,40 @@ function ClassQuests.forNow(quests, ctx)
     end
     return a.q < b.q
   end)
-  local soon = {}
-  for _, q in ipairs(waiting) do
-    if q.req == soonLevel then
-      soon[#soon + 1] = q
-    end
+  return direct, nextLevel
+end
+
+--- The class quests for this character: ready (can be picked up now, one
+--- per name with the nearest giver, highest level first), and soon with its
+--- level: what will be offered at the next level that brings anything new,
+--- by the same rules. quests: the class's list (ns.CLASS_QUESTS[class]);
+--- ctx as in status, plus distance(q).
+function ClassQuests.forNow(quests, ctx)
+  local ready, level = offer(quests, ctx)
+  local now = {}
+  for _, q in ipairs(ready) do
+    now[q.name] = true
   end
-  return direct, oneByName(soon, ctx.distance), soonLevel
+  -- Each later level where some quest opens, until one offers a new name.
+  while level do
+    local later = {}
+    for k, v in pairs(ctx) do
+      later[k] = v
+    end
+    later.level = level
+    local list, after = offer(quests, later)
+    local soon = {}
+    for _, q in ipairs(list) do
+      if not now[q.name] then
+        soon[#soon + 1] = q
+      end
+    end
+    if #soon > 0 then
+      return ready, soon, level
+    end
+    level = after
+  end
+  return ready, {}, nil
 end
 
 --- The ready quests not yet told about (seen: { [questID] = true }).
