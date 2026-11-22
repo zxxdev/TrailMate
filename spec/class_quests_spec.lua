@@ -186,6 +186,10 @@ describe("ClassQuests", function()
       assert.same({}, names(doing))
       -- 1517 handed in too: the next step is 1518, not 1520.
       assert.equals(1518, readyNames("SHAMAN", 4, 2, { [1516] = true, [1517] = true })["Call of Earth"])
+      -- Call of Water after 63: the Brazier (100), not the quest for whoever
+      -- failed it (1103, left out of the data).
+      local chain = { [1530] = true, [1535] = true, [1536] = true, [1534] = true, [220] = true, [63] = true }
+      assert.equals(100, readyNames("SHAMAN", 20, 2, chain)["Call of Water"])
     end)
 
     it("keeps a troll shaman in the Valley of Trials for Call of Earth (the user's case)", function()

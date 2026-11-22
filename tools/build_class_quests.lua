@@ -75,7 +75,13 @@ for key in pairs(db.lines) do
 end
 table.sort(all)
 
-local byClass, dropped = {}, { level = 0, place = 0, negative = 0, absent = 0 }
+-- A quest's objectives text, as one string.
+local function objectives(id)
+  local t = Q.field(db, "Quest", id, Q.QUEST.objectivesText)
+  return type(t) == "table" and table.concat(t, " ") or type(t) == "string" and t or ""
+end
+
+local byClass, dropped = {}, { level = 0, place = 0, negative = 0, recovery = 0, absent = 0 }
 local listIds = arg[2] == "--ids"
 for _, id in ipairs(all) do
   local r = Q.row(db, "Quest", id)
@@ -119,6 +125,10 @@ for _, id in ipairs(all) do
     elseif negative then
       -- "Must not have done this one first": not a rule TrailMate reads.
       dropped.negative = dropped.negative + 1
+    elseif objectives(id):lower():find("if you failed", 1, true) then
+      -- Only for whoever failed the normal step (Call of Water 1103: "if
+      -- you failed to speak to the Minor Manifestation of Water").
+      dropped.recovery = dropped.recovery + 1
     elseif listIds then
       print(id)
     elseif NOT_IN_FOREVER[id] then
@@ -280,4 +290,5 @@ end
 out:write("}\n")
 out:close()
 print(("%d class quests; left out: %d above level %d, %d with no place to start, %d with a \"not done\" rule, "
-  .. "%d not in Forever"):format(total, dropped.level, MAX_LEVEL, dropped.place, dropped.negative, dropped.absent))
+  .. "%d for when a step failed, %d not in Forever"):format(total, dropped.level, MAX_LEVEL, dropped.place,
+  dropped.negative, dropped.recovery, dropped.absent))
