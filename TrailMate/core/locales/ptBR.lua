@@ -310,6 +310,16 @@ ns.LOCALES.ptBR = {
   ["Dungeons by level: list, or plan one (quests first, then the entrance)"] =
     "Masmorras por nível: lista, ou plano para uma (primeiro as missões, depois a entrada)",
   ["Dungeon finished: back to your guide."] = "Masmorra concluída: de volta ao seu guia.",
+  ["Class quests you can pick up: list, or go for one"] = "Missões de classe que você pode pegar: lista, ou vá atrás de uma",
+  ["No class quest for you right now."] = "Nenhuma missão de classe para você agora.",
+  ["Class quests you can pick up (/tm class <number> to go):"] =
+    "Missões de classe que você pode pegar (/tm class <número> para ir):",
+  ["At level %d: %s."] = "No nível %d: %s.",
+  ["%d more"] = "mais %d",
+  ["Class quests for you: %s. Type /tm class to go."] = "Missões de classe para você: %s. Digite /tm class para ir.",
+  ["Class quest: %s. The arrow takes you to %s."] = "Missão de classe: %s. A seta leva você até %s.",
+  ["Class quest handed in: back to your guide (/tm class for the next one)."] =
+    "Missão de classe entregue: de volta ao seu guia (/tm class para a próxima).",
   ["Companion"] = "Companheiro",
   ["The chat could not start: type /tm test and send the Log tab."] =
     "O chat não pôde começar: digite /tm test e envie a aba Registro.",

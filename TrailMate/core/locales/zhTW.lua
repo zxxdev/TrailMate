@@ -309,6 +309,15 @@ ns.LOCALES.zhTW = {
   ["Dungeons by level: list, or plan one (quests first, then the entrance)"] =
     "依等級列出地城，或為其中一個做計畫（先接任務，再去入口）",
   ["Dungeon finished: back to your guide."] = "地城完成：回到你的指南。",
+  ["Class quests you can pick up: list, or go for one"] = "可接的職業任務：列出，或前往其中一個",
+  ["No class quest for you right now."] = "你現在沒有可接的職業任務。",
+  ["Class quests you can pick up (/tm class <number> to go):"] = "可接的職業任務（/tm class <編號> 前往）：",
+  ["At level %d: %s."] = "%d 級：%s。",
+  ["%d more"] = "還有 %d 個",
+  ["Class quests for you: %s. Type /tm class to go."] = "你的職業任務：%s。輸入 /tm class 前往。",
+  ["Class quest: %s. The arrow takes you to %s."] = "職業任務：%s。箭頭帶你去找 %s。",
+  ["Class quest handed in: back to your guide (/tm class for the next one)."] =
+    "職業任務已交：回到你的指南（/tm class 查看下一個）。",
   ["Companion"] = "夥伴",
   ["The chat could not start: type /tm test and send the Log tab."] =
     "聊天無法啟動：輸入 /tm test 並傳送「紀錄」分頁。",

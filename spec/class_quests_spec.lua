@@ -1,0 +1,127 @@
+local helper = require("spec.helper")
+
+describe("ClassQuests", function()
+  local ns, CQ, L
+
+  before_each(function()
+    ns = helper.load()
+    CQ, L = ns.ClassQuests, ns.L
+  end)
+
+  local ORC, TAUREN = 2, 32 -- race bits: 2 ^ (race id - 1)
+
+  -- A context: level, race bit, handed-in quests and quests in the log.
+  local function ctx(level, raceBit, done, log, distance)
+    done, log = done or {}, log or {}
+    return {
+      level = level, raceBit = raceBit, distance = distance,
+      done = function(id)
+        return done[id] == true
+      end,
+      inLog = function(id)
+        return log[id] == true
+      end,
+    }
+  end
+
+  local function names(list)
+    local out = {}
+    for _, q in ipairs(list) do
+      out[#out + 1] = q.name .. " " .. q.q
+    end
+    return out
+  end
+
+  it("turns a race id of the game into the database's race bit", function()
+    assert.equals(1, CQ.raceBit(1)) -- Human
+    assert.equals(2, CQ.raceBit(2)) -- Orc
+    assert.equals(2 ^ 32, CQ.raceBit(33)) -- beyond 32 bits still works
+    assert.is_nil(CQ.raceBit(nil))
+    assert.is_nil(CQ.raceBit(0))
+  end)
+
+  it("says what each quest is for the character now", function()
+    local q = { q = 10, name = "Call of Fire", level = 10, req = 10, races = ORC + TAUREN, pre = { 9 } }
+    assert.equals("race", CQ.status(q, ctx(10, 1, { [9] = true })))
+    assert.equals("pre", CQ.status(q, ctx(10, ORC)))
+    assert.equals("level", CQ.status(q, ctx(9, ORC, { [9] = true })))
+    assert.equals("ready", CQ.status(q, ctx(10, ORC, { [9] = true })))
+    assert.equals("log", CQ.status(q, ctx(10, ORC, { [9] = true }, { [10] = true })))
+    assert.equals("done", CQ.status(q, ctx(10, ORC, { [9] = true, [10] = true })))
+    -- A quest in the log is not handed in: it does not open the next one.
+    assert.equals("pre", CQ.status(q, ctx(10, ORC, {}, { [9] = true })))
+    -- Unknown race: every quest of the class fits.
+    assert.equals("ready", CQ.status(q, ctx(10, nil, { [9] = true })))
+  end)
+
+  it("needs all of preAll, and closes a quest when another one is taken", function()
+    local both = { q = 20, name = "Both", level = 10, req = 10, preAll = { 1, 2 } }
+    assert.equals("pre", CQ.status(both, ctx(10, ORC, { [1] = true })))
+    assert.equals("ready", CQ.status(both, ctx(10, ORC, { [1] = true, [2] = true })))
+    local excl = { q = 21, name = "Either", level = 10, req = 10, excl = { 22 } }
+    assert.equals("gone", CQ.status(excl, ctx(10, ORC, {}, { [22] = true })))
+    local crumb = { q = 23, name = "Letter", level = 10, req = 10, crumb = 24 }
+    assert.equals("gone", CQ.status(crumb, ctx(10, ORC, { [24] = true })))
+  end)
+
+  it("lists one quest per name with the nearest giver, highest level first", function()
+    local quests = {
+      { q = 1, name = "Etched Note", level = 1, req = 1 },
+      { q = 2, name = "Call of Fire", level = 10, req = 10, m = 1 },
+      { q = 3, name = "Call of Fire", level = 10, req = 10, m = 2 },
+      { q = 4, name = "Call of Water", level = 20, req = 20 },
+      { q = 5, name = "Call of Air", level = 30, req = 30 },
+    }
+    local yards = { [1] = 900, [2] = 120 }
+    local ready, soon, soonLevel = CQ.forNow(quests, ctx(12, ORC, {}, {}, function(q)
+      return q.m and yards[q.m]
+    end))
+    assert.same({ "Call of Fire 3", "Etched Note 1" }, names(ready))
+    assert.same({ "Call of Water 4" }, names(soon)) -- only the next level that brings any
+    assert.equals(20, soonLevel)
+    -- Without distances: the first one.
+    ready = CQ.forNow(quests, ctx(12, ORC))
+    assert.same({ "Call of Fire 2", "Etched Note 1" }, names(ready))
+  end)
+
+  it("goes straight to a quest when its breadcrumb is ready too", function()
+    local quests = {
+      { q = 1, name = "Heeding the Call", level = 10, req = 10, crumb = 2 },
+      { q = 2, name = "Moonglade", level = 10, req = 10 },
+    }
+    assert.same({ "Moonglade 2" }, names((CQ.forNow(quests, ctx(10, ORC)))))
+    -- The target is not ready yet (needs a quest first): the breadcrumb stays.
+    quests[2].pre = { 99 }
+    assert.same({ "Heeding the Call 1" }, names((CQ.forNow(quests, ctx(10, ORC)))))
+  end)
+
+  it("has nothing for a class with no data", function()
+    local ready, soon, soonLevel = CQ.forNow(nil, ctx(10, ORC))
+    assert.same({}, ready)
+    assert.same({}, soon)
+    assert.is_nil(soonLevel)
+  end)
+
+  it("tells about each ready quest once", function()
+    local ready = { { q = 1, name = "A" }, { q = 2, name = "B" } }
+    assert.same({ "B 2" }, names(CQ.news(ready, { [1] = true })))
+    assert.same({ "A 1", "B 2" }, names(CQ.news(ready, nil)))
+  end)
+
+  it("makes a valid plan: pick it up at the giver, do it, hand it in", function()
+    local q = { q = 1525, name = "Call of Fire", level = 12, req = 10, m = 1413, x = 0.5, y = 0.4,
+      npc = "Telf Joolam", tm = 1413, tx = 0.6, ty = 0.3, tnpc = "Telf Joolam" }
+    local p = CQ.toPlan(q, { L = L })
+    assert.is_true(ns.Plan.validate(p))
+    assert.is_true(CQ.isClassQuest(p))
+    assert.is_false(CQ.isClassQuest({ id = "dungeon-1" }))
+    assert.same({ "accept", "complete", "turnin" }, { p.steps[1].type, p.steps[2].type, p.steps[3].type })
+    assert.equals(1413, p.steps[1].mapID)
+    assert.equals("Telf Joolam", p.steps[1].why:match("Telf Joolam"))
+    assert.is_nil(p.steps[2].mapID)
+    assert.equals(0.6, p.steps[3].x)
+    -- Handed in where nobody knows: the turn-in step has no place.
+    q.tm = nil
+    assert.is_nil(CQ.toPlan(q, { L = L }).steps[3].mapID)
+  end)
+end)

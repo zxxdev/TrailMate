@@ -326,6 +326,17 @@ local esES = {
   ["Dungeons by level: list, or plan one (quests first, then the entrance)"] =
     "Mazmorras por nivel: lista, o plan para una (misiones primero y luego la entrada)",
   ["Dungeon finished: back to your guide."] = "Mazmorra terminada: vuelves a tu guía.",
+  -- Class quests.
+  ["Class quests you can pick up: list, or go for one"] = "Misiones de clase que puedes coger: lista, o ve a por una",
+  ["No class quest for you right now."] = "Ahora mismo no tienes misiones de clase.",
+  ["Class quests you can pick up (/tm class <number> to go):"] =
+    "Misiones de clase que puedes coger (/tm clase <número> para ir):",
+  ["At level %d: %s."] = "A nivel %d: %s.",
+  ["%d more"] = "%d más",
+  ["Class quests for you: %s. Type /tm class to go."] = "Misiones de clase para ti: %s. Escribe /tm clase para ir.",
+  ["Class quest: %s. The arrow takes you to %s."] = "Misión de clase: %s. La flecha te lleva hasta %s.",
+  ["Class quest handed in: back to your guide (/tm class for the next one)."] =
+    "Misión de clase entregada: vuelves a tu guía (/tm clase para la siguiente).",
   -- Companion chat.
   ["Companion"] = "Compañero",
   ["The chat could not start: type /tm test and send the Log tab."] =

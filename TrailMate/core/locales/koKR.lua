@@ -309,6 +309,15 @@ ns.LOCALES.koKR = {
   ["Dungeons by level: list, or plan one (quests first, then the entrance)"] =
     "레벨별 던전: 목록 또는 계획 (퀘스트 먼저, 그다음 입구)",
   ["Dungeon finished: back to your guide."] = "던전 완료: 가이드로 돌아갑니다.",
+  ["Class quests you can pick up: list, or go for one"] = "받을 수 있는 직업 퀘스트: 목록 보기 또는 하나 선택",
+  ["No class quest for you right now."] = "지금은 받을 수 있는 직업 퀘스트가 없습니다.",
+  ["Class quests you can pick up (/tm class <number> to go):"] = "받을 수 있는 직업 퀘스트 (/tm class <번호>로 이동):",
+  ["At level %d: %s."] = "%d레벨: %s.",
+  ["%d more"] = "%d개 더",
+  ["Class quests for you: %s. Type /tm class to go."] = "직업 퀘스트: %s. /tm class를 입력해 이동하세요.",
+  ["Class quest: %s. The arrow takes you to %s."] = "직업 퀘스트: %s. 화살표가 %s에게 안내합니다.",
+  ["Class quest handed in: back to your guide (/tm class for the next one)."] =
+    "직업 퀘스트 완료: 가이드로 돌아갑니다 (/tm class로 다음 퀘스트).",
   ["Companion"] = "동반자",
   ["The chat could not start: type /tm test and send the Log tab."] =
     "대화를 시작할 수 없습니다: /tm test 를 입력하고 기록 탭을 보내 주세요.",

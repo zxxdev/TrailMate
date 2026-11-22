@@ -843,6 +843,12 @@ function Api.race()
   return type(race) == "string" and race:upper() or nil
 end
 
+--- The player's race id (1 Human, 2 Orc... and Forever's own races), or nil.
+function Api.raceID()
+  local _, _, id = safe(UnitRace, "player")
+  return type(id) == "number" and id or nil
+end
+
 --- A quest's name if the game already has it, without asking for it.
 function Api.knownQuestTitle(questID)
   local QL = C_QuestLog
