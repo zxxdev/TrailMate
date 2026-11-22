@@ -2,6 +2,10 @@
 
 Each version has its release on GitHub with the addon (`TrailMate-<version>.zip`, to copy into `World of Warcraft/_forever_/Interface/AddOns/`) and the companion bridge for Windows (`trailmate-bridge.exe`, optional).
 
+## Unreleased
+
+- Fixed the icon: the shadow of the two middle toes had a light crescent in it (the light of the toe next to it). Each part of the paw now casts its own shadow, the same way in all of them.
+
 ## 0.4.0-beta
 
 - **Class quests as side quests:** at each new level (and when you log in) TrailMate says which quests of your class and race you can pick up now: totems, pets, forms, stances, mounts and the rest, levels 1 to 59. `/tm class` (`/tm clase`) lists them with who gives them and where, and the next level that opens more; `/tm class 1` takes you to the quest giver and back to your guide when it is handed in. When several trainers give the same quest, it is the nearest one, even if it opens a level or two later (a troll shaman gets Call of Earth in the Valley of Trials, not on Zephras Isle). From the Questie database for Forever, checked against Wowhead's.
