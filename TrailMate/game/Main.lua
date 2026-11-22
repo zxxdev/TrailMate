@@ -1962,10 +1962,11 @@ local function selfTest()
     if not q then
       return true, "no quest for this character"
     end
-    local p = ns.ClassQuests.toPlan(q, { L = L })
-    local ok, err = Plan.validate(p)
-    local first = p.steps[1]
-    return ok, ("%s: %d steps; pick up from %s at map %d (%s) %.2f, %.2f; hand in to %s%s"):format(q.name, #p.steps,
+    local classPlan = ns.ClassQuests.toPlan(q, { L = L })
+    local ok, err = Plan.validate(classPlan)
+    local first = classPlan.steps[1]
+    return ok, ("%s: %d steps; pick up from %s at map %d (%s) %.2f, %.2f; hand in to %s%s"):format(q.name,
+      #classPlan.steps,
       tostring(q.npc), first.mapID, tostring(Api.mapName(first.mapID)), first.x, first.y, tostring(q.tnpc),
       ok and "" or ("; " .. tostring(err)))
   end)
