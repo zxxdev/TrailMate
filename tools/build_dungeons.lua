@@ -80,9 +80,7 @@ local function sideOf(mask)
   return nil
 end
 
-local function round(v)
-  return math.floor(v * 1000 + 0.5) / 1000
-end
+local round = Q.round
 
 -- dungeons.lua: [area] = {"Name", {alternative areas} or nil, parent, {{area, x, y}, ...}}
 local entries = {}
@@ -148,63 +146,9 @@ for _, id in ipairs(ids("Npc")) do
   end
 end
 
--- From the most central spawn of a giver: { m, x, y } and its name.
-local function central(spawns)
-  local list = {}
-  for area, points in pairs(spawns or {}) do
-    local map = db:map(area)
-    for _, p in ipairs(map and points or {}) do
-      if type(p[1]) == "number" and p[1] >= 0 then
-        list[#list + 1] = { m = map, x = p[1] / 100, y = p[2] / 100 }
-      end
-    end
-  end
-  if #list == 0 then
-    return nil
-  end
-  local count, best = {}, nil
-  for _, p in ipairs(list) do
-    count[p.m] = (count[p.m] or 0) + 1
-    if not best or count[p.m] > count[best] then
-      best = p.m
-    end
-  end
-  local sx, sy, n = 0, 0, 0
-  for _, p in ipairs(list) do
-    if p.m == best then
-      sx, sy, n = sx + p.x, sy + p.y, n + 1
-    end
-  end
-  local pick, dist
-  for _, p in ipairs(list) do
-    if p.m == best then
-      local e = (p.x - sx / n) ^ 2 + (p.y - sy / n) ^ 2
-      if not dist or e < dist then
-        pick, dist = p, e
-      end
-    end
-  end
-  return { m = pick.m, x = round(pick.x), y = round(pick.y) }
-end
-
+-- Where a quest starts or ends (the most central spawn) and who it is.
 local function giver(by)
-  by = by or {}
-  for _, npc in ipairs(by[1] or {}) do
-    local place = central(Q.field(db, "Npc", npc, Q.NPC.spawns))
-    if place then
-      return place, Q.field(db, "Npc", npc, Q.NPC.name)
-    end
-  end
-  for _, obj in ipairs(by[2] or {}) do
-    local place = central(Q.field(db, "Object", obj, Q.OBJECT.spawns))
-    if place then
-      return place, Q.field(db, "Object", obj, Q.OBJECT.name)
-    end
-  end
-  if by[3] and by[3][1] then
-    return nil, Q.field(db, "Item", by[3][1], Q.ITEM.name)
-  end
-  return nil
+  return Q.giver(db, by)
 end
 
 local quests = {}

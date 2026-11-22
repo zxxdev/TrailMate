@@ -228,4 +228,74 @@ function M.map(db, area)
   return db.areas[area]
 end
 
+-- Places -----------------------------------------------------------------------
+
+--- A position rounded to a thousandth of the map.
+function M.round(v)
+  return math.floor(v * 1000 + 0.5) / 1000
+end
+
+--- The most central spawn of an NPC or object ({ [area] = { {x, y}, ... } },
+--- in percent): { m, x, y } on the map where it has the most spawns, or nil.
+function M.central(db, spawns)
+  local list = {}
+  for area, points in pairs(spawns or {}) do
+    local map = db:map(area)
+    for _, p in ipairs(map and points or {}) do
+      if type(p[1]) == "number" and p[1] >= 0 then
+        list[#list + 1] = { m = map, x = p[1] / 100, y = p[2] / 100 }
+      end
+    end
+  end
+  if #list == 0 then
+    return nil
+  end
+  local count, best = {}, nil
+  for _, p in ipairs(list) do
+    count[p.m] = (count[p.m] or 0) + 1
+    if not best or count[p.m] > count[best] then
+      best = p.m
+    end
+  end
+  local sx, sy, n = 0, 0, 0
+  for _, p in ipairs(list) do
+    if p.m == best then
+      sx, sy, n = sx + p.x, sy + p.y, n + 1
+    end
+  end
+  local pick, dist
+  for _, p in ipairs(list) do
+    if p.m == best then
+      local e = (p.x - sx / n) ^ 2 + (p.y - sy / n) ^ 2
+      if not dist or e < dist then
+        pick, dist = p, e
+      end
+    end
+  end
+  return { m = pick.m, x = M.round(pick.x), y = M.round(pick.y) }
+end
+
+--- Who starts or ends a quest (its startedBy or finishedBy field: { npcs,
+--- objects, items }): their place ({ m, x, y } or nil) and their name. An
+--- item has a name but no place.
+function M.giver(db, by)
+  by = by or {}
+  for _, npc in ipairs(by[1] or {}) do
+    local place = M.central(db, M.field(db, "Npc", npc, M.NPC.spawns))
+    if place then
+      return place, M.field(db, "Npc", npc, M.NPC.name)
+    end
+  end
+  for _, obj in ipairs(by[2] or {}) do
+    local place = M.central(db, M.field(db, "Object", obj, M.OBJECT.spawns))
+    if place then
+      return place, M.field(db, "Object", obj, M.OBJECT.name)
+    end
+  end
+  if by[3] and by[3][1] then
+    return nil, M.field(db, "Item", by[3][1], M.ITEM.name)
+  end
+  return nil
+end
+
 return M
