@@ -310,6 +310,16 @@ ns.LOCALES.frFR = {
   ["Dungeons by level: list, or plan one (quests first, then the entrance)"] =
     "Donjons par niveau : liste, ou plan pour l'un d'eux (les quêtes d'abord, puis l'entrée)",
   ["Dungeon finished: back to your guide."] = "Donjon terminé : retour à ton guide.",
+  ["Class quests you can pick up: list, or go for one"] = "Quêtes de classe que tu peux prendre : liste, ou vas-y",
+  ["No class quest for you right now."] = "Aucune quête de classe pour toi pour l'instant.",
+  ["Class quests you can pick up (/tm class <number> to go):"] =
+    "Quêtes de classe que tu peux prendre (/tm class <numéro> pour y aller) :",
+  ["At level %d: %s."] = "Au niveau %d : %s.",
+  ["%d more"] = "%d de plus",
+  ["Class quests for you: %s. Type /tm class to go."] = "Quêtes de classe pour toi : %s. Tape /tm class pour y aller.",
+  ["Class quest: %s. The arrow takes you to %s."] = "Quête de classe : %s. La flèche te mène à %s.",
+  ["Class quest handed in: back to your guide (/tm class for the next one)."] =
+    "Quête de classe rendue : retour à ton guide (/tm class pour la suivante).",
   ["Companion"] = "Compagnon",
   ["The chat could not start: type /tm test and send the Log tab."] =
     "La discussion n'a pas pu démarrer : tape /tm test et envoie l'onglet Journal.",

@@ -87,7 +87,9 @@ function UI.create(saved)
   local template = BackdropTemplateMixin and "BackdropTemplate" or nil
   local f = CreateFrame("Frame", "TrailMateFrame", UIParent, template)
   f:SetSize(WIDTH, HEIGHT)
-  f:SetPoint(saved.point or "RIGHT", UIParent, saved.relPoint or "RIGHT", saved.x or -40, saved.y or 120)
+  -- First time: top left, under the target frame and right of the party
+  -- frames, with room on its left for the item button.
+  f:SetPoint(saved.point or "TOPLEFT", UIParent, saved.relPoint or "TOPLEFT", saved.x or 240, saved.y or -200)
   ns.Theme.movable(f, saved)
   ns.Theme.panel(f)
   local _, title = ns.Theme.header(f, "TrailMate", 28)

@@ -8,7 +8,7 @@ Un entrenador de subida de nivel para **World of Warcraft: Forever** (versión 1
 
 **No necesita ningún otro addon.** La flecha, las marcas del minimapa y del mapa del mundo, las guías y el planificador de viajes son suyos. Puedes tener otros addons instalados; TrailMate no los usa.
 
-> **Estado: alfa (0.3.0-alpha).** Se juega y se prueba con un solo personaje, un cazador de la Horda entre los niveles 33 y 36, así que habrá cosas por pulir: mira los [problemas conocidos](#problemas-conocidos). Los avisos de fallos y las pull requests son bienvenidos, en inglés o en español ([CONTRIBUTING.es.md](CONTRIBUTING.es.md)). Sin relación con Blizzard Entertainment.
+> **Estado: beta (0.4.0-beta).** Se juega y se prueba sobre todo con un personaje, un cazador de la Horda entre los niveles 33 y 37; las misiones de clase se comprobaron además con un chamán trol de nivel 1. Habrá cosas por pulir: mira los [problemas conocidos](#problemas-conocidos). Los avisos de fallos y las pull requests son bienvenidos, en inglés o en español ([CONTRIBUTING.es.md](CONTRIBUTING.es.md)). Sin relación con Blizzard Entertainment.
 
 ## Capturas
 
@@ -34,6 +34,7 @@ Las capturas son del juego en inglés; con el cliente en español, el addon habl
 | Línea de puntos | En el mapa del mundo, puntos por el camino hasta el objetivo, como una ruta andada. TrailMate aprende los caminos que recorres (`/tm rastro`) y la flecha los sigue, así rodea muros y sube rampas en vez de atravesar una ciudad en línea recta. El addon puede traer caminos ya andados por las capitales; todavía no trae ninguno. |
 | Al llegar a un sitio nuevo | Al llegar a un campamento con misiones (por ejemplo, Grom'gol), primero te lista las misiones que coger allí y te propone poner la piedra de hogar. |
 | Mazmorras por nivel | `/tm mazmorra` lista las mazmorras que te van por nivel y facción, con el nivel de sus enemigos en Forever y cuántas misiones conviene coger antes de entrar. `/tm mazmorra 2` prepara un plan: primero quien da cada misión, luego la entrada (la más cercana si hay dos) y después las entregas; al terminar, vuelves a tu guía. |
+| Misiones de clase | Las misiones de tu clase y tu raza (tótems, mascotas, formas, actitudes, monturas...) como misiones secundarias. Al subir de nivel, y al entrar en el juego, TrailMate te dice cuáles puedes coger ya, una vez cada una. `/tm clase` las lista con quién las da y dónde (una por misión, del instructor más cercano) y el siguiente nivel que trae más; `/tm clase 1` te lleva a quien la da, luego a entregarla, y vuelves a tu guía. Niveles 1 a 59. |
 | Talentos | Junto a la ventana de talentos del juego: plantillas por clase (para el cazador, una build de subida 31/16/4 y una por rama). Al pasar el ratón por una plantilla, sale una miniatura de las tres ramas con el nivel al que se coge cada talento. El siguiente talento brilla en la ventana del juego, y cada talento que falta lleva una etiqueta con su nivel. |
 | Recordatorios | Una barra arriba de la ventana cuando tienes las bolsas llenas (ve a vender), cuando subes de nivel (ve al instructor) y cuando tienes un punto de talento. Cada uno tiene un botón que pone la flecha hacia el sitio que toca. |
 | Consejo en el instructor | Al abrir un instructor de clase: una lista numerada con *aprender*, *saltar* o *más tarde* para cada hechizo, y el motivo. Ignora un hechizo una vez (`/tm ignorar 3`) y no se te vuelve a recomendar, en ningún rango. Guarda la reserva de oro que tú elijas. |
@@ -77,6 +78,7 @@ El chat usa las teclas `Ctrl+Alt+Mayús+F1` a `F8` mientras sale un mensaje, y l
 | `/tm guía [número\|siguiente\|auto\|no]` · `/tm guide` | Lista las guías, elige una, pasa a la siguiente, deja que elija TrailMate o planifica con tu diario |
 | `/tm chat [pregunta]` | Habla con tu compañero de IA (necesita `trailmate-bridge` en tu PC) |
 | `/tm mazmorra [número]` · `/tm dungeon` | Mazmorras para tu nivel, o un plan para una (primero las misiones, luego la entrada) |
+| `/tm clase [número]` · `/tm class` | Misiones de clase que puedes coger ya, o ir a por una |
 | `/tm diario` · `/tm questlog` | Prepara un plan con tu diario de misiones |
 | `/tm elegir <n>` · `/tm pick` | Haz ahora el paso n de la lista |
 | `/tm salta` · `/tm skip` | Salta el paso actual |
@@ -113,7 +115,7 @@ El chat usa las teclas `Ctrl+Alt+Mayús+F1` a `F8` mientras sale un mensaje, y l
 flowchart LR
   E[Eventos del juego] --> A[Adaptador: game/]
   A -->|hechos| C[Núcleo: core/]
-  D[Datos: guías, mazmorras, rutas, campamentos] --> C
+  D[Datos: guías, mazmorras, misiones de clase, rutas, campamentos] --> C
   C -->|paso actual, consejos| A
   A --> U[Ventana, flecha, marcas en el mapa]
   A <-->|fichero de teclas, addons buzón| B[trailmate-bridge en el PC]
@@ -130,6 +132,7 @@ flowchart LR
 - Las guías siguen el orden de las guías de subida de la comunidad para Forever hechas para [Guidelime](https://github.com/max-ri/Guidelime) (las guías TUGs). Las 1777 misiones que usan se han comprobado en la base de datos de Forever de Wowhead: las tres que no están se quitan.
 - Los sitios de quien da cada misión, de los objetivos y de las entregas salen de la base de datos de misiones de [Questie](https://github.com/Questie/Questie) para Forever. TrailMate coge el punto de aparición más central de cada personaje u objeto.
 - Las entradas de las mazmorras (en coordenadas de Forever), el nivel de sus enemigos y sus misiones salen de la misma base de datos; `tools/build_dungeons.lua` escribe `TrailMate/data/Dungeons.lua`. El rango de una mazmorra va del nivel que tienen la mayoría de sus enemigos a su jefe más fuerte.
+- Las misiones de clase son las de la base de datos que son para una sola clase, hasta el nivel 59; `tools/build_class_quests.lua` escribe `TrailMate/data/ClassQuests.lua`. Cada misión que elige (`--ids` las lista) se comprobó con la base de datos de Wowhead para Forever el 2026-11-22: la única que no tiene se deja fuera, con una nota en el generador.
 - `tools/build_guides.lua` junta las dos cosas en `TrailMate/data/Guides.lua`. Cuando TrailMate ve en el juego a quien da una misión, gana el sitio que ha visto.
 
 ## Desarrollo
@@ -160,7 +163,7 @@ lua tools/make_pin.lua     # media/Pin.tga: el alfiler del mapa
 
 ## Problemas conocidos
 
-Vistos en el juego con esta alfa; cada uno tiene su issue en GitHub.
+Vistos en el juego; cada uno tiene su issue en GitHub.
 
 - **La flecha sigue un camino andado antiguo.** Al salir de un sitio, puede seguir los puntos que grabó al entrar, y la vuelta se ve rara.
 - **Zonas de misión.** En una misión que se hace en una zona grande, la flecha apunta al centro de la zona: si te mueves un poco dentro, te pide volver al centro. Si la misma misión se puede hacer en otra zona, la flecha sigue apuntando a la primera.

@@ -309,6 +309,16 @@ ns.LOCALES.ruRU = {
   ["Dungeons by level: list, or plan one (quests first, then the entrance)"] =
     "Подземелья по уровню: список или план для одного (сначала задания, потом вход)",
   ["Dungeon finished: back to your guide."] = "Подземелье пройдено: назад к руководству.",
+  ["Class quests you can pick up: list, or go for one"] = "Классовые задания, которые можно взять: список или выбрать одно",
+  ["No class quest for you right now."] = "Сейчас для тебя нет классовых заданий.",
+  ["Class quests you can pick up (/tm class <number> to go):"] =
+    "Классовые задания, которые можно взять (/tm class <номер>, чтобы пойти):",
+  ["At level %d: %s."] = "На уровне %d: %s.",
+  ["%d more"] = "ещё %d",
+  ["Class quests for you: %s. Type /tm class to go."] = "Классовые задания для тебя: %s. Введи /tm class, чтобы пойти.",
+  ["Class quest: %s. The arrow takes you to %s."] = "Классовое задание: %s. Стрелка ведёт к %s.",
+  ["Class quest handed in: back to your guide (/tm class for the next one)."] =
+    "Классовое задание сдано: назад к руководству (/tm class — следующее).",
   ["Companion"] = "Спутник",
   ["The chat could not start: type /tm test and send the Log tab."] =
     "Чат не запустился: введите /tm test и отправьте вкладку «Журнал».",

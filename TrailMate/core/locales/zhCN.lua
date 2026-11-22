@@ -309,6 +309,15 @@ ns.LOCALES.zhCN = {
   ["Dungeons by level: list, or plan one (quests first, then the entrance)"] =
     "按等级列出地下城，或为其中一个做计划（先接任务，再去入口）",
   ["Dungeon finished: back to your guide."] = "地下城完成：回到你的指南。",
+  ["Class quests you can pick up: list, or go for one"] = "可接的职业任务：列出，或前往其中一个",
+  ["No class quest for you right now."] = "你现在没有可接的职业任务。",
+  ["Class quests you can pick up (/tm class <number> to go):"] = "可接的职业任务（/tm class <编号> 前往）：",
+  ["At level %d: %s."] = "%d 级：%s。",
+  ["%d more"] = "还有 %d 个",
+  ["Class quests for you: %s. Type /tm class to go."] = "你的职业任务：%s。输入 /tm class 前往。",
+  ["Class quest: %s. The arrow takes you to %s."] = "职业任务：%s。箭头带你去找 %s。",
+  ["Class quest handed in: back to your guide (/tm class for the next one)."] =
+    "职业任务已交：回到你的指南（/tm class 查看下一个）。",
   ["Companion"] = "伙伴",
   ["The chat could not start: type /tm test and send the Log tab."] =
     "聊天无法启动：输入 /tm test 并发送“日志”标签页。",

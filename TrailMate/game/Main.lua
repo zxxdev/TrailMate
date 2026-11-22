@@ -284,6 +284,11 @@ local function refresh()
       buildFromQuestLog(true)
       return
     end
+    if ns.ClassQuests.isClassQuest(plan) then
+      say(L["Class quest handed in: back to your guide (/tm class for the next one)."])
+      buildFromQuestLog(true)
+      return
+    end
     if Builder.isAuto(plan) and cdb.prefs.autoPlan ~= false then
       buildFromQuestLog(true)
       return
@@ -695,6 +700,96 @@ local function dungeonCommand(rest)
   end
 end
 
+-- Class quests ---------------------------------------------------------------------
+
+-- The class quests for this character now: ready, soon and the level of soon.
+local function classList()
+  return ns.CLASS_QUESTS and ns.CLASS_QUESTS[Api.class() or ""]
+end
+
+-- What the class quests need to know: at a level (default: the player's)
+-- and with a quest log ({ [questID] = true }, default: the real one).
+local function classContext(level, log)
+  if not log then
+    log = {}
+    for _, q in ipairs(Api.questLog()) do
+      log[q.questID] = true
+    end
+  end
+  return {
+    level = level or Api.level() or 1,
+    raceBit = ns.ClassQuests.raceBit(Api.raceID()),
+    done = handedIn,
+    inLog = function(id)
+      return log[id] == true
+    end,
+    distance = function(q)
+      return yardsTo(q)
+    end,
+  }
+end
+
+-- level: the player's when nil (at a level up, the event's: UnitLevel may
+-- still say the old one).
+local function classQuests(level)
+  return ns.ClassQuests.forNow(classList(), classContext(level))
+end
+
+-- "Call of Fire (Kranal Fiss, The Barrens)".
+local function classQuestLabel(q)
+  local where = Api.mapName(q.m)
+  local giver = q.npc and where and ("%s, %s"):format(q.npc, where) or q.npc or where
+  return giver and ("%s (%s)"):format(q.name, giver) or q.name
+end
+
+-- /tm class: the class quests you can pick up; with a number, go for that one.
+local function classCommand(rest)
+  local ready, soon, soonLevel = classQuests()
+  local q = ready[tonumber(rest or "") or 0]
+  if q then
+    if loadPlan(ns.ClassQuests.toPlan(q, { L = L }), true) then
+      say(L["Class quest: %s. The arrow takes you to %s."]:format(q.name, q.npc or "?"))
+    end
+    return
+  end
+  if #ready == 0 then
+    say(L["No class quest for you right now."])
+  else
+    say(L["Class quests you can pick up (/tm class <number> to go):"])
+    for i, e in ipairs(ready) do
+      out(("  [%d] %s"):format(i, classQuestLabel(e)))
+      cdb.classQuestsSeen[e.q] = true
+    end
+  end
+  if soonLevel then
+    local names = {}
+    for _, e in ipairs(soon) do
+      names[#names + 1] = e.name
+    end
+    out(L["At level %d: %s."]:format(soonLevel, table.concat(names, ", ")))
+  end
+end
+
+-- Says which class quests opened up, once each (after login and at each new
+-- level). The full list is always in /tm class.
+local function announceClassQuests(level)
+  local news = ns.ClassQuests.news((classQuests(level)), cdb.classQuestsSeen)
+  if #news == 0 then
+    return
+  end
+  local names = {}
+  for i, q in ipairs(news) do
+    cdb.classQuestsSeen[q.q] = true
+    if i <= 3 then
+      names[#names + 1] = classQuestLabel(q)
+    end
+  end
+  if #news > 3 then
+    names[#names + 1] = L["%d more"]:format(#news - 3)
+  end
+  say(L["Class quests for you: %s. Type /tm class to go."]:format(table.concat(names, "; ")))
+end
+
 -- The companion chat --------------------------------------------------------------
 
 -- The character's state for the companion, as short lines of text: what
@@ -747,6 +842,18 @@ local function chatContext()
       names[#names + 1] = ("%s %d-%d"):format(d.name, d.min, d.max)
     end
     add("Dungeons for this level: %s.", table.concat(names, ", "))
+  end
+  local ready, _, soonLevel = classQuests()
+  if #ready > 0 or soonLevel then
+    local names = {}
+    for i, q in ipairs(ready) do
+      if i > 4 then
+        break
+      end
+      names[#names + 1] = ("%s [%d]"):format(q.name, q.level)
+    end
+    add("Class quests: %s%s.", #names > 0 and table.concat(names, ", ") or "none now",
+      soonLevel and (", more at level %d"):format(soonLevel) or "")
   end
   return table.concat(lines, "\n")
 end
@@ -1334,6 +1441,7 @@ local HELP = {
   { "/tm trail | rastro on|off|show|export|clear", "Learn the ways you walk and follow them (dots on the map)" },
   { "/tm guide | guia [number|next|auto|off]", "Quest guides: list, choose one, or plan from your quest log" },
   { "/tm dungeon | mazmorra [number]", "Dungeons by level: list, or plan one (quests first, then the entrance)" },
+  { "/tm class | clase [number]", "Class quests you can pick up: list, or go for one" },
   { "/tm chat [question]", "Talk to your AI companion (needs trailmate-bridge on your PC)" },
   { "/tm talents | talentos", "Open your talents and say the next one" },
   { "/tm companion | compañero claude|chatgpt|none", "Icon colour of your AI companion" },
@@ -1467,6 +1575,7 @@ alias({ "companion", "companero", "compañero" }, function(rest)
 end)
 alias({ "guide", "guia", "guía" }, guideCommand)
 alias({ "dungeon", "dungeons", "mazmorra", "mazmorras" }, dungeonCommand)
+alias({ "class", "clase", "classquests" }, classCommand)
 alias({ "chat", "charla" }, function(rest)
   local word = (rest or ""):lower()
   if word == "diag" then
@@ -1794,6 +1903,75 @@ local function selfTest()
       #(ns.DUNGEONS or {}), level, #list > 0 and table.concat(list, ", ") or "none",
       nextOne and nextOne.name or "none", tostring(ns.Dungeons.isDungeon(plan)))
   end)
+  -- Class quests: what the player would be offered now, what the game says
+  -- was handed in, what comes level by level, and the plan for one.
+  local raceBit = ns.ClassQuests.raceBit(Api.raceID())
+  local mine = {}
+  for _, q in ipairs(classList() or {}) do
+    if ns.ClassQuests.raceFits(q, raceBit) then
+      mine[#mine + 1] = q
+    end
+  end
+  check("class quests", function()
+    local list = classList()
+    local ready, soon, soonLevel = classQuests()
+    local names, later = {}, {}
+    for _, q in ipairs(ready) do
+      names[#names + 1] = ("%d %s"):format(q.q, classQuestLabel(q))
+    end
+    for _, q in ipairs(soon) do
+      later[#later + 1] = classQuestLabel(q)
+    end
+    return list ~= nil, ("%d in data for %s, %d for race %s (id %s); ready now: %s; at level %s: %s"):format(
+      #(list or {}), tostring(Api.class()), #mine, tostring(Api.race()), tostring(Api.raceID()),
+      #names > 0 and table.concat(names, "; ") or "none", tostring(soonLevel),
+      #later > 0 and table.concat(later, "; ") or "none")
+  end)
+  check("class quests: handed in", function()
+    local answered, names, seen = 0, {}, {}
+    for _, q in ipairs(mine) do
+      local r = Api.turnedIn(q.q)
+      answered = answered + (r ~= nil and 1 or 0)
+      if r and not seen[q.name] then
+        seen[q.name] = true
+        names[#names + 1] = q.name
+      end
+    end
+    return answered > 0, ("the game answered for %d of %d; handed in: %s"):format(answered, #mine,
+      #names > 0 and table.concat(names, ", ") or "none")
+  end)
+  check("class quests: level by level", function()
+    -- What would be offered at each level, with what was handed in so far
+    -- and an empty quest log: the first step of each chain still to do.
+    local before, parts = {}, {}
+    for level = 1, 60 do
+      local new = {}
+      for _, q in ipairs((ns.ClassQuests.forNow(classList(), classContext(level, {})))) do
+        if not before[q.name] then
+          before[q.name] = true
+          new[#new + 1] = q.name
+        end
+      end
+      if #new > 0 then
+        parts[#parts + 1] = ("%d: %s"):format(level, table.concat(new, ", "))
+      end
+    end
+    return #mine == 0 or #parts > 0, #parts > 0 and table.concat(parts, "; ") or "nothing left"
+  end)
+  check("class quests: plan", function()
+    -- Built and checked, not loaded: the current plan stays.
+    local q = (classQuests())[1] or mine[1]
+    if not q then
+      return true, "no quest for this character"
+    end
+    local classPlan = ns.ClassQuests.toPlan(q, { L = L })
+    local ok, err = Plan.validate(classPlan)
+    local first = classPlan.steps[1]
+    return ok, ("%s: %d steps; pick up from %s at map %d (%s) %.2f, %.2f; hand in to %s%s"):format(q.name,
+      #classPlan.steps,
+      tostring(q.npc), first.mapID, tostring(Api.mapName(first.mapID)), first.x, first.y, tostring(q.tnpc),
+      ok and "" or ("; " .. tostring(err)))
+  end)
   check("chat", function()
     -- What the link needs from the client, and whether the inboxes exist.
     local link = ns.Chat.link
@@ -1949,6 +2127,7 @@ handlers.ADDON_LOADED = function(name)
   cdb.prefs = cdb.prefs or {}
   cdb.prefs.ignored = cdb.prefs.ignored or {}
   cdb.trainerMemory = cdb.trainerMemory or {}
+  cdb.classQuestsSeen = cdb.classQuestsSeen or {}
   cdb.ui = cdb.ui or {}
   cdb.arrow = cdb.arrow or {}
   cdb.panel = cdb.panel or {}
@@ -2021,6 +2200,13 @@ handlers.PLAYER_ENTERING_WORLD = function(isLogin, isReload)
         else
           guard("trip", travelTo, trip.zone, trip.name or "?")
         end
+      end)
+    end
+    -- Class quests that opened since last time, once the quest log and
+    -- the handed-in quests have loaded.
+    if isLogin or isReload or isLogin == nil then
+      after(10, function()
+        guard("class quests", announceClassQuests)
       end)
     end
     questThrottle:mark()
@@ -2124,6 +2310,11 @@ handlers.PLAYER_LEVEL_UP = function(level)
   questChanged()
   if type(level) == "number" and cdb then
     remindAtLevel(level)
+    -- With the event's level: UnitLevel may not have it yet. A moment
+    -- later, so the quest log is up to date too.
+    after(1, function()
+      guard("class quests", announceClassQuests, level)
+    end)
   end
 end
 

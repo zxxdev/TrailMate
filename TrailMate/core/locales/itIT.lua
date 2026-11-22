@@ -309,6 +309,16 @@ ns.LOCALES.itIT = {
   ["Dungeons by level: list, or plan one (quests first, then the entrance)"] =
     "Spedizioni per livello: elenco, o piano per una (prima le missioni, poi l'ingresso)",
   ["Dungeon finished: back to your guide."] = "Spedizione completata: torni alla tua guida.",
+  ["Class quests you can pick up: list, or go for one"] = "Missioni di classe che puoi prendere: elenco, o vai a una",
+  ["No class quest for you right now."] = "Al momento non hai missioni di classe.",
+  ["Class quests you can pick up (/tm class <number> to go):"] =
+    "Missioni di classe che puoi prendere (/tm class <numero> per andarci):",
+  ["At level %d: %s."] = "Al livello %d: %s.",
+  ["%d more"] = "altre %d",
+  ["Class quests for you: %s. Type /tm class to go."] = "Missioni di classe per te: %s. Scrivi /tm class per andarci.",
+  ["Class quest: %s. The arrow takes you to %s."] = "Missione di classe: %s. La freccia ti porta da %s.",
+  ["Class quest handed in: back to your guide (/tm class for the next one)."] =
+    "Missione di classe consegnata: torni alla tua guida (/tm class per la prossima).",
   ["Companion"] = "Compagno",
   ["The chat could not start: type /tm test and send the Log tab."] =
     "La chat non è partita: scrivi /tm test e invia la scheda Registro.",

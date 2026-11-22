@@ -8,7 +8,7 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 
 **It needs no other addon.** The arrow, the minimap and world map marks, the guides and the travel planner are all its own. Other addons can stay installed; TrailMate does not use them.
 
-> **Status: alpha (0.3.0-alpha).** It is played and tested on one character, a Horde hunter between levels 33 and 36, so expect rough edges: see [Known issues](#known-issues). Reports and pull requests are welcome, in English or Spanish ([CONTRIBUTING.md](CONTRIBUTING.md)). Not affiliated with Blizzard Entertainment.
+> **Status: beta (0.4.0-beta).** It is played and tested mostly on one character, a Horde hunter between levels 33 and 37; the class quests were also checked on a level 1 troll shaman. Expect rough edges: see [Known issues](#known-issues). Reports and pull requests are welcome, in English or Spanish ([CONTRIBUTING.md](CONTRIBUTING.md)). Not affiliated with Blizzard Entertainment.
 
 ## Screenshots
 
@@ -32,6 +32,7 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 | Dotted path | On the world map, dots along the way to the target, like a walked route. TrailMate learns the paths you walk (`/tm trail`) and the arrow follows them, so it goes round walls and up ramps instead of straight through a city. The addon can ship walked paths through the capitals; none are included yet. |
 | Arriving somewhere new | Reaching a quest hub (for example Grom'gol), it first lists the quests to pick up there and offers to set your hearthstone. |
 | Dungeons by level | `/tm dungeon` lists the dungeons that suit your level and faction, with the level of their enemies in Forever and how many quests to pick up before going in. `/tm dungeon 2` plans one: the quest givers first, then the entrance (the nearest one when there are two), then the hand-ins; afterwards you are back on your guide. |
+| Class quests | The quests of your class and race (totems, pets, forms, stances, mounts...) as side quests. At each new level, and when you log in, TrailMate says which ones you can pick up now, once each. `/tm class` lists them with who gives them and where (one per quest, from the nearest trainer) and the next level that opens more; `/tm class 1` takes you to the quest giver, then to hand it in, and back to your guide. Levels 1 to 59. |
 | Talents | Next to the game's talent window: templates per class (for hunters, a 31/16/4 leveling build and one per tree). Hovering a template shows a small picture of the three trees with the level each talent is taken at. The next talent glows in the game's window, and every talent still to come is labelled with its level. |
 | Reminders | A bar at the top of the window when your bags are full (go and sell), when you level up (visit the trainer) and when you have a talent point. Each one has a button that points the arrow at the right place. |
 | Trainer advice | When you open a class trainer: a numbered list with *learn*, *skip* or *later* for each spell, and the reason. Ignore a spell once (`/tm ignore 3`) and it is never recommended again, in any rank. Keeps a gold reserve you choose. |
@@ -75,6 +76,7 @@ The chat uses the keys `Ctrl+Alt+Shift+F1` to `F8` while a message goes out, and
 | `/tm guide [number\|next\|auto\|off]` · `/tm guía` | List the guides, choose one, go to the next, let TrailMate choose, or plan from your quest log |
 | `/tm chat [question]` | Talk to your AI companion (needs `trailmate-bridge` on your PC) |
 | `/tm dungeon [number]` · `/tm mazmorra` | Dungeons for your level, or a plan for one (quests first, then the entrance) |
+| `/tm class [number]` · `/tm clase` | Class quests you can pick up now, or go for one |
 | `/tm questlog` · `/tm diario` | Build a plan from your quest log |
 | `/tm pick <n>` · `/tm elegir` | Do step n of the list now |
 | `/tm skip` · `/tm salta` | Skip the current step |
@@ -111,7 +113,7 @@ The chat uses the keys `Ctrl+Alt+Shift+F1` to `F8` while a message goes out, and
 flowchart LR
   E[Game events] --> A[Adapter: game/]
   A -->|facts| C[Core: core/]
-  D[Data: guides, dungeons, routes, hubs] --> C
+  D[Data: guides, dungeons, class quests, routes, hubs] --> C
   C -->|current step, advice| A
   A --> U[Window, arrow, map marks]
   A <-->|key bindings file, inbox addons| B[trailmate-bridge on the PC]
@@ -128,6 +130,7 @@ flowchart LR
 - The quest guides follow the order of the community leveling guides for Forever written for [Guidelime](https://github.com/max-ri/Guidelime) (the TUGs guides). All 1777 quests they use were checked against Wowhead's Forever database: the three it does not have are left out.
 - Quest giver, objective and turn-in places come from the quest database of [Questie](https://github.com/Questie/Questie) for Forever. TrailMate takes the most central spawn of each NPC or object.
 - Dungeon entrances (in Forever's coordinates), the level of the enemies inside and the dungeon quests come from the same database; `tools/build_dungeons.lua` writes `TrailMate/data/Dungeons.lua`. A dungeon's range runs from the level most of its enemies have to its strongest boss.
+- Class quests are the database's quests for exactly one class, up to level 59; `tools/build_class_quests.lua` writes `TrailMate/data/ClassQuests.lua`. Each quest it picks (`--ids` lists them) was checked against Wowhead's Forever database on 2026-11-22: the one it does not have is left out, with a note in the builder.
 - `tools/build_guides.lua` turns both into `TrailMate/data/Guides.lua`. When TrailMate sees a quest giver in the game, the place it saw wins.
 
 ## Development
@@ -158,7 +161,7 @@ lua tools/make_pin.lua     # media/Pin.tga: the map pin
 
 ## Known issues
 
-Seen in the game with this alpha; each one has an issue on GitHub.
+Seen in the game; each one has an issue on GitHub.
 
 - **The arrow follows an old walked path.** After leaving a place, it can keep following the dots recorded on the way in, and the way back looks odd.
 - **Quest areas.** For a quest done in a large area, the arrow points at the area's middle: moving a little inside the area asks you to go back to the middle. When the same quest can be done in another area, the arrow still points at the first one.
