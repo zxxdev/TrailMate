@@ -1149,9 +1149,12 @@ describe("addon smoke test", function()
     for _ in out:gmatch("%[[PF]A[SI][SL]%]") do
       checks = checks + 1
     end
-    assert.equals(22, checks)
+    assert.equals(25, checks)
     assert.matches("%[PASS%] dungeons: 19 in data", out)
-    assert.matches("%[PASS%] class quests: %d+ in data for", out)
+    assert.matches("%[PASS%] class quests: %d+ in data for HUNTER", out)
+    assert.matches("%[PASS%] class quests: handed in: the game answered for %d+ of %d+; handed in: none", out)
+    assert.matches("%[PASS%] class quests: level by level: [^\n]*10: [^\n]*Taming the Beast", out)
+    assert.matches("%[PASS%] class quests: plan: [^\n]*3 steps", out)
     assert.equals(planBefore, _G.TrailMateCharDB.plan)
     assert.is_nil(_G.TrailMateCharDB.prefs.focusZone)
   end)

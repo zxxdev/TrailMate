@@ -703,13 +703,21 @@ end
 -- Class quests ---------------------------------------------------------------------
 
 -- The class quests for this character now: ready, soon and the level of soon.
-local function classQuests()
-  local log = {}
-  for _, q in ipairs(Api.questLog()) do
-    log[q.questID] = true
+local function classList()
+  return ns.CLASS_QUESTS and ns.CLASS_QUESTS[Api.class() or ""]
+end
+
+-- What the class quests need to know: at a level (default: the player's)
+-- and with a quest log ({ [questID] = true }, default: the real one).
+local function classContext(level, log)
+  if not log then
+    log = {}
+    for _, q in ipairs(Api.questLog()) do
+      log[q.questID] = true
+    end
   end
-  local ctx = {
-    level = Api.level() or 1,
+  return {
+    level = level or Api.level() or 1,
     raceBit = ns.ClassQuests.raceBit(Api.raceID()),
     done = handedIn,
     inLog = function(id)
@@ -719,7 +727,10 @@ local function classQuests()
       return yardsTo(q)
     end,
   }
-  return ns.ClassQuests.forNow(ns.CLASS_QUESTS and ns.CLASS_QUESTS[Api.class() or ""], ctx)
+end
+
+local function classQuests()
+  return ns.ClassQuests.forNow(classList(), classContext())
 end
 
 -- "Call of Fire (Kranal Fiss, The Barrens)".
@@ -1890,16 +1901,73 @@ local function selfTest()
       #(ns.DUNGEONS or {}), level, #list > 0 and table.concat(list, ", ") or "none",
       nextOne and nextOne.name or "none", tostring(ns.Dungeons.isDungeon(plan)))
   end)
-  check("class quests", function()
-    local list = ns.CLASS_QUESTS and ns.CLASS_QUESTS[Api.class() or ""]
-    local ready, soon, soonLevel = classQuests()
-    local names = {}
-    for _, q in ipairs(ready) do
-      names[#names + 1] = q.q .. " " .. q.name
+  -- Class quests: what the player would be offered now, what the game says
+  -- was handed in, what comes level by level, and the plan for one.
+  local raceBit = ns.ClassQuests.raceBit(Api.raceID())
+  local mine = {}
+  for _, q in ipairs(classList() or {}) do
+    if ns.ClassQuests.raceFits(q, raceBit) then
+      mine[#mine + 1] = q
     end
-    return list ~= nil, ("%d in data for %s, race id %s; ready: %s; next at level %s (%d)"):format(#(list or {}),
-      tostring(Api.class()), tostring(Api.raceID()), #names > 0 and table.concat(names, ", ") or "none",
-      tostring(soonLevel), #soon)
+  end
+  check("class quests", function()
+    local list = classList()
+    local ready, soon, soonLevel = classQuests()
+    local names, later = {}, {}
+    for _, q in ipairs(ready) do
+      names[#names + 1] = ("%d %s"):format(q.q, classQuestLabel(q))
+    end
+    for _, q in ipairs(soon) do
+      later[#later + 1] = classQuestLabel(q)
+    end
+    return list ~= nil, ("%d in data for %s, %d for race %s (id %s); ready now: %s; at level %s: %s"):format(
+      #(list or {}), tostring(Api.class()), #mine, tostring(Api.race()), tostring(Api.raceID()),
+      #names > 0 and table.concat(names, "; ") or "none", tostring(soonLevel),
+      #later > 0 and table.concat(later, "; ") or "none")
+  end)
+  check("class quests: handed in", function()
+    local answered, names, seen = 0, {}, {}
+    for _, q in ipairs(mine) do
+      local r = Api.turnedIn(q.q)
+      answered = answered + (r ~= nil and 1 or 0)
+      if r and not seen[q.name] then
+        seen[q.name] = true
+        names[#names + 1] = q.name
+      end
+    end
+    return answered > 0, ("the game answered for %d of %d; handed in: %s"):format(answered, #mine,
+      #names > 0 and table.concat(names, ", ") or "none")
+  end)
+  check("class quests: level by level", function()
+    -- What would be offered at each level, with what was handed in so far
+    -- and an empty quest log: the first step of each chain still to do.
+    local before, parts = {}, {}
+    for level = 1, 60 do
+      local new = {}
+      for _, q in ipairs((ns.ClassQuests.forNow(classList(), classContext(level, {})))) do
+        if not before[q.name] then
+          before[q.name] = true
+          new[#new + 1] = q.name
+        end
+      end
+      if #new > 0 then
+        parts[#parts + 1] = ("%d: %s"):format(level, table.concat(new, ", "))
+      end
+    end
+    return #mine == 0 or #parts > 0, #parts > 0 and table.concat(parts, "; ") or "nothing left"
+  end)
+  check("class quests: plan", function()
+    -- Built and checked, not loaded: the current plan stays.
+    local q = (classQuests())[1] or mine[1]
+    if not q then
+      return true, "no quest for this character"
+    end
+    local p = ns.ClassQuests.toPlan(q, { L = L })
+    local ok, err = Plan.validate(p)
+    local first = p.steps[1]
+    return ok, ("%s: %d steps; pick up from %s at map %d (%s) %.2f, %.2f; hand in to %s%s"):format(q.name, #p.steps,
+      tostring(q.npc), first.mapID, tostring(Api.mapName(first.mapID)), first.x, first.y, tostring(q.tnpc),
+      ok and "" or ("; " .. tostring(err)))
   end)
   check("chat", function()
     -- What the link needs from the client, and whether the inboxes exist.
