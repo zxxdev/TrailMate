@@ -454,6 +454,34 @@ describe("addon smoke test", function()
     assert.matches("ya no está en el diario", output())
   end)
 
+  it("shows the chest of a marked dungeon quest, with the icon of what is in it (the user's case)", function()
+    _G.C_SuperTrack.GetSuperTrackedQuestID = function() return superTracked end
+    rawset(_G, "GetItemIcon", function(id) return id == 7923 and "icon-7923" or nil end)
+    finally(function()
+      rawset(_G, "GetItemIcon", nil)
+      table.remove(quests, 3)
+    end)
+    _G.SlashCmdList.TRAILMATE("diario")
+    quests[3] = { questID = 2342, title = "Reclaimed Treasures", isHeader = false }
+    fire("QUEST_LOG_UPDATE")
+    tick()
+    superTracked = 2342
+    fire("SUPER_TRACKING_CHANGED")
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.1)
+    local window = named.TrailMateFrame
+    assert.equals("Hacer: Reclaimed Treasures", window.step.shown_text)
+    -- The quest's object is in Uldaman: its magnifier shows the chest.
+    assert.is_true(window.lens.visible)
+    window.lens.scripts.OnEnter(window.lens)
+    local preview = named.TrailMatePreview
+    assert.is_true(preview.visible)
+    assert.equals("Garrett Family Chest", preview.name.shown_text)
+    assert.equals("Busca en", preview.verb.shown_text)
+    assert.is_true(preview.icon.visible)
+    assert.is_false(preview.model.visible)
+    window.lens.scripts.OnLeave(window.lens)
+  end)
+
   it("has its page in Esc > Options > AddOns, and hides the minimap button when asked", function()
     install()
     rawset(_G, "TrailMateDB", nil)
@@ -782,8 +810,12 @@ describe("addon smoke test", function()
     fire("TAXIMAP_OPENED")
     local mark = named.TrailMateFlightMark
     assert.is_true(mark.visible)
+    -- Seen on the parchment: a ring and the purple pin over the point, and said.
+    assert.is_true(mark.top.visible)
+    assert.matches("Mapa de vuelos: vuela a Grom'gol", output())
     fire("TAXIMAP_CLOSED")
     assert.is_false(mark.visible)
+    assert.is_false(mark.top.visible)
     -- Without that flight (Grom'gol grey on the flight map: not learned, or
     -- not connected), never to the flight master: straight to the step.
     _G.C_TaxiMap.GetAllTaxiNodes = function()

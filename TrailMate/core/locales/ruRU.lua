@@ -262,6 +262,7 @@ ns.LOCALES.ruRU = {
   ["Dropped by"] = "Добыча с",
   ["Search"] = "Обыщите",
   ["TrailMate: fly here"] = "TrailMate: летите сюда",
+  ["Flight map: fly to %s (marked in gold)."] = "Карта полётов: летите в %s (отмечено золотом).",
   ["All done here"] = "Здесь всё сделано",
   ["Turn them in outside."] = "Сдайте их снаружи.",
   ["(done)"] = "(выполнено)",

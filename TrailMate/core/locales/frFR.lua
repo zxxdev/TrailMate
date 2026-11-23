@@ -262,6 +262,7 @@ ns.LOCALES.frFR = {
   ["Dropped by"] = "Butin de",
   ["Search"] = "Fouiller",
   ["TrailMate: fly here"] = "TrailMate : vole ici",
+  ["Flight map: fly to %s (marked in gold)."] = "Carte de vol : vole vers %s (marqué en doré).",
   ["All done here"] = "Tout est fait ici",
   ["Turn them in outside."] = "Rends-les dehors.",
   ["(done)"] = "(faite)",

@@ -120,6 +120,10 @@ local function checkStep(step)
   if step.drop ~= nil and step.drop ~= true then
     return "has an invalid drop"
   end
+  -- An object has no model: the icon of the item looted from it.
+  if step.loot ~= nil and not isPositiveInt(step.loot) then
+    return "has an invalid loot"
+  end
   return nil
 end
 

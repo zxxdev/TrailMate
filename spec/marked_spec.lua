@@ -61,4 +61,36 @@ describe("Marked", function()
       assert.is_nil(Marked.view(11, "Wolves", {}, ns.L))
     end)
   end)
+
+  describe("about", function()
+    local data = {
+      dungeons = { { quests = {
+        { q = 2342, tnpc = "Patrick Garrett", targets = { { n = "Garrett Family Chest", l = 7923 } } },
+        { q = 2283, tnpc = "Dran Droffers", targets = { { c = 4844, n = "Shadowforge Surveyor", d = true } } },
+      } } },
+      guides = { { steps = {
+        { q = 2283, t = "turnin", cid = 6986, npc = "Dran Droffers" },
+        { q = 50, t = "complete", tgt = "Wolf", cid = 69 },
+      } } },
+      classQuests = { { q = 70, tnpc = "Uzzek", tcid = 5810 } },
+    }
+
+    it("shows the object of a dungeon quest with the item looted from it (the user's case)", function()
+      assert.same({ type = "complete", who = "Garrett Family Chest", loot = 7923 }, Marked.about(2342, "complete", data))
+    end)
+
+    it("shows the creature to kill, and who takes it back once done", function()
+      assert.same({ type = "complete", creature = 4844, who = "Shadowforge Surveyor", drop = true },
+        Marked.about(2283, "complete", data))
+      -- The dungeon list has no model for him; the guide has.
+      assert.same({ type = "turnin", creature = 6986, who = "Dran Droffers" }, Marked.about(2283, "turnin", data))
+      assert.same({ type = "complete", creature = 69, who = "Wolf" }, Marked.about(50, "complete", data))
+      assert.same({ type = "turnin", creature = 5810, who = "Uzzek" }, Marked.about(70, "turnin", data))
+    end)
+
+    it("is nil for a quest no list knows", function()
+      assert.is_nil(Marked.about(999, "complete", data))
+      assert.is_nil(Marked.about(999, "complete", {}))
+    end)
+  end)
 end)

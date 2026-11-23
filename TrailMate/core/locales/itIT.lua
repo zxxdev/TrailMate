@@ -262,6 +262,7 @@ ns.LOCALES.itIT = {
   ["Dropped by"] = "Lasciato da",
   ["Search"] = "Cerca in",
   ["TrailMate: fly here"] = "TrailMate: vola qui",
+  ["Flight map: fly to %s (marked in gold)."] = "Mappa dei voli: vola a %s (segnato in oro).",
   ["All done here"] = "Qui è tutto fatto",
   ["Turn them in outside."] = "Consegnale fuori.",
   ["(done)"] = "(fatta)",

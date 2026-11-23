@@ -262,6 +262,7 @@ ns.LOCALES.koKR = {
   ["Dropped by"] = "획득처",
   ["Search"] = "조사",
   ["TrailMate: fly here"] = "TrailMate: 여기로 비행",
+  ["Flight map: fly to %s (marked in gold)."] = "비행 지도: %s(으)로 비행하세요 (금색 표시).",
   ["All done here"] = "이곳은 모두 완료",
   ["Turn them in outside."] = "밖에서 보고하세요.",
   ["(done)"] = "(완료)",

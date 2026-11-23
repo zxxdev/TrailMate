@@ -86,10 +86,12 @@ end
 -- The preview: hovering the current step shows who it is about, the quest
 -- giver, or the creature to kill or that drops the item, as the game's own
 -- 3D model, with what to do and the name under it. An object (a chest, a
--- plant) has no model here: only the two lines of text.
+-- plant) has no model here: the icon of the item looted from it instead,
+-- or a plain box when the data does not say.
 local PREVIEW_W, PREVIEW_PAD = 176, 8
 local MODEL_W, MODEL_H = PREVIEW_W - 2 * PREVIEW_PAD, 168
 local PREVIEW_DELAY, PREVIEW_FADE = 0.25, 0.12
+local ICON_S, OBJECT_ICON = 44, "Interface\\Icons\\INV_Box_02"
 
 local function previewFrame()
   if UI.preview then
@@ -103,6 +105,11 @@ local function previewFrame()
   p.model = CreateFrame("PlayerModel", nil, p)
   p.model:SetSize(MODEL_W, MODEL_H)
   p.model:SetPoint("TOP", 0, -PREVIEW_PAD)
+  p.icon = p:CreateTexture(nil, "ARTWORK")
+  p.icon:SetSize(ICON_S, ICON_S)
+  p.icon:SetPoint("TOP", 0, -PREVIEW_PAD - 4)
+  p.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93) -- the game draws a border into its icons
+  p.icon:Hide()
   -- What to do with it ("Talk to", "Kill"), small and grey, then the name.
   p.verb = p:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   p.verb:SetWidth(MODEL_W)
@@ -205,6 +212,21 @@ local function verbOf(step, L)
   return L["Search"]
 end
 
+-- The picture of an object to search: the icon of the item looted from it,
+-- or a plain box. nil for a creature or someone to talk to.
+local function objectIcon(step)
+  if step.creature or step.type ~= "complete" then
+    return nil
+  end
+  local icon
+  if step.loot then
+    local byID = C_Item and C_Item.GetItemIconByID
+    local ok, got = pcall(byID or GetItemIcon, step.loot)
+    icon = ok and got or nil
+  end
+  return icon or OBJECT_ICON
+end
+
 local function overlaps(a1, a2, b1, b2)
   return a1 and a2 and b1 and b2 and a1 < b2 and b1 < a2
 end
@@ -258,14 +280,22 @@ local function showPreview(f, step)
     end)
   end
   p.model:SetShown(shown)
+  -- No model: an object to search (a chest) gets the icon of what is in it.
+  local icon = not shown and objectIcon(step) or nil
+  p.icon:SetShown(icon ~= nil)
+  if icon then
+    p.icon:SetTexture(icon)
+  end
   p.verb:ClearAllPoints()
   if shown then
     p.verb:SetPoint("TOP", p.model, "BOTTOM", 0, -4)
+  elseif icon then
+    p.verb:SetPoint("TOP", p.icon, "BOTTOM", 0, -6)
   else
     p.verb:SetPoint("TOP", 0, -PREVIEW_PAD)
   end
   -- The height comes from the text, so two lines never run over the edge.
-  local height = PREVIEW_PAD + (shown and (MODEL_H + 4) or 0)
+  local height = PREVIEW_PAD + (shown and (MODEL_H + 4) or 0) + (icon and (ICON_S + 10) or 0)
     + heightOf(p.verb, 10) + 2 + heightOf(p.name, 14) + PREVIEW_PAD
   height = math.max(48, math.floor(height + 0.5))
   p:SetSize(PREVIEW_W, height)
@@ -817,7 +847,7 @@ end
 local function objectiveRows(q)
   local rows, targets, said = {}, q.targets or {}, q.objectives or {}
   local function about(t)
-    return t and { type = "complete", creature = t.c, who = t.n, drop = t.d, dungeon = true } or nil
+    return t and { type = "complete", creature = t.c, who = t.n, drop = t.d, loot = t.l, dungeon = true } or nil
   end
   if #said == 0 then
     for _, t in ipairs(targets) do
@@ -967,7 +997,7 @@ function UI.renderDungeon(d, L)
       r.count:SetTextColor(Theme.rgb(row.done and muted or Theme.COLORS.note))
       r.mark:SetShown(not (row.header or row.more))
       r.mark:SetTexture(row.done and DONE_MARK or TODO_MARK)
-      local showLens = r.step and r.step.creature ~= nil or false
+      local showLens = r.step and r.step.who ~= nil or false
       r.lens:SetShown(showLens)
       if showLens then
         lensLook(r.lens, false)
@@ -1009,7 +1039,12 @@ function UI.renderMarked(marked, waiting, guide, L)
     return
   end
   endDungeon(f)
-  noPreview(f)
+  -- Its magnifier: the creature or object of the quest, when the data knows it.
+  f.current, f.L = (type(marked.about) == "table" and marked.about) or nil, L
+  setLens(f)
+  if UI.previewPinned() or (UI.preview and UI.preview:IsShown()) then
+    showPreview(f)
+  end
   f.title:SetText(L["Your marked quest"])
   f.counter:SetText(guide and L["Guide paused"] or L["Route paused"])
   f.counter:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.muted))
@@ -1089,75 +1124,119 @@ function UI.render(plan, current, statuses, L, arrowMethod)
 end
 
 -- On the open flight map, the point TrailMate says to fly to beats in gold
--- (the user asked). Gold alone would melt into the parchment and the game's
--- own yellow hover, so: a dark halo under it, a beat, and a ring going out
--- like a minimap ping, all under the point's icon (designed with the design
--- agent). Its tooltip gets a line that says why.
+-- (the user asked). Gold alone melts into the parchment (the first version
+-- could not be seen), so, as the design agent measured it: under the
+-- point's icon a dark disc and an orange-gold beat; over it a gold ring with
+-- a dark edge going out like a minimap ping, and TrailMate's purple pin
+-- floating just above the point, the same mark as on the world map. Its
+-- tooltip gets a line that says why.
 local GLOW = "Interface\\GLUES\\Models\\UI_Draenei\\GenericGlow64"
 local PING = "Interface\\Cooldown\\ping4"
+local DISC = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
+local PIN = "Interface\\AddOns\\TrailMate\\media\\Pin"
+local BEAT_TIME = 0.8 -- the beat, the ring (twice as long) and the pin go together
+
+-- An animation that bounces back and forth, or nil when the client has none.
+local function bounce(texture, build)
+  local group = texture.CreateAnimationGroup and texture:CreateAnimationGroup()
+  if not group then
+    return nil
+  end
+  build(group)
+  group:SetLooping("BOUNCE")
+  return group
+end
+
+local function scaleAnim(group, to, duration)
+  local a = group:CreateAnimation("Scale")
+  if a.SetScaleFrom then
+    a:SetScaleFrom(1, 1)
+    a:SetScaleTo(to, to)
+  end
+  a:SetDuration(duration)
+  return a
+end
+
+local function alphaAnim(group, from, to, duration)
+  local a = group:CreateAnimation("Alpha")
+  a:SetFromAlpha(from)
+  a:SetToAlpha(to)
+  a:SetDuration(duration)
+  return a
+end
+
+-- A ring going out from 28 to 52 pixels and fading, over and over.
+local function ringOut(texture)
+  local group = texture.CreateAnimationGroup and texture:CreateAnimationGroup()
+  if not group then
+    return nil
+  end
+  scaleAnim(group, 1.85, 1.2)
+  local fade = alphaAnim(group, 1, 0, 1.2)
+  if fade.SetEndDelay then
+    fade:SetEndDelay(0.4)
+  end
+  group:SetLooping("REPEAT")
+  return group
+end
 
 local function flightMarkFrame()
   if UI.flightMark then
     return UI.flightMark
   end
-  local gold = ns.Theme.GOLD
+  -- Under the point's icon.
   local m = CreateFrame("Frame", "TrailMateFlightMark", UIParent)
-  m.beats, m.rings = false, false -- set below when the client animates
-  m:SetSize(36, 36)
-  m.halo = m:CreateTexture(nil, "BACKGROUND")
-  m.halo:SetSize(34, 34)
-  m.halo:SetPoint("CENTER")
-  m.halo:SetTexture(GLOW)
-  m.halo:SetVertexColor(0, 0, 0, 0.55)
-  m.beat = m:CreateTexture(nil, "ARTWORK")
-  m.beat:SetSize(28, 28)
+  m.anims = {}
+  m:SetSize(52, 52)
+  if m.EnableMouse then
+    m:EnableMouse(false) -- the point keeps its clicks and tooltip
+  end
+  m.beat = m:CreateTexture(nil, "BACKGROUND", nil, 0)
+  m.beat:SetSize(46, 46)
   m.beat:SetPoint("CENTER")
   m.beat:SetTexture(GLOW)
-  m.beat:SetBlendMode("ADD")
-  m.beat:SetVertexColor(gold[1], gold[2], gold[3], 1)
-  local beat = m.beat.CreateAnimationGroup and m.beat:CreateAnimationGroup()
-  if beat then
-    local fade = beat:CreateAnimation("Alpha")
-    fade:SetFromAlpha(0.35)
-    fade:SetToAlpha(0.9)
-    fade:SetDuration(0.8)
-    local grow = beat:CreateAnimation("Scale")
-    if grow.SetScaleFrom then
-      grow:SetScaleFrom(1, 1)
-      grow:SetScaleTo(1.15, 1.15)
-    end
-    grow:SetDuration(0.8)
-    beat:SetLooping("BOUNCE")
-    m.beats = beat
+  m.beat:SetVertexColor(1, 0.66, 0, 1) -- more orange than the theme's gold: apart from the parchment
+  m.anims[#m.anims + 1] = bounce(m.beat, function(g)
+    alphaAnim(g, 0.45, 1, BEAT_TIME)
+    scaleAnim(g, 1.1, BEAT_TIME)
+  end)
+  m.disc = m:CreateTexture(nil, "BACKGROUND", nil, 1)
+  m.disc:SetSize(32, 32)
+  m.disc:SetPoint("CENTER")
+  m.disc:SetTexture(DISC)
+  m.disc:SetVertexColor(0.17, 0.11, 0.02, 0.85)
+  -- Over it.
+  local top = CreateFrame("Frame", nil, UIParent)
+  m.top = top
+  top:SetSize(52, 52)
+  if top.EnableMouse then
+    top:EnableMouse(false)
   end
-  -- The ring only if this client has the ping's picture.
+  -- The ring only if this client has the ping's picture: a dark copy under
+  -- a gold one, so it reads on the parchment and on the black route lines.
   local hasPing = type(GetFileIDFromPath) ~= "function" or GetFileIDFromPath(PING) ~= nil
   if hasPing then
-    m.ring = m:CreateTexture(nil, "OVERLAY")
-    m.ring:SetSize(16, 16)
-    m.ring:SetPoint("CENTER")
-    m.ring:SetTexture(PING)
-    m.ring:SetBlendMode("ADD")
-    m.ring:SetVertexColor(gold[1], gold[2], gold[3], 1)
-    local ring = m.ring.CreateAnimationGroup and m.ring:CreateAnimationGroup()
-    if ring then
-      local out = ring:CreateAnimation("Scale")
-      if out.SetScaleFrom then
-        out:SetScaleFrom(1, 1)
-        out:SetScaleTo(2.25, 2.25)
-      end
-      out:SetDuration(1.2)
-      local fade = ring:CreateAnimation("Alpha")
-      fade:SetFromAlpha(0.9)
-      fade:SetToAlpha(0)
-      fade:SetDuration(1.2)
-      if fade.SetEndDelay then
-        fade:SetEndDelay(0.6)
-      end
-      ring:SetLooping("REPEAT")
-      m.rings = ring
+    for i, look in ipairs({ { 0.23, 0.15, 0, 0.9, "BLEND" }, { 1, 0.7, 0.1, 1, "ADD" } }) do
+      local ring = top:CreateTexture(nil, "OVERLAY", nil, i)
+      ring:SetSize(28, 28)
+      ring:SetPoint("CENTER")
+      ring:SetTexture(PING)
+      ring:SetBlendMode(look[5])
+      ring:SetVertexColor(look[1], look[2], look[3], look[4])
+      m.anims[#m.anims + 1] = ringOut(ring)
     end
   end
+  -- The pin, its tip just above the point's icon, bobbing with the beat.
+  m.pin = top:CreateTexture(nil, "OVERLAY", nil, 3)
+  m.pin:SetSize(26, 26)
+  m.pin:SetPoint("BOTTOM", top, "CENTER", 0, 14)
+  m.pin:SetTexture(PIN)
+  m.anims[#m.anims + 1] = bounce(m.pin, function(g)
+    local up = g:CreateAnimation("Translation")
+    up:SetOffset(0, 4)
+    up:SetDuration(BEAT_TIME)
+  end)
+  top:Hide()
   m:Hide()
   UI.flightMark = m
   return m
@@ -1178,48 +1257,76 @@ local function addFlightTip(button)
   end)
 end
 
+-- The point's own level, put back when the mark goes (the game reuses them).
+local function restoreButton()
+  local b = UI.flightRaised
+  if b and b.trailMateLevel and b.SetFrameLevel then
+    pcall(b.SetFrameLevel, b, b.trailMateLevel)
+    b.trailMateLevel = nil
+  end
+  UI.flightRaised = nil
+end
+
+local function play(m, on)
+  for _, a in ipairs(m.anims or {}) do
+    if on then
+      a:Play()
+    else
+      a:Stop()
+    end
+  end
+end
+
 --- Marks a flight map's point (its button or pin), or nothing (nil).
 function UI.markFlight(button, L)
   local m = flightMarkFrame()
+  restoreButton()
   UI.flightMarkOn = button
   if not button then
+    play(m, false)
+    m.top:Hide()
     m:Hide()
     return
   end
   UI.flightMarkText = L and L["TrailMate: fly here"] or "TrailMate: fly here"
   -- The buttons are reused from one opening to the next: anchored again.
   local parent = button.GetParent and button:GetParent() or UIParent
-  m:SetParent(parent)
-  m:ClearAllPoints()
-  m:SetPoint("CENTER", button, "CENTER", 0, 0)
-  if m.SetFrameStrata and button.GetFrameStrata then
-    m:SetFrameStrata(button:GetFrameStrata() or "DIALOG")
+  local strata = button.GetFrameStrata and button:GetFrameStrata() or "DIALOG"
+  for _, frame in ipairs({ m, m.top }) do
+    frame:SetParent(parent)
+    frame:ClearAllPoints()
+    frame:SetPoint("CENTER", button, "CENTER", 0, 0)
+    frame:SetFrameStrata(strata)
   end
+  -- Never level with the map (its route lines would draw over the mark):
+  -- one over the map, the point over that, the rest over the point.
+  local parentLevel = parent.GetFrameLevel and parent:GetFrameLevel()
   local level = button.GetFrameLevel and button:GetFrameLevel()
-  if type(level) == "number" then
-    m:SetFrameLevel(math.max(0, level - 1)) -- under the icon: it stays clean
+  if type(parentLevel) == "number" and type(level) == "number" then
+    local under = parentLevel + 1
+    m:SetFrameLevel(under)
+    if level <= under and button.SetFrameLevel then
+      button.trailMateLevel = level
+      UI.flightRaised = button
+      pcall(button.SetFrameLevel, button, under + 1)
+      level = under + 1
+    end
+    m.top:SetFrameLevel(level + 3)
   end
   addFlightTip(button)
   m:Show()
-  if m.beats then
-    m.beats:Play()
-  end
-  if m.rings then
-    m.rings:Play()
-  end
+  m.top:Show()
+  play(m, true) -- together: one beat, not two rhythms
 end
 
 --- The flight map closed: no mark.
 function UI.clearFlightMark()
   UI.flightMarkOn = nil
+  restoreButton()
   local m = UI.flightMark
   if m then
-    if m.beats then
-      m.beats:Stop()
-    end
-    if m.rings then
-      m.rings:Stop()
-    end
+    play(m, false)
+    m.top:Hide()
     m:Hide()
   end
 end

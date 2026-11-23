@@ -272,6 +272,14 @@ local function updateMarked()
     say(L["Your marked quest is no longer in the log: back to the guide."])
     return false
   end
+  -- Who it is about, for the magnifier: looked up once per kind (the
+  -- lists are long).
+  if detour.aboutKind ~= view.kind then
+    detour.aboutKind = view.kind
+    detour.about = ns.Marked.about(detour.marked, view.kind, {
+      dungeons = ns.DUNGEONS, guides = ns.GUIDES, classQuests = ns.CLASS_QUESTS and ns.CLASS_QUESTS[Api.class() or ""],
+    }) or false
+  end
   detour.label, detour.kind = view.text, view.kind
   detour.target = questTarget(detour.marked, view.kind == "turnin")
   detour.item = view.kind == "complete" and Api.questItem(detour.marked) or nil
@@ -2669,7 +2677,12 @@ handlers.TAXIMAP_OPENED = function()
   if goal then
     after(0.1, function()
       guard("flight map", function()
-        ns.UI.markFlight(Api.flightButton(goal), L)
+        local button = Api.flightButton(goal)
+        ns.UI.markFlight(button, L)
+        -- Said too, so the player looks for it (and knows it was found).
+        if button then
+          say(L["Flight map: fly to %s (marked in gold)."]:format(goal))
+        end
       end)
     end)
   end

@@ -47,3 +47,53 @@ function Marked.view(questID, title, questLog, L)
   end
   return { kind = "complete", text = L["Do: "] .. name }
 end
+
+-- What a step of the data says about who it is for, as the preview takes it.
+local function shown(kind, creature, who, drop, loot)
+  if not who then
+    return nil
+  end
+  return { type = kind, creature = creature, who = who, drop = drop, loot = loot }
+end
+
+--- Who a marked quest is about, to show it in the preview: for its
+--- objectives, the first creature or object the data names; once done, who
+--- takes it back. data = { dungeons, guides, classQuests } (TrailMate's own
+--- lists). One with a model wins over one with only a name. nil when no
+--- list knows the quest.
+function Marked.about(questID, kind, data)
+  local turnin = kind == "turnin"
+  local found
+  local function offer(t)
+    if t and (not found or (t.creature and not found.creature)) then
+      found = t
+    end
+  end
+  for _, d in ipairs(data.dungeons or {}) do
+    for _, q in ipairs(d.quests or {}) do
+      if q.q == questID then
+        local t = q.targets and q.targets[1]
+        if turnin then
+          offer(shown("turnin", nil, q.tnpc))
+        elseif t then
+          offer(shown("complete", t.c, t.n, t.d, t.l))
+        end
+      end
+    end
+  end
+  for _, q in ipairs(data.classQuests or {}) do
+    if q.q == questID and turnin then
+      offer(shown("turnin", q.tcid, q.tnpc))
+    end
+  end
+  if not (found and found.creature) then
+    for _, g in ipairs(data.guides or {}) do
+      for _, s in ipairs(g.steps or {}) do
+        if s.q == questID and s.t == (turnin and "turnin" or "complete") then
+          offer(shown(s.t, s.cid, s.tgt or s.npc, s.drop, s.loot))
+        end
+      end
+    end
+  end
+  return found
+end

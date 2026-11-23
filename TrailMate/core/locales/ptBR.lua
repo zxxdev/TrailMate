@@ -263,6 +263,7 @@ ns.LOCALES.ptBR = {
   ["Dropped by"] = "Deixado por",
   ["Search"] = "Procure em",
   ["TrailMate: fly here"] = "TrailMate: voe para cá",
+  ["Flight map: fly to %s (marked in gold)."] = "Mapa de voo: voe para %s (marcado em dourado).",
   ["All done here"] = "Tudo feito aqui",
   ["Turn them in outside."] = "Entregue-as lá fora.",
   ["(done)"] = "(feita)",

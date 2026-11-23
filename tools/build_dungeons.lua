@@ -201,7 +201,8 @@ out:write([[
 -- both), classes (bit mask, or all), pre (needs one of these quests first),
 -- m/x/y and npc where it starts, tm/tx/ty and tnpc where it is handed in.
 -- targets: who or what its objectives are about, to show them: c = creature
--- id (its 3D model), n = name, d = true when it drops the item (not to kill).
+-- id (its 3D model), n = name, d = true when it drops the item (not to kill),
+-- l = the item looted from an object (its icon: objects have no model here).
 
 local _, ns = ...
 
@@ -266,7 +267,7 @@ for _, d in ipairs(DUNGEONS) do
       local shown = {}
       for _, t in ipairs(q.targets) do
         shown[#shown + 1] = "{ " .. (t.c and ("c = %d, "):format(t.c) or "") .. ("n = %s"):format(quote(t.n))
-          .. (t.d and ", d = true" or "") .. " }"
+          .. (t.d and ", d = true" or "") .. (t.l and (", l = %d"):format(t.l) or "") .. " }"
       end
       parts[#parts + 1] = "targets = { " .. table.concat(shown, ", ") .. " }"
     end

@@ -2,6 +2,12 @@
 
 Each version has its release on GitHub with the addon (`TrailMate-<version>.zip`, to copy into `World of Warcraft/_forever_/Interface/AddOns/`) and the companion bridge for Windows (`trailmate-bridge.exe`, optional).
 
+## 0.5.2-beta
+
+- **Objects in the preview:** a quest about a chest or another object (Reclaimed Treasures in Uldaman: the Garrett Family Chest) now has its magnifier too, inside the dungeon and on the step. Objects have no 3D model here, so the preview shows the icon of the item you take from it, with *Search* and the object's name.
+- **A magnifier for the quest you mark:** when you click a quest in the tracker or the quest log and the arrow follows it, the window shows its magnifier too: the creature or object of its objectives, and who takes it back once it is done, when TrailMate's lists know the quest.
+- **The flight map's mark can be seen now:** the gold beat melted into the parchment. The point to fly to gets a dark disc under it, a gold ring with a dark edge going out over it, and TrailMate's purple pin floating just above it, the same mark as on the world map. The chat says which point it is.
+
 ## 0.5.1-beta
 
 - **Objectives inside a dungeon:** the window used to say only "Do here: <quest>". Now it lists what is left of each quest of the dungeon in your log: its objectives as the game words them, with the count in a column of its own and a green check for the ones done, under a heading per quest when you carry several. A magnifier next to each creature to kill shows it in the preview; click it to keep that one shown. The counter says how many objectives are done. A finished quest stays, marked done, and when all are finished the window says to hand them in outside. Inside a dungeon the counts are read again every two seconds, so the last kill is never missed. Who each dungeon quest is about comes from the Questie database for Forever.

@@ -145,7 +145,11 @@ local function itemTarget(id)
   end
   for _, obj in ipairs(Q.field(db, "Item", id, Q.ITEM.objectDrops) or {}) do
     if #objectPlaces(obj) > 0 then
-      return objectTarget(obj)
+      local t = objectTarget(obj)
+      if t then
+        t.loot = id -- its icon: objects have no model here
+      end
+      return t
     end
   end
   return nil
@@ -288,7 +292,7 @@ local function parseGuide(path, faction)
         s.n = tonumber(n)
         local place, target = objectivePlace(id, s.n)
         if target then
-          s.tgt, s.cid, s.drop = target.name, target.creature, target.drop
+          s.tgt, s.cid, s.drop, s.loot = target.name, target.creature, target.drop, target.loot
         end
         guide.steps[#guide.steps + 1] = step("complete", s, place)
         added = true
@@ -393,7 +397,8 @@ out:write([[
 -- only = classes or races it is for, text = what to do (goto, note, level),
 -- cid = creature to show (the quest giver, or the one to kill or that drops
 -- the item), tgt = what a "complete" step is about (an NPC or an object),
--- drop = true when tgt is not to kill but drops the item.
+-- drop = true when tgt is not to kill but drops the item, loot = the item
+-- looted from the object tgt (its icon: objects have no model here).
 
 local _, ns = ...
 

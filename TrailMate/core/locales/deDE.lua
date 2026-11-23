@@ -261,6 +261,7 @@ ns.LOCALES.deDE = {
   ["Dropped by"] = "Beute von",
   ["Search"] = "Durchsuche",
   ["TrailMate: fly here"] = "TrailMate: hierher fliegen",
+  ["Flight map: fly to %s (marked in gold)."] = "Flugkarte: Flieg nach %s (golden markiert).",
   ["All done here"] = "Hier alles erledigt",
   ["Turn them in outside."] = "Gib sie draußen ab.",
   ["(done)"] = "(erledigt)",

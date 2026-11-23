@@ -307,7 +307,9 @@ end
 --- Who or what each objective of a quest is about, to show it, in the
 --- database's order and once per name: { c = creature id, n = name } for a
 --- creature to kill (or to talk to, for a kill credit), with d = true when
---- it is not to kill but drops the item; { n = name } for an object. Spawns
+--- it is not to kill but drops the item; { n = name } for an object, with
+--- l = the item looted from it (its icon is shown, objects have no model
+--- here). Spawns
 --- are not needed to be placed on a map: inside a dungeon they often are not.
 function M.targets(db, questID)
   local obj = M.field(db, "Quest", questID, M.QUEST.objectives) or {}
@@ -322,9 +324,9 @@ function M.targets(db, questID)
     local name = M.field(db, "Npc", id, M.NPC.name)
     return name and { c = id, n = name, d = drop or nil } or nil
   end
-  local function object(id)
+  local function object(id, loot)
     local name = M.field(db, "Object", id, M.OBJECT.name)
-    return name and { n = name } or nil
+    return name and { n = name, l = loot } or nil
   end
   for _, c in ipairs(obj[1] or {}) do
     add(npc(c[1]))
@@ -343,7 +345,7 @@ function M.targets(db, questID)
     if not found then
       for _, id in ipairs(M.field(db, "Item", i[1], M.ITEM.objectDrops) or {}) do
         if hasSpawns(db, "Object", id, M.OBJECT.spawns) then
-          found = object(id)
+          found = object(id, i[1])
           break
         end
       end

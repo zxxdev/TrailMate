@@ -264,6 +264,7 @@ local esES = {
   ["Dropped by"] = "Lo suelta",
   ["Search"] = "Busca en",
   ["TrailMate: fly here"] = "TrailMate: vuela aquí",
+  ["Flight map: fly to %s (marked in gold)."] = "Mapa de vuelos: vuela a %s (marcado en dorado).",
   ["All done here"] = "Todo hecho aquí",
   ["Turn them in outside."] = "Entrégalas fuera.",
   ["(done)"] = "(hecha)",
