@@ -25,6 +25,31 @@ describe("icon picture", function()
     end
   end)
 
+  it("shades each toe by itself: no light from the next toe in its shadow (the user's case)", function()
+    local size = art.SIZE
+    art.SIZE = 256 -- fine enough to see the thin crescents the bug left
+    finally(function()
+      art.SIZE = size
+    end)
+    local h, px1, shaded = 128, 1 / 128, 0
+    for py = 0, 255 do
+      for px = 0, 255 do
+        local x, y = (px + 0.5 - h) / h, (h - (py + 0.5)) / h
+        local parts, moved = art.pawParts(x, y), art.pawParts(x + 0.08, y - 0.08)
+        for i, d in ipairs(parts) do
+          -- Well inside this part and well outside its own moved copy:
+          -- shadow, whatever the other parts' copies cover.
+          if d < -2 * px1 and moved[i] > 2 * px1 then
+            local r, _, b = art.pixel(px, py, art.STYLES.default)
+            assert.is_true(b > r, ("lit at %d, %d (part %d)"):format(px, py, i))
+            shaded = shaded + 1
+          end
+        end
+      end
+    end
+    assert.is_true(shaded > 500)
+  end)
+
   it("draws the trail in the companion's colour, clear of the paw", function()
     local x, y = art.curve(0.3)
     local r, g, b = at(x, y, art.STYLES.claude)
