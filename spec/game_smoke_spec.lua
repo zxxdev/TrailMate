@@ -614,7 +614,7 @@ describe("addon smoke test", function()
     north = 10 -- ten yards north, towards the quest
     eventFrame().scripts.OnUpdate(eventFrame(), 0.05)
     local after = mark.pin.point[5]
-    assert.is_true(after < before - 5)
+    assert.is_true(after < before - 2) -- 10 yards: 3 pixels at this zoom
     -- Purple, not the gold of the game's quest marks.
     assert.same({ 0.61, 0.48, 0.83, 1 }, mark.edge.color)
   end)
