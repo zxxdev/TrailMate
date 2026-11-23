@@ -729,7 +729,7 @@ local DONE_MARK = "Interface\\RaidFrame\\ReadyCheck-Ready"
 local TODO_MARK = "Interface\\COMMON\\Indicator-Gray"
 
 local function sameTarget(a, b)
-  return type(a) == "table" and type(b) == "table" and a.dungeon and b.dungeon and a.who == b.who
+  return type(a) == "table" and type(b) == "table" and a.dungeon and b.dungeon and a.who ~= nil and a.who == b.who
 end
 
 local function dungeonRow(f, i)
@@ -825,18 +825,26 @@ local function objectiveRows(q)
     end
     return rows
   end
+  -- Each creature goes with one objective at most ("X slain" and "Head of
+  -- X" would both name X). The data's names are English: in another
+  -- language they only match by their place in the list, and only when
+  -- there are as many of each; otherwise that row has no magnifier.
+  local used = {}
   for i, o in ipairs(said) do
     local name, count = splitCount(o.text)
     local found
     for _, t in ipairs(targets) do
-      if o.text:find(t.n, 1, true) then
+      if not used[t] and o.text:find(t.n, 1, true) then
         found = t
         break
       end
     end
     -- Not named in the text (an item it drops): the same place in the list.
-    if not found and #targets == #said then
+    if not found and #targets == #said and not used[targets[i]] then
       found = targets[i]
+    end
+    if found then
+      used[found] = true
     end
     rows[#rows + 1] = { text = name, count = count, done = o.done or q.done, step = about(found) }
   end
@@ -856,6 +864,17 @@ function endDungeon(f)
     f.foot:Hide()
   end
   f:SetHeight(HEIGHT)
+end
+
+--- In a dungeon with nothing of the log to do there: the window steps
+--- aside, with no dungeon view or preview left behind.
+function UI.stepAside()
+  local f = UI.frame
+  if not f then
+    return
+  end
+  endDungeon(f)
+  noPreview(f)
 end
 
 --- Inside a dungeon with quests of the log to do there: { name, quests =
@@ -907,7 +926,14 @@ function UI.renderDungeon(d, L)
         kept[#kept + 1] = row
       end
     end
-    rows = kept
+    -- A heading left with nothing under it goes too.
+    rows = {}
+    for i, row in ipairs(kept) do
+      local following = kept[i + 1]
+      if not (row.header and (following == nil or following.header)) then
+        rows[#rows + 1] = row
+      end
+    end
   end
   if #rows > DROWS then
     local more = #rows - (DROWS - 1)

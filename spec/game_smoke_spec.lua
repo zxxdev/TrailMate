@@ -790,10 +790,17 @@ describe("addon smoke test", function()
       return { { name = "Hammerfall", state = 0 }, { name = "Grom'gol", state = 2 } }
     end
     fire("TAXIMAP_OPENED")
-    assert.is_nil(_G.TrailMateCharDB.learnedFlights[0]["Grom'gol"])
-    assert.is_true(_G.TrailMateCharDB.learnedFlights[0]["Hammerfall"])
+    -- Learned before, still remembered; but no flight from here goes there.
+    assert.is_true(_G.TrailMateCharDB.learnedFlights[0]["Grom'gol"])
     eventFrame().scripts.OnUpdate(eventFrame(), 11)
     assert.equals("Hacer: Lobos", arrow.label.shown_text)
+    -- A grey point never learned before is not counted as learned.
+    _G.C_TaxiMap.GetAllTaxiNodes = function()
+      return { { name = "Hammerfall", state = 0 }, { name = "Grom'gol", state = 1 },
+        { name = "Kargath", state = 2 } }
+    end
+    fire("TAXIMAP_OPENED")
+    assert.is_nil(_G.TrailMateCharDB.learnedFlights[0]["Kargath"])
   end)
 
   it("explains the strategy and lets the player pick another zone", function()

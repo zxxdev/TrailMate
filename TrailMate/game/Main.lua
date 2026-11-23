@@ -152,10 +152,12 @@ local function updateTarget(force)
   -- inside, and the guide's next step is outside.
   ns.Arrow.setAway(inDungeon ~= nil)
   if inDungeon then
+    wayThere(nil) -- no far step now: nothing to mark at a flight master
     ns.ItemButton.set(nil)
     return
   end
   if detour then
+    wayThere(nil)
     ns.Arrow.setTarget(detour.target, detour.label, detour.item and L["Click the item to use it"])
     ns.ItemButton.set(detour.item)
     return
@@ -169,7 +171,7 @@ local function updateTarget(force)
   local target = stepTarget(step)
   -- Far away: the arrow goes the quickest way, to the flight master first
   -- (the map's mark stays on the step's own place).
-  local way = target and wayThere(step, target)
+  local way = wayThere(target and step, target)
   if way then
     ns.Arrow.setTarget(way.target, way.label or step.text, way.item and L["Click the item to use it"])
     ns.ItemButton.set(way.item)
@@ -243,6 +245,8 @@ local function render()
   if inDungeon then
     if #inDungeon.quests > 0 then
       ns.UI.renderDungeon(inDungeon, L)
+    else
+      ns.UI.stepAside()
     end
     return
   end
@@ -1214,14 +1218,24 @@ end
 -- the arrow goes to the first place of that trip (the flight master) and
 -- says the leg that saves the time ("Fly from Orgrimmar to Shadowprey
 -- Village."). Worked out again when the step or the player's map changes,
--- or every WAY_AGAIN seconds. Returns { target, item, label } or nil.
+-- or every WAY_AGAIN seconds. Returns { target, item, label, flyTo } or nil.
+-- With no step (none, a dungeon, a detour), it forgets the last one, so the
+-- flight map never marks a flight that no longer applies.
 local WAY_AGAIN = 10
 local wayCache
 
+local function sameSpot(a, b)
+  return a and b and a.mapID == b.mapID and a.x == b.x and a.y == b.y
+end
+
 function wayThere(step, target)
+  if not (step and target) then
+    wayCache = nil
+    return nil
+  end
   local here = playerPoint()
   local c = wayCache
-  if c and c.step == step and c.map == here.mapID and clock - c.at < WAY_AGAIN then
+  if c and c.step == step and sameSpot(c.target, target) and c.map == here.mapID and clock - c.at < WAY_AGAIN then
     return c.way
   end
   local way
@@ -1243,7 +1257,7 @@ function wayThere(step, target)
       way = { target = first, item = item, label = label, flyTo = flightOf(trip) }
     end
   end
-  wayCache = { step = step, map = here.mapID, at = clock, way = way }
+  wayCache = { step = step, target = target, map = here.mapID, at = clock, way = way }
   return way
 end
 
@@ -2630,19 +2644,28 @@ handlers.TAXIMAP_OPENED = function()
     -- (Forever's are 1463 and 1464, classic's 1414 and 1415).
     local here = Api.playerWorld()
     local cont = here and here.cont or Api.continentOf(mapID) or mapID
-    local set = {}
+    -- Saved before 0.5.1 with the grey points too: started again once.
+    if cdb.learnedFlightsRule ~= 2 then
+      cdb.learnedFlights, cdb.learnedFlightsRule = {}, 2
+    end
+    cdb.learnedFlights = cdb.learnedFlights or {}
+    -- Added to what other flight masters taught: one that does not reach a
+    -- point does not mean the character forgot it.
+    local set = cdb.learnedFlights[cont] or {}
     if node then
       set[node] = true
     end
     for _, name in ipairs(reachable or {}) do
       set[name] = true
     end
-    cdb.learnedFlights = cdb.learnedFlights or {}
     cdb.learnedFlights[cont] = set
   end
   -- The point TrailMate says to fly to beats on the map (the user asked). A
   -- moment later: the flight map lays its buttons out after this event.
   local goal = (detour and detour.flyTo) or (wayCache and wayCache.way and wayCache.way.flyTo)
+  if wayCache then
+    wayCache.at = -math.huge -- the flights known just changed: work it out again
+  end
   if goal then
     after(0.1, function()
       guard("flight map", function()

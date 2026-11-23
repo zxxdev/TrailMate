@@ -571,15 +571,19 @@ function Api.flightButton(name)
   end
   local map = rawget(_G, "FlightMapFrame")
   if map and map.IsShown and map:IsShown() and map.EnumeratePinsByTemplate then
-    local ok, pins = pcall(map.EnumeratePinsByTemplate, map, "FlightMap_FlightPointPinTemplate")
-    if ok and pins then
-      for pin in pins do
+    -- The whole walk guarded: the enumerator returns an iterator with its
+    -- state (like pairs), and a client may build it differently.
+    local current = Enum and Enum.FlightPathState and Enum.FlightPathState.Current or 0
+    local ok, found = pcall(function()
+      for pin in map:EnumeratePinsByTemplate("FlightMap_FlightPointPinTemplate") do
         local data = pin.taxiNodeData
-        if data and data.name == name and data.state ~= (Enum and Enum.FlightPathState
-          and Enum.FlightPathState.Current or 0) then
+        if data and data.name == name and data.state ~= current then
           return pin
         end
       end
+    end)
+    if ok and found then
+      return found
     end
   end
   return nil
