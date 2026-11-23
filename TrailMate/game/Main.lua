@@ -2603,7 +2603,10 @@ end
 handlers.TAXIMAP_OPENED = function()
   learnNpc("flight")
   -- Learn which flights are open from here, and which flight points this
-  -- character has on this continent (the flight map shows only those).
+  -- character can fly to on this continent: the one here and the ones the
+  -- map says are reachable. A grey one (unreachable) is not counted: the
+  -- arrow must never send the player to a flight master for a flight they
+  -- cannot take (the user asked).
   local node, reachable, all, mapID = Api.taxiReach()
   if node then
     Atlas.recordFlights(atlas, node, reachable)
@@ -2615,7 +2618,10 @@ handlers.TAXIMAP_OPENED = function()
     local here = Api.playerWorld()
     local cont = here and here.cont or Api.continentOf(mapID) or mapID
     local set = {}
-    for _, name in ipairs(all) do
+    if node then
+      set[node] = true
+    end
+    for _, name in ipairs(reachable or {}) do
       set[name] = true
     end
     cdb.learnedFlights = cdb.learnedFlights or {}

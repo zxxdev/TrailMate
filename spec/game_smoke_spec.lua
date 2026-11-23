@@ -768,6 +768,16 @@ describe("addon smoke test", function()
     end
     eventFrame().scripts.OnUpdate(eventFrame(), 11)
     assert.equals("Vuela de Hammerfall a Grom'gol.", arrow.label.shown_text)
+    -- Without that flight (Grom'gol grey on the flight map: not learned, or
+    -- not connected), never to the flight master: straight to the step.
+    _G.C_TaxiMap.GetAllTaxiNodes = function()
+      return { { name = "Hammerfall", state = 0 }, { name = "Grom'gol", state = 2 } }
+    end
+    fire("TAXIMAP_OPENED")
+    assert.is_nil(_G.TrailMateCharDB.learnedFlights[0]["Grom'gol"])
+    assert.is_true(_G.TrailMateCharDB.learnedFlights[0]["Hammerfall"])
+    eventFrame().scripts.OnUpdate(eventFrame(), 11)
+    assert.equals("Hacer: Lobos", arrow.label.shown_text)
   end)
 
   it("explains the strategy and lets the player pick another zone", function()
