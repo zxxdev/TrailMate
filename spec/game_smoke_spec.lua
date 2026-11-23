@@ -456,7 +456,7 @@ describe("addon smoke test", function()
 
   it("shows the chest of a marked dungeon quest, with the icon of what is in it (the user's case)", function()
     _G.C_SuperTrack.GetSuperTrackedQuestID = function() return superTracked end
-    rawset(_G, "GetItemIcon", function(id) return id == 7923 and "icon-7923" or nil end)
+    rawset(_G, "GetItemIcon", function(id) return id == 8026 and "icon-8026" or nil end)
     finally(function()
       rawset(_G, "GetItemIcon", nil)
       table.remove(quests, 3)
