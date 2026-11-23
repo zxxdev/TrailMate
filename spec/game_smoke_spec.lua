@@ -1069,6 +1069,30 @@ describe("addon smoke test", function()
     assert.is_false(preview.visible)
   end)
 
+  it("measures what each part costs for a minute (/tm perf)", function()
+    local ms = 0
+    rawset(_G, "debugprofilestop", function()
+      ms = ms + 2
+      return ms
+    end)
+    local timers, waiting = _G.C_Timer, nil
+    rawset(_G, "C_Timer", { After = function(_, fn) waiting = fn end })
+    printed = {}
+    _G.SlashCmdList.TRAILMATE("rendimiento")
+    assert.matches("Measuring for 60 seconds", output())
+    fire("QUEST_LOG_UPDATE")
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.5)
+    waiting()
+    local said = output()
+    assert.matches("Performance over %d+ s", said)
+    assert.matches("QUEST_LOG_UPDATE: [%d.]+ ms in 1 runs", said)
+    assert.matches("arrow draw: [%d.]+ ms in 1 runs", said)
+    assert.matches("Memory: [%d.]+ MB at the start", said)
+    assert.matches("Data: %d+ trail dots", said)
+    rawset(_G, "C_Timer", timers)
+    rawset(_G, "debugprofilestop", nil)
+  end)
+
   it("lets the player ignore a spell and announces only new ones at level up", function()
     rawset(_G, "GetNumTrainerServices", function() return 3 end)
     rawset(_G, "GetTrainerServiceInfo", function(i)

@@ -63,8 +63,18 @@ local function reportError(where, err)
   end
 end
 
+-- /tm perf: while it measures, how long each part takes (ms) and how often
+-- it runs. nil the rest of the time, so it costs nothing.
+local perf
+
 local function guard(where, fn, ...)
+  local t0 = perf and debugprofilestop()
   local ok, a, b = pcall(fn, ...)
+  if t0 then
+    local part = perf.parts[where] or { ms = 0, calls = 0 }
+    perf.parts[where] = part
+    part.ms, part.calls = part.ms + debugprofilestop() - t0, part.calls + 1
+  end
   if not ok then
     reportError(where, a)
     return nil
@@ -1437,6 +1447,7 @@ local HELP = {
   { "/tm tracking on|off  (rastreos si|no)", "Skip hunter tracking spells" },
   { "/tm reserve | reserva <gold>", "Gold the trainer advice never spends" },
   { "/tm preview | vista on|off", "Always show the step preview" },
+  { "/tm perf | rendimiento", "Measure for a minute what TrailMate costs (CPU and memory)" },
   { "/tm arrow | flecha on|off", "Show or hide the arrow" },
   { "/tm arrow | flecha top|center  (arriba|centro)", "Bring the arrow back to the top or the middle of the screen" },
   { "/tm trail | rastro on|off|show|export|clear", "Learn the ways you walk and follow them (dots on the map)" },
@@ -1573,6 +1584,70 @@ alias({ "preview", "vista" }, function(rest)
   ns.UI.setPreviewPinned(on)
   say(on and L["Preview always shown. Click the magnifier or type /tm preview off to undo."]
     or L["Preview shown only on hover."])
+end)
+-- What TrailMate costs, to find what to make lighter: for a minute, the time
+-- each part takes, then its memory now and once the game has cleaned up what
+-- is no longer used. Written to the Log tab, to send it.
+local PERF_SECONDS = 60
+
+local function memoryKB()
+  if not (UpdateAddOnMemoryUsage and GetAddOnMemoryUsage) then
+    return 0
+  end
+  UpdateAddOnMemoryUsage()
+  return GetAddOnMemoryUsage("TrailMate") or 0
+end
+
+local function countKeys(t)
+  local n = 0
+  for _ in pairs(type(t) == "table" and t or {}) do
+    n = n + 1
+  end
+  return n
+end
+
+local function reportPerf(p)
+  local seconds = math.max(1, (debugprofilestop() - p.start) / 1000)
+  local rows, total = {}, 0
+  for where, part in pairs(p.parts) do
+    rows[#rows + 1] = { where = where, ms = part.ms, calls = part.calls }
+    total = total + part.ms
+  end
+  table.sort(rows, function(a, b)
+    return a.ms > b.ms
+  end)
+  say(("Performance over %d s: %.1f ms, %.2f ms per second (a part inside another counts in both)")
+    :format(seconds, total, total / seconds))
+  for i = 1, math.min(12, #rows) do
+    local r = rows[i]
+    out(("  %s: %.1f ms in %d runs, %.3f ms each"):format(r.where, r.ms, r.calls, r.ms / r.calls))
+  end
+  local now = memoryKB()
+  collectgarbage("collect")
+  local clean = memoryKB()
+  out(("  Memory: %.1f MB at the start, %.1f MB now, %.1f MB after cleaning up"):format(
+    p.memory / 1024, now / 1024, clean / 1024))
+  out(("  Data: %d trail dots, %d places of NPCs, %d quests learned, %d log lines"):format(
+    countKeys(trails and trails.nodes), countKeys(atlas and atlas.npcs), countKeys(atlas and atlas.quests),
+    countKeys(TrailMateDB and TrailMateDB.log)))
+end
+
+alias({ "perf", "rendimiento" }, function()
+  if perf then
+    say("Already measuring: the result comes in the chat and the Log tab.")
+    return
+  end
+  if not debugprofilestop then
+    say("This game client cannot measure times.")
+    return
+  end
+  perf = { parts = {}, start = debugprofilestop(), memory = memoryKB() }
+  say(("Measuring for %d seconds: play as usual, then send the Log tab."):format(PERF_SECONDS))
+  after(PERF_SECONDS, function()
+    local p = perf
+    perf = nil
+    guard("perf", reportPerf, p)
+  end)
 end)
 alias({ "reserve", "reserva" }, function(rest)
   local gold = tonumber(rest) or 0
@@ -2592,15 +2667,15 @@ frame:SetScript("OnUpdate", function(_, elapsed)
       buildFromQuestLog(false)
     end
     if detour or (plan and current) then
-      guard("arrow", updateTarget, true)
+      guard("arrow target", updateTarget, true)
     end
-    guard("trail", followTrail)
+    guard("trail route", followTrail)
   end
   -- Learn the way while walking; redraw the dotted route on an open map.
   sinceTrail = sinceTrail + elapsed
   if sinceTrail >= 0.5 then
     sinceTrail = 0
-    guard("trail", recordTrail)
+    guard("trail record", recordTrail)
     guard("map dots", ns.MapTrail.tick)
   end
   -- The talent window may switch tabs: keep the lit talent right.
@@ -2617,6 +2692,6 @@ frame:SetScript("OnUpdate", function(_, elapsed)
   end
   if sinceArrow >= 0.05 then
     sinceArrow = 0
-    guard("arrow", ns.Arrow.update)
+    guard("arrow draw", ns.Arrow.update)
   end
 end)

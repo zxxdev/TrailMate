@@ -271,6 +271,8 @@ local esES = {
     "Vista previa fija. Pulsa la lupa o escribe /tm preview off para quitarla.",
   ["Preview shown only on hover."] = "Vista previa solo al pasar el ratón.",
   ["Always show the step preview"] = "Vista previa siempre visible",
+  ["Measure for a minute what TrailMate costs (CPU and memory)"] =
+    "Medir durante un minuto lo que gasta TrailMate (CPU y memoria)",
   ["Optional: elite or group quest"] = "Opcional: misión élite o de grupo",
   ["Guide: %s (%d steps). Other guides: /tm guide."] = "Guía: %s (%d pasos). Otras guías: /tm guia.",
   ["Guide finished. Next: %s."] = "Guía terminada. Siguiente: %s.",
