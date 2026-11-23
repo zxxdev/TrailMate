@@ -45,6 +45,39 @@ describe("Guide", function()
     assert.equals(0.322, seen.steps[6].x) -- the turn-in keeps the data's place
   end)
 
+  it("says who each quest step is about, for the preview", function()
+    local g = {
+      name = "1-6 Test", faction = "Horde", min = 1, max = 6,
+      steps = {
+        { t = "accept", q = 788, name = "Cutting Teeth", npc = "Gornek", cid = 3143 },
+        { t = "complete", q = 788, name = "Cutting Teeth", tgt = "Mottled Boar", cid = 3098 },
+        { t = "complete", q = 789, name = "Sting of the Scorpid", tgt = "Supply Crate" }, -- an object
+        { t = "turnin", q = 788, name = "Cutting Teeth", npc = "Gornek", cid = 3143 },
+        { t = "note", text = "Kill as many mobs as you can" },
+      },
+    }
+    local plan = Guide.toPlan(g, { who = hunter, L = L })
+    assert.is_true(ns.Plan.validate(plan))
+    local about = {}
+    for _, s in ipairs(plan.steps) do
+      about[#about + 1] = tostring(s.who) .. "/" .. tostring(s.creature)
+    end
+    assert.same({ "Gornek/3143", "Mottled Boar/3098", "Supply Crate/nil", "Gornek/3143", "nil/nil" }, about)
+  end)
+
+  it("has the creature of most quest givers in the data", function()
+    local steps, with = 0, 0
+    for _, g in ipairs(ns.GUIDES) do
+      for _, s in ipairs(g.steps) do
+        if s.t == "accept" and s.npc then
+          steps, with = steps + 1, with + (s.cid and 1 or 0)
+        end
+      end
+    end
+    -- Quest givers that are objects (a wanted poster) have none.
+    assert.is_true(with > steps * 0.9, ("%d of %d"):format(with, steps))
+  end)
+
   it("passes the guide's notes once something after them is done", function()
     local plan = Guide.toPlan(small, { who = hunter, L = L })
     local progress = ns.Plan.newProgress(plan)

@@ -213,9 +213,12 @@ describe("ClassQuests", function()
 
   it("makes a valid plan: pick it up at the giver, do it, hand it in", function()
     local q = { q = 1525, name = "Call of Fire", level = 12, req = 10, m = 1413, x = 0.5, y = 0.4,
-      npc = "Telf Joolam", tm = 1413, tx = 0.6, ty = 0.3, tnpc = "Telf Joolam" }
+      npc = "Telf Joolam", cid = 5900, tm = 1413, tx = 0.6, ty = 0.3, tnpc = "Telf Joolam", tcid = 5900 }
     local p = CQ.toPlan(q, { L = L })
     assert.is_true(ns.Plan.validate(p))
+    -- Who to look for, for the preview.
+    assert.same({ 5900, "Telf Joolam" }, { p.steps[1].creature, p.steps[1].who })
+    assert.same({ 5900, "Telf Joolam" }, { p.steps[3].creature, p.steps[3].who })
     assert.is_true(CQ.isClassQuest(p))
     assert.is_false(CQ.isClassQuest({ id = "dungeon-1" }))
     assert.same({ "accept", "complete", "turnin" }, { p.steps[1].type, p.steps[2].type, p.steps[3].type })

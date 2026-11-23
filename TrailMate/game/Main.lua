@@ -1972,6 +1972,18 @@ local function selfTest()
       tostring(q.npc), first.mapID, tostring(Api.mapName(first.mapID)), first.x, first.y, tostring(q.tnpc),
       ok and "" or ("; " .. tostring(err)))
   end)
+  check("target preview", function()
+    -- Whether this client draws a creature from its id, and what the
+    -- current step would show (and how many steps of the plan have one).
+    local now = current and plan and plan.steps[current]
+    local withCreature = 0
+    for _, s in ipairs(plan and plan.steps or {}) do
+      withCreature = withCreature + (s.creature and 1 or 0)
+    end
+    return ns.UI.canShowCreatures(), ("models %s; now %s (creature %s); %d of %d steps with a creature"):format(
+      tostring(ns.UI.canShowCreatures()), tostring(now and now.who), tostring(now and now.creature), withCreature,
+      #(plan and plan.steps or {}))
+  end)
   check("chat", function()
     -- What the link needs from the client, and whether the inboxes exist.
     local link = ns.Chat.link

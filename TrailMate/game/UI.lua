@@ -83,6 +83,77 @@ local function chip(f, i)
   return b
 end
 
+-- The preview: hovering the current step shows who it is about, the quest
+-- giver, or the creature to kill or that drops the item, as the game's own
+-- 3D model, with the name under it. An object (a chest, a plant) has no
+-- model here: only its name.
+local PREVIEW_W, PREVIEW_MODEL_H, PREVIEW_NAME_H = 180, 200, 28
+
+local function previewFrame()
+  if UI.preview then
+    return UI.preview
+  end
+  local template = BackdropTemplateMixin and "BackdropTemplate" or nil
+  local p = CreateFrame("Frame", "TrailMatePreview", UIParent, template)
+  p:SetFrameStrata("TOOLTIP")
+  p:SetClampedToScreen(true)
+  ns.Theme.panel(p)
+  p.model = CreateFrame("PlayerModel", nil, p)
+  p.model:SetPoint("TOPLEFT", 8, -8)
+  p.model:SetPoint("TOPRIGHT", -8, -8)
+  p.model:SetHeight(PREVIEW_MODEL_H - 8)
+  p.name = p:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  p.name:SetPoint("BOTTOMLEFT", 8, 8)
+  p.name:SetPoint("BOTTOMRIGHT", -8, 8)
+  p.name:SetJustifyH("CENTER")
+  p.name:SetMaxLines(2)
+  p:Hide()
+  UI.preview = p
+  return p
+end
+
+--- True if this client can draw a creature's model from its id.
+function UI.canShowCreatures()
+  local ok, model = pcall(CreateFrame, "PlayerModel", nil, UIParent)
+  return ok and model ~= nil and type(model.SetCreature) == "function"
+end
+
+local function hidePreview()
+  if UI.preview then
+    UI.preview:Hide()
+  end
+end
+
+-- Shows the preview of the current step next to the window, on the side
+-- with more room.
+local function showPreview(f)
+  local step = f.current
+  if not (step and (step.creature or step.who)) then
+    hidePreview()
+    return
+  end
+  local p = previewFrame()
+  p:ClearAllPoints()
+  local right, screen = f:GetRight(), UIParent:GetWidth()
+  if right and screen and right + PREVIEW_W + 8 > screen then
+    p:SetPoint("TOPRIGHT", f, "TOPLEFT", -6, 0)
+  else
+    p:SetPoint("TOPLEFT", f, "TOPRIGHT", 6, 0)
+  end
+  p.name:SetText(step.who or "")
+  local shown = false
+  if step.creature and p.model.SetCreature then
+    shown = pcall(function()
+      p.model:ClearModel()
+      p.model:SetCreature(step.creature)
+      p.model:SetFacing(-0.35) -- a little turned, towards the window
+    end)
+  end
+  p.model:SetShown(shown)
+  p:SetSize(PREVIEW_W, (shown and PREVIEW_MODEL_H or 0) + PREVIEW_NAME_H)
+  p:Show()
+end
+
 function UI.create(saved)
   local template = BackdropTemplateMixin and "BackdropTemplate" or nil
   local f = CreateFrame("Frame", "TrailMateFrame", UIParent, template)
@@ -171,6 +242,25 @@ function UI.create(saved)
   f.back:SetPoint("BOTTOMRIGHT", -12, 10)
   f.back:Hide()
 
+  -- Hovering the current step (its icon, text and "why" line) shows the
+  -- preview. Only the mouse's movement is caught here: clicks and drags go
+  -- on to the window, so it still moves from anywhere.
+  local hover = CreateFrame("Frame", nil, f)
+  hover:SetPoint("TOPLEFT", f.icon, "TOPLEFT", -4, 4)
+  hover:SetPoint("BOTTOMRIGHT", f.why, "BOTTOMRIGHT", 4, -4)
+  if hover.SetMouseMotionEnabled and hover.SetMouseClickEnabled then
+    hover:SetMouseMotionEnabled(true)
+    hover:SetMouseClickEnabled(false)
+  else
+    hover:EnableMouse(true)
+  end
+  hover:SetScript("OnEnter", function()
+    showPreview(f)
+  end)
+  hover:SetScript("OnLeave", hidePreview)
+  f.hover = hover
+  f:HookScript("OnHide", hidePreview)
+
   f:SetScript("OnMouseUp", function(_, button)
     if button == "RightButton" then
       ns.Panel.toggle()
@@ -257,6 +347,8 @@ function UI.renderTravel(lines, L)
   if not f then
     return
   end
+  f.current = nil
+  hidePreview()
   f.title:SetText(L["Travel"])
   f.counter:SetText(L["Travel"])
   goldCounter(f)
@@ -280,6 +372,8 @@ function UI.renderDungeon(d, L)
   if not f then
     return
   end
+  f.current = nil
+  hidePreview()
   f.title:SetText(d.name)
   f.counter:SetText(L["Dungeon"])
   goldCounter(f)
@@ -304,6 +398,8 @@ function UI.renderMarked(marked, waiting, guide, L)
   if not f then
     return
   end
+  f.current = nil
+  hidePreview()
   f.title:SetText(L["Your marked quest"])
   f.counter:SetText(guide and L["Guide paused"] or L["Route paused"])
   f.counter:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.muted))
@@ -335,6 +431,8 @@ function UI.render(plan, current, statuses, L, arrowMethod)
   goldCounter(f)
   f.why:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.warning))
   if not plan or not current then
+    f.current = nil
+    hidePreview()
     local empty = L["No plan loaded. Type /tm questlog to build one from your quest log."]
     f.counter:SetText("")
     setStepLook(f, "note")
@@ -346,6 +444,11 @@ function UI.render(plan, current, statuses, L, arrowMethod)
     return
   end
   local step = plan.steps[current]
+  f.current = step
+  -- The step changed under the mouse: show the new one.
+  if UI.preview and UI.preview:IsShown() then
+    showPreview(f)
+  end
   -- How far along: steps done or skipped, not the place of the current one
   -- (a step chosen from the list would make that look further than it is).
   local passed = 0

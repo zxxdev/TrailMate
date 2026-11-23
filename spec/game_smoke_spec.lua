@@ -1028,6 +1028,13 @@ describe("addon smoke test", function()
     assert.matches("Misión de clase: Taming the Beast%. La flecha te lleva hasta Thotar%.", output())
     assert.equals("class-6062", _G.TrailMateCharDB.plan.id)
     assert.equals("Coger: Taming the Beast", named.TrailMateFrame.step.shown_text)
+    -- Hovering the step shows who to look for, next to the window.
+    named.TrailMateFrame.hover.scripts.OnEnter()
+    local preview = named.TrailMatePreview
+    assert.is_true(preview.visible)
+    assert.equals("Thotar", preview.name.shown_text)
+    named.TrailMateFrame.hover.scripts.OnLeave()
+    assert.is_false(preview.visible)
   end)
 
   it("lets the player ignore a spell and announces only new ones at level up", function()
@@ -1149,8 +1156,9 @@ describe("addon smoke test", function()
     for _ in out:gmatch("%[[PF]A[SI][SL]%]") do
       checks = checks + 1
     end
-    assert.equals(25, checks)
+    assert.equals(26, checks)
     assert.matches("%[PASS%] dungeons: 19 in data", out)
+    assert.matches("%[PASS%] target preview: models true", out)
     assert.matches("%[PASS%] class quests: %d+ in data for HUNTER", out)
     assert.matches("%[PASS%] class quests: handed in: the game answered for %d+ of %d+; handed in: none", out)
     assert.matches("%[PASS%] class quests: level by level: [^\n]*10: [^\n]*Taming the Beast", out)

@@ -77,6 +77,18 @@ describe("Plan", function()
       assert.matches("too many", select(2, Plan.validate(p)))
     end)
 
+    it("takes who a step is about, and rejects a bad creature id or name", function()
+      local p = sample()
+      p.steps[1].creature, p.steps[1].who = 3143, "Gornek"
+      assert.is_true(Plan.validate(p))
+      p.steps[1].creature = 0
+      assert.matches("creature", select(2, Plan.validate(p)))
+      p.steps[1].creature = "3143"
+      assert.matches("creature", select(2, Plan.validate(p)))
+      p.steps[1].creature, p.steps[1].who = 3143, ("x"):rep(Plan.MAX_TEXT + 1)
+      assert.matches("who", select(2, Plan.validate(p)))
+    end)
+
     it("rejects non-finite numbers and holes in the step list", function()
       local p = sample()
       p.steps[5].level = 0 / 0
