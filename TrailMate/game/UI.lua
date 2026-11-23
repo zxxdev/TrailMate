@@ -1142,18 +1142,17 @@ function UI.render(plan, current, statuses, L, arrowMethod)
 end
 
 -- On the open flight map, the point TrailMate says to fly to beats in gold
--- (the user asked). Gold alone melts into the parchment (the first version
--- could not be seen), so, as the design agent measured it: under the
--- point's icon a dark disc and an orange-gold beat; over it a gold ring with
--- a dark edge going out like a minimap ping, and TrailMate's purple pin
--- floating just above the point, the same mark as on the world map. Its
--- tooltip gets a line that says why.
-local PING = "Interface\\Cooldown\\ping4"
-local DISC = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
-local PIN = "Interface\\AddOns\\TrailMate\\media\\Pin"
-local BEAT_TIME = 0.8 -- the beat, the ring (twice as long) and the pin go together
+-- (the user asked). Tried in the game and simplified each time: a solid gold
+-- halo that breathes (grows and shrinks, never lighter, so the map never
+-- shows through), a small dark bronze disc that keeps the silver icon apart
+-- from it, and TrailMate's purple pin floating just above the point, the
+-- same mark as on the world map. The game's glow and ping pictures are drawn
+-- on black and came out as squares, and a ring going out jumped back at
+-- each beat: none of them now. Its tooltip gets a line that says why.
+local DISC = "Interface\CharacterFrame\TempPortraitAlphaMask"
+local PIN = "Interface\AddOns\TrailMate\media\Pin"
+local BEAT_TIME = 0.8 -- the halo and the pin go together
 
--- An animation that bounces back and forth, or nil when the client has none.
 -- Moved and grown by fractions of a pixel: snapped to whole pixels, a small
 -- picture goes in steps (the user saw the beat stutter).
 local function unsnap(texture)
@@ -1163,6 +1162,7 @@ local function unsnap(texture)
   end
 end
 
+-- An animation that goes back and forth, or nil when the client has none.
 local function bounce(texture, build)
   local group = texture.CreateAnimationGroup and texture:CreateAnimationGroup()
   if not group then
@@ -1190,32 +1190,6 @@ local function scaleAnim(group, to, duration)
   return a
 end
 
-local function alphaAnim(group, from, to, duration)
-  local a = group:CreateAnimation("Alpha")
-  a:SetFromAlpha(from)
-  a:SetToAlpha(to)
-  a:SetDuration(duration)
-  return a
-end
-
--- A ring going out from 28 to 52 pixels and fading, over and over.
-local function ringOut(texture)
-  local group = texture.CreateAnimationGroup and texture:CreateAnimationGroup()
-  if not group then
-    return nil
-  end
-  unsnap(texture)
-  -- From the halo's edge outwards (it was born under the halo and only
-  -- peeped out, seen in a video of the game), once per beat.
-  local grow = scaleAnim(group, 1.4, 2 * BEAT_TIME)
-  if grow.SetSmoothing then
-    grow:SetSmoothing("OUT") -- fast out, slowing down as it fades
-  end
-  alphaAnim(group, 0.9, 0, 2 * BEAT_TIME)
-  group:SetLooping("REPEAT")
-  return group
-end
-
 local function flightMarkFrame()
   if UI.flightMark then
     return UI.flightMark
@@ -1235,8 +1209,9 @@ local function flightMarkFrame()
   m.beat:SetTexture(DISC)
   m.beat:SetVertexColor(1, 0.75, 0.15, 1) -- warmer than the quest gold, still read as gold
   m.anims[#m.anims + 1] = bounce(m.beat, function(g)
-    alphaAnim(g, 0.6, 1, BEAT_TIME) -- always some gold around it
-    scaleAnim(g, 1.1, BEAT_TIME)
+    -- Solid gold that breathes: a lighter beat let the grey stone show
+    -- through (seen in a video of the game).
+    scaleAnim(g, 1.15, BEAT_TIME)
   end)
   m.disc = m:CreateTexture(nil, "BACKGROUND", nil, 1)
   m.disc:SetSize(26, 26) -- just past the icon: not a dark circle of its own
@@ -1249,19 +1224,6 @@ local function flightMarkFrame()
   top:SetSize(52, 52)
   if top.EnableMouse then
     top:EnableMouse(false)
-  end
-  -- The ring only if this client has the ping's picture. Added light only:
-  -- the picture is drawn on black, and a dark copy of it showed that black
-  -- as a square growing with the ring (seen in the game).
-  local hasPing = type(GetFileIDFromPath) ~= "function" or GetFileIDFromPath(PING) ~= nil
-  if hasPing then
-    local ring = top:CreateTexture(nil, "OVERLAY", nil, 1)
-    ring:SetSize(40, 40) -- the halo's size: it leaves from its edge
-    ring:SetPoint("CENTER")
-    ring:SetTexture(PING)
-    ring:SetBlendMode("ADD")
-    ring:SetVertexColor(1, 0.7, 0.1, 1)
-    m.anims[#m.anims + 1] = ringOut(ring)
   end
   -- The pin, its tip just above the point's icon, bobbing with the beat.
   m.pin = top:CreateTexture(nil, "OVERLAY", nil, 3)
