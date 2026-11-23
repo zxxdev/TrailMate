@@ -28,6 +28,8 @@ local function fakeObject(name)
         return function(self) rawset(self, "visible", true) end
       elseif key == "Hide" then
         return function(self) rawset(self, "visible", false) end
+      elseif key == "SetShown" then
+        return function(self, on) rawset(self, "visible", on and true or false) end
       elseif key == "IsShown" then
         return function(self) return rawget(self, "visible") == true end
       elseif key == "SetText" then
