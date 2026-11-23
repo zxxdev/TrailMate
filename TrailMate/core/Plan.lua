@@ -117,6 +117,9 @@ local function checkStep(step)
   if step.who ~= nil and not isText(step.who, Plan.MAX_TEXT) then
     return "has an invalid who"
   end
+  if step.drop ~= nil and step.drop ~= true then
+    return "has an invalid drop"
+  end
   return nil
 end
 

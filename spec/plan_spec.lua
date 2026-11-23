@@ -87,6 +87,10 @@ describe("Plan", function()
       assert.matches("creature", select(2, Plan.validate(p)))
       p.steps[1].creature, p.steps[1].who = 3143, ("x"):rep(Plan.MAX_TEXT + 1)
       assert.matches("who", select(2, Plan.validate(p)))
+      p.steps[1].who, p.steps[3].drop = "Gornek", true
+      assert.is_true(Plan.validate(p))
+      p.steps[3].drop = "yes"
+      assert.matches("drop", select(2, Plan.validate(p)))
     end)
 
     it("rejects non-finite numbers and holes in the step list", function()

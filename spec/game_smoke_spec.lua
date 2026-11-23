@@ -1032,9 +1032,20 @@ describe("addon smoke test", function()
     named.TrailMateFrame.hover.scripts.OnEnter()
     local preview = named.TrailMatePreview
     assert.is_true(preview.visible)
+    assert.equals("Habla con", preview.verb.shown_text)
     assert.equals("Thotar", preview.name.shown_text)
     named.TrailMateFrame.hover.scripts.OnLeave()
     assert.is_false(preview.visible)
+    -- Passing over the step on the way to the buttons shows nothing: it
+    -- waits a moment, and the mouse is gone by then.
+    local timers = _G.C_Timer
+    local waiting
+    rawset(_G, "C_Timer", { After = function(_, fn) waiting = fn end })
+    named.TrailMateFrame.hover.scripts.OnEnter()
+    named.TrailMateFrame.hover.scripts.OnLeave()
+    waiting()
+    assert.is_false(preview.visible)
+    rawset(_G, "C_Timer", timers)
   end)
 
   it("lets the player ignore a spell and announces only new ones at level up", function()

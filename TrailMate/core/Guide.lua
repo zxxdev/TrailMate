@@ -256,7 +256,7 @@ function Guide.toPlan(guide, ctx)
       -- Who the step is about, for the preview: the quest giver, or the
       -- creature or object of the objective.
       if step.questID then
-        step.creature, step.who = s.cid, s.tgt or s.npc
+        step.creature, step.who, step.drop = s.cid, s.tgt or s.npc, s.drop
       end
       if s.opt then
         step.why = L["Optional: elite or group quest"] .. (step.why and (" - " .. step.why) or "")

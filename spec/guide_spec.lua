@@ -52,6 +52,7 @@ describe("Guide", function()
         { t = "accept", q = 788, name = "Cutting Teeth", npc = "Gornek", cid = 3143 },
         { t = "complete", q = 788, name = "Cutting Teeth", tgt = "Mottled Boar", cid = 3098 },
         { t = "complete", q = 789, name = "Sting of the Scorpid", tgt = "Supply Crate" }, -- an object
+        { t = "complete", q = 790, name = "Sarkoth", tgt = "Sarkoth", cid = 3281, drop = true }, -- drops it
         { t = "turnin", q = 788, name = "Cutting Teeth", npc = "Gornek", cid = 3143 },
         { t = "note", text = "Kill as many mobs as you can" },
       },
@@ -60,9 +61,10 @@ describe("Guide", function()
     assert.is_true(ns.Plan.validate(plan))
     local about = {}
     for _, s in ipairs(plan.steps) do
-      about[#about + 1] = tostring(s.who) .. "/" .. tostring(s.creature)
+      about[#about + 1] = tostring(s.who) .. "/" .. tostring(s.creature) .. (s.drop and "/drop" or "")
     end
-    assert.same({ "Gornek/3143", "Mottled Boar/3098", "Supply Crate/nil", "Gornek/3143", "nil/nil" }, about)
+    assert.same({ "Gornek/3143", "Mottled Boar/3098", "Supply Crate/nil", "Sarkoth/3281/drop", "Gornek/3143",
+      "nil/nil" }, about)
   end)
 
   it("has the creature of most quest givers in the data", function()

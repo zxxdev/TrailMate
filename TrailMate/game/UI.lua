@@ -85,9 +85,11 @@ end
 
 -- The preview: hovering the current step shows who it is about, the quest
 -- giver, or the creature to kill or that drops the item, as the game's own
--- 3D model, with the name under it. An object (a chest, a plant) has no
--- model here: only its name.
-local PREVIEW_W, PREVIEW_MODEL_H, PREVIEW_NAME_H = 180, 200, 28
+-- 3D model, with what to do and the name under it. An object (a chest, a
+-- plant) has no model here: only the two lines of text.
+local PREVIEW_W, PREVIEW_PAD = 176, 8
+local MODEL_W, MODEL_H = PREVIEW_W - 2 * PREVIEW_PAD, 168
+local PREVIEW_DELAY, PREVIEW_FADE = 0.25, 0.12
 
 local function previewFrame()
   if UI.preview then
@@ -99,14 +101,24 @@ local function previewFrame()
   p:SetClampedToScreen(true)
   ns.Theme.panel(p)
   p.model = CreateFrame("PlayerModel", nil, p)
-  p.model:SetPoint("TOPLEFT", 8, -8)
-  p.model:SetPoint("TOPRIGHT", -8, -8)
-  p.model:SetHeight(PREVIEW_MODEL_H - 8)
-  p.name = p:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  p.name:SetPoint("BOTTOMLEFT", 8, 8)
-  p.name:SetPoint("BOTTOMRIGHT", -8, 8)
+  p.model:SetSize(MODEL_W, MODEL_H)
+  p.model:SetPoint("TOP", 0, -PREVIEW_PAD)
+  -- What to do with it ("Talk to", "Kill"), small and grey, then the name.
+  p.verb = p:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  p.verb:SetWidth(MODEL_W)
+  p.verb:SetJustifyH("CENTER")
+  p.verb:SetMaxLines(1)
+  p.verb:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.muted))
+  p.name = p:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  p.name:SetWidth(MODEL_W)
+  p.name:SetPoint("TOP", p.verb, "BOTTOM", 0, -2)
   p.name:SetJustifyH("CENTER")
   p.name:SetMaxLines(2)
+  -- Never over a fight.
+  p:RegisterEvent("PLAYER_REGEN_DISABLED")
+  p:SetScript("OnEvent", function(self)
+    self:Hide()
+  end)
   p:Hide()
   UI.preview = p
   return p
@@ -118,40 +130,133 @@ function UI.canShowCreatures()
   return ok and model ~= nil and type(model.SetCreature) == "function"
 end
 
+-- Each hover gets a number: a wait that ends after the mouse left (or came
+-- back) is not the current one and shows nothing.
+local hoverTurn = 0
+
 local function hidePreview()
+  hoverTurn = hoverTurn + 1
   if UI.preview then
     UI.preview:Hide()
   end
+  if UI.frame and UI.frame.hoverLight then
+    UI.frame.hoverLight:Hide()
+  end
 end
 
--- Shows the preview of the current step next to the window, on the side
--- with more room.
+-- What the player does with who the step is about.
+local function verbOf(step, L)
+  if step.type == "accept" then
+    return L["Talk to"]
+  elseif step.type == "turnin" then
+    return L["Turn in to"]
+  elseif step.drop then
+    return L["Dropped by"]
+  elseif step.creature then
+    return L["Kill"]
+  end
+  return L["Search"]
+end
+
+local function overlaps(a1, a2, b1, b2)
+  return a1 and a2 and b1 and b2 and a1 < b2 and b1 < a2
+end
+
+-- On the right of the window, unless it would leave the screen or cover the
+-- arrow (its text and item button sit in the middle, near the window's top).
+local function previewOnLeft(f, height)
+  local right, top, screen = f:GetRight(), f:GetTop(), UIParent:GetWidth()
+  if right and screen and right + PREVIEW_W + 8 > screen then
+    return true
+  end
+  local arrow = ns.Arrow and ns.Arrow.frame
+  if right and top and arrow and arrow:IsShown() then
+    local left, aRight = arrow:GetLeft(), arrow:GetRight()
+    local aTop, aBottom = arrow:GetTop(), arrow:GetBottom()
+    if aBottom then
+      aBottom = aBottom - 40 -- the item button hangs under it
+    end
+    if overlaps(right + 8, right + 8 + PREVIEW_W, left, aRight) and overlaps(top - height, top, aBottom, aTop) then
+      return true
+    end
+  end
+  return false
+end
+
+local function heightOf(fs, fallback)
+  local h = fs.GetStringHeight and fs:GetStringHeight()
+  return (type(h) == "number" and h > 0) and h or fallback
+end
+
+-- Lays out and shows the preview of the current step next to the window.
 local function showPreview(f)
   local step = f.current
-  if not (step and (step.creature or step.who)) then
+  if not (step and (step.creature or step.who)) or (InCombatLockdown and InCombatLockdown()) then
     hidePreview()
     return
   end
+  local L = f.L or ns.L or setmetatable({}, { __index = function(_, k) return k end })
   local p = previewFrame()
-  p:ClearAllPoints()
-  local right, screen = f:GetRight(), UIParent:GetWidth()
-  if right and screen and right + PREVIEW_W + 8 > screen then
-    p:SetPoint("TOPRIGHT", f, "TOPLEFT", -6, 0)
-  else
-    p:SetPoint("TOPLEFT", f, "TOPRIGHT", 6, 0)
-  end
+  p.verb:SetText(verbOf(step, L))
   p.name:SetText(step.who or "")
   local shown = false
   if step.creature and p.model.SetCreature then
     shown = pcall(function()
       p.model:ClearModel()
       p.model:SetCreature(step.creature)
-      p.model:SetFacing(-0.35) -- a little turned, towards the window
     end)
   end
   p.model:SetShown(shown)
-  p:SetSize(PREVIEW_W, (shown and PREVIEW_MODEL_H or 0) + PREVIEW_NAME_H)
-  p:Show()
+  p.verb:ClearAllPoints()
+  if shown then
+    p.verb:SetPoint("TOP", p.model, "BOTTOM", 0, -4)
+  else
+    p.verb:SetPoint("TOP", 0, -PREVIEW_PAD)
+  end
+  -- The height comes from the text, so two lines never run over the edge.
+  local height = PREVIEW_PAD + (shown and (MODEL_H + 4) or 0)
+    + heightOf(p.verb, 10) + 2 + heightOf(p.name, 14) + PREVIEW_PAD
+  height = math.max(48, math.floor(height + 0.5))
+  p:SetSize(PREVIEW_W, height)
+  p:ClearAllPoints()
+  local left = previewOnLeft(f, height)
+  if left then
+    -- Clear of the item button left of the window when it is there.
+    local item = rawget(_G, "TrailMateItemButton")
+    p:SetPoint("TOPRIGHT", f, "TOPLEFT", (item and item:IsShown()) and -46 or -8, 0)
+  else
+    p:SetPoint("TOPLEFT", f, "TOPRIGHT", 8, 0)
+  end
+  if shown then
+    -- A little turned, towards the window.
+    pcall(p.model.SetFacing, p.model, left and 0.35 or -0.35)
+  end
+  if f.hoverLight then
+    f.hoverLight:Show()
+  end
+  local fadeIn = rawget(_G, "UIFrameFadeIn")
+  if not p:IsShown() and fadeIn then
+    fadeIn(p, PREVIEW_FADE, 0, 1)
+  else
+    p:Show()
+  end
+end
+
+-- After the mouse rests a moment on the step: passing over it on the way to
+-- the buttons below shows nothing.
+local function previewSoon(f)
+  hoverTurn = hoverTurn + 1
+  local turn = hoverTurn
+  local function go()
+    if turn == hoverTurn then
+      showPreview(f)
+    end
+  end
+  if C_Timer and C_Timer.After then
+    C_Timer.After(PREVIEW_DELAY, go)
+  else
+    go()
+  end
 end
 
 function UI.create(saved)
@@ -255,9 +360,16 @@ function UI.create(saved)
     hover:EnableMouse(true)
   end
   hover:SetScript("OnEnter", function()
-    showPreview(f)
+    previewSoon(f)
   end)
   hover:SetScript("OnLeave", hidePreview)
+  -- Lights the step while its preview is open: this is what it is about.
+  f.hoverLight = hover:CreateTexture(nil, "ARTWORK")
+  f.hoverLight:SetAllPoints()
+  f.hoverLight:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+  f.hoverLight:SetBlendMode("ADD")
+  f.hoverLight:SetAlpha(0.3)
+  f.hoverLight:Hide()
   f.hover = hover
   f:HookScript("OnHide", hidePreview)
 
@@ -444,7 +556,7 @@ function UI.render(plan, current, statuses, L, arrowMethod)
     return
   end
   local step = plan.steps[current]
-  f.current = step
+  f.current, f.L = step, L
   -- The step changed under the mouse: show the new one.
   if UI.preview and UI.preview:IsShown() then
     showPreview(f)
