@@ -49,11 +49,11 @@ function Marked.view(questID, title, questLog, L)
 end
 
 -- What a step of the data says about who it is for, as the preview takes it.
-local function shown(kind, creature, who, drop, loot)
+local function shown(kind, creature, who, drop, loot, model)
   if not who then
     return nil
   end
-  return { type = kind, creature = creature, who = who, drop = drop, loot = loot }
+  return { type = kind, creature = creature, who = who, drop = drop, loot = loot, model = model }
 end
 
 --- Who a marked quest is about, to show it in the preview: for its
@@ -76,7 +76,7 @@ function Marked.about(questID, kind, data)
         if turnin then
           offer(shown("turnin", nil, q.tnpc))
         elseif t then
-          offer(shown("complete", t.c, t.n, t.d, t.l))
+          offer(shown("complete", t.c, t.n, t.d, t.l, t.m))
         end
       end
     end
@@ -90,7 +90,7 @@ function Marked.about(questID, kind, data)
     for _, g in ipairs(data.guides or {}) do
       for _, s in ipairs(g.steps or {}) do
         if s.q == questID and s.t == (turnin and "turnin" or "complete") then
-          offer(shown(s.t, s.cid, s.tgt or s.npc, s.drop, s.loot))
+          offer(shown(s.t, s.cid, s.tgt or s.npc, s.drop, s.loot, s.model))
         end
       end
     end

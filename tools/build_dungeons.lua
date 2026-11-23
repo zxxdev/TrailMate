@@ -11,7 +11,9 @@
 --   lua tools/build_dungeons.lua <questdb folder>
 --
 -- The folder holds QuestieDB_Forever.toc, areaIdToUiMapId.lua and
--- dungeons.lua (support/Forever/Zones/dungeons.lua of QuestieDB).
+-- dungeons.lua (support/Forever/Zones/dungeons.lua of QuestieDB), and
+-- gameobject_template.sql and GameObjectDisplayInfo.csv for the models of
+-- objects (see questdb.lua, loadModels).
 
 package.path = "tools/?.lua;" .. package.path
 local Q = require("questdb")
@@ -19,6 +21,7 @@ local Q = require("questdb")
 local qdbDir = arg[1]
 assert(qdbDir, "usage: lua tools/build_dungeons.lua <questdb folder>")
 local db = Q.open(qdbDir .. "/QuestieDB_Forever.toc", qdbDir .. "/areaIdToUiMapId.lua")
+Q.loadModels(db, qdbDir) -- the 3D model of each object (see questdb.lua)
 
 -- The 5-player dungeons of levels 1-60, in the order players meet them.
 -- Raids, battlegrounds and later expansions are left out. side: the only
@@ -202,7 +205,7 @@ out:write([[
 -- m/x/y and npc where it starts, tm/tx/ty and tnpc where it is handed in.
 -- targets: who or what its objectives are about, to show them: c = creature
 -- id (its 3D model), n = name, d = true when it drops the item (not to kill),
--- l = the item looted from an object (its icon: objects have no model here).
+-- l = the item looted from an object (its icon), m = an object's 3D model file.
 
 local _, ns = ...
 
@@ -267,7 +270,7 @@ for _, d in ipairs(DUNGEONS) do
       local shown = {}
       for _, t in ipairs(q.targets) do
         shown[#shown + 1] = "{ " .. (t.c and ("c = %d, "):format(t.c) or "") .. ("n = %s"):format(quote(t.n))
-          .. (t.d and ", d = true" or "") .. (t.l and (", l = %d"):format(t.l) or "") .. " }"
+          .. (t.d and ", d = true" or "") .. (t.l and (", l = %d"):format(t.l) or "") .. (t.m and (", m = %d"):format(t.m) or "") .. " }"
       end
       parts[#parts + 1] = "targets = { " .. table.concat(shown, ", ") .. " }"
     end

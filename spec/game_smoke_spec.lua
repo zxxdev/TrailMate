@@ -483,7 +483,7 @@ describe("addon smoke test", function()
     assert.equals("Hacer: Reclaimed Treasures", window.step.shown_text)
   end)
 
-  it("shows the chest of a marked dungeon quest, with the icon of what is in it (the user's case)", function()
+  it("shows the chest of a marked dungeon quest as its 3D model (the user's case)", function()
     _G.C_SuperTrack.GetSuperTrackedQuestID = function() return superTracked end
     rawset(_G, "GetItemIcon", function(id) return id == 8026 and "icon-8026" or nil end)
     finally(function()
@@ -506,8 +506,15 @@ describe("addon smoke test", function()
     assert.is_true(preview.visible)
     assert.equals("Garrett Family Chest", preview.name.shown_text)
     assert.equals("Busca en", preview.verb.shown_text)
-    assert.is_true(preview.icon.visible)
+    -- Its model (object 124388, appearance 10, model file 196976), not the icon.
+    assert.is_true(preview.model.visible)
+    assert.is_false(preview.icon.visible)
+    window.lens.scripts.OnLeave(window.lens)
+    -- A client that cannot draw it: the icon of the item looted from it.
+    preview.model.SetModel = function() error("no model") end
+    window.lens.scripts.OnEnter(window.lens)
     assert.is_false(preview.model.visible)
+    assert.is_true(preview.icon.visible)
     window.lens.scripts.OnLeave(window.lens)
   end)
 

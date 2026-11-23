@@ -86,12 +86,14 @@ end
 -- The preview: hovering the current step shows who it is about, the quest
 -- giver, or the creature to kill or that drops the item, as the game's own
 -- 3D model, with what to do and the name under it. An object (a chest, a
--- plant) has no model here: the icon of the item looted from it instead,
--- or a plain box when the data does not say.
+-- plant) has its model too when the data knows it (from cMaNGOS and
+-- wago.tools, see tools/questdb.lua); if not, the icon of the item looted
+-- from it, or a plain box.
 local PREVIEW_W, PREVIEW_PAD = 176, 8
 local MODEL_W, MODEL_H = PREVIEW_W - 2 * PREVIEW_PAD, 168
 local PREVIEW_DELAY, PREVIEW_FADE = 0.25, 0.12
 local ICON_S, OBJECT_ICON = 44, "Interface\\Icons\\INV_Box_02"
+local OBJECT_CAM = 1.6 -- how far back the camera stands for an object's model
 
 local function previewFrame()
   if UI.preview then
@@ -276,7 +278,16 @@ local function showPreview(f, step)
   if step.creature and p.model.SetCreature then
     shown = pcall(function()
       p.model:ClearModel()
+      p.model:SetCamDistanceScale(1)
       p.model:SetCreature(step.creature)
+    end)
+  elseif step.model and p.model.SetModel then
+    -- An object (a chest): its model file; no camera of its own, so a little
+    -- further back to see all of it.
+    shown = pcall(function()
+      p.model:ClearModel()
+      p.model:SetModel(step.model)
+      p.model:SetCamDistanceScale(OBJECT_CAM)
     end)
   end
   p.model:SetShown(shown)
@@ -847,7 +858,7 @@ end
 local function objectiveRows(q)
   local rows, targets, said = {}, q.targets or {}, q.objectives or {}
   local function about(t)
-    return t and { type = "complete", creature = t.c, who = t.n, drop = t.d, loot = t.l, dungeon = true } or nil
+    return t and { type = "complete", creature = t.c, who = t.n, drop = t.d, loot = t.l, model = t.m, dungeon = true } or nil
   end
   if #said == 0 then
     for _, t in ipairs(targets) do

@@ -124,6 +124,10 @@ local function checkStep(step)
   if step.loot ~= nil and not isPositiveInt(step.loot) then
     return "has an invalid loot"
   end
+  -- An object's 3D model (a file of the game).
+  if step.model ~= nil and not isPositiveInt(step.model) then
+    return "has an invalid model"
+  end
   return nil
 end
 

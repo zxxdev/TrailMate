@@ -258,6 +258,7 @@ function Guide.toPlan(guide, ctx)
       if step.questID then
         step.creature, step.who, step.drop = s.cid, s.tgt or s.npc, s.drop
         step.loot = s.t == "complete" and s.loot or nil
+        step.model = s.t == "complete" and s.model or nil
       end
       if s.opt then
         step.why = L["Optional: elite or group quest"] .. (step.why and (" - " .. step.why) or "")

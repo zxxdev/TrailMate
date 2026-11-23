@@ -65,7 +65,7 @@ describe("Marked", function()
   describe("about", function()
     local data = {
       dungeons = { { quests = {
-        { q = 2342, tnpc = "Patrick Garrett", targets = { { n = "Garrett Family Chest", l = 8026 } } },
+        { q = 2342, tnpc = "Patrick Garrett", targets = { { n = "Garrett Family Chest", l = 8026, m = 196976 } } },
         { q = 2283, tnpc = "Dran Droffers", targets = { { c = 4844, n = "Shadowforge Surveyor", d = true } } },
       } } },
       guides = { { steps = {
@@ -76,7 +76,7 @@ describe("Marked", function()
     }
 
     it("shows the object of a dungeon quest with the item looted from it (the user's case)", function()
-      assert.same({ type = "complete", who = "Garrett Family Chest", loot = 8026 },
+      assert.same({ type = "complete", who = "Garrett Family Chest", loot = 8026, model = 196976 },
         Marked.about(2342, "complete", data))
     end)
 
