@@ -261,6 +261,7 @@ ns.LOCALES.koKR = {
   ["Kill"] = "처치",
   ["Dropped by"] = "획득처",
   ["Search"] = "조사",
+  ["TrailMate: fly here"] = "TrailMate: 여기로 비행",
   ["All done here"] = "이곳은 모두 완료",
   ["Turn them in outside."] = "밖에서 보고하세요.",
   ["(done)"] = "(완료)",

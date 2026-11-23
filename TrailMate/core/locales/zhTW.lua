@@ -261,6 +261,7 @@ ns.LOCALES.zhTW = {
   ["Kill"] = "擊殺",
   ["Dropped by"] = "掉落自",
   ["Search"] = "搜尋",
+  ["TrailMate: fly here"] = "TrailMate：飛往這裡",
   ["All done here"] = "這裡都完成了",
   ["Turn them in outside."] = "到外面交任務。",
   ["(done)"] = "(已完成)",

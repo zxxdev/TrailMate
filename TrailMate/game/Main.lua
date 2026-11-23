@@ -1198,6 +1198,17 @@ local function planTrip(mapID, name, x, y)
   return trip, lines, target, item
 end
 
+-- The flight point a trip flies to first (its name, as the flight map
+-- calls it), or nil: marked on the flight map when it opens.
+local function flightOf(trip)
+  for _, s in ipairs(trip and trip.steps or {}) do
+    if s.kind == "fly" and s.to and s.to.name then
+      return s.to.name
+    end
+  end
+  return nil
+end
+
 -- A step far away (the user's case: in Orgrimmar, the next quest giver in
 -- Desolace): when flying, a ship or the hearthstone is quicker than walking,
 -- the arrow goes to the first place of that trip (the flight master) and
@@ -1229,7 +1240,7 @@ function wayThere(step, target)
           break
         end
       end
-      way = { target = first, item = item, label = label }
+      way = { target = first, item = item, label = label, flyTo = flightOf(trip) }
     end
   end
   wayCache = { step = step, map = here.mapID, at = clock, way = way }
@@ -1239,7 +1250,7 @@ end
 -- Applies a trip: tells the player the steps and points the arrow at the
 -- first place to go, until they arrive.
 function travelTo(mapID, name)
-  local _, lines, target, item = planTrip(mapID, name)
+  local trip, lines, target, item = planTrip(mapID, name)
   travelLines = lines
   detour = {
     -- First the hearthstone: no place to point at, a stone to click.
@@ -1248,6 +1259,7 @@ function travelTo(mapID, name)
     label = lines[2] and lines[2]:sub(3) or lines[1],
     zone = mapID,
     zoneName = name,
+    flyTo = flightOf(trip),
   }
   -- Saved with the character, so a /reload or a new login on the way
   -- resumes the trip instead of dropping it.
@@ -2628,6 +2640,19 @@ handlers.TAXIMAP_OPENED = function()
     cdb.learnedFlights = cdb.learnedFlights or {}
     cdb.learnedFlights[cont] = set
   end
+  -- The point TrailMate says to fly to beats on the map (the user asked). A
+  -- moment later: the flight map lays its buttons out after this event.
+  local goal = (detour and detour.flyTo) or (wayCache and wayCache.way and wayCache.way.flyTo)
+  if goal then
+    after(0.1, function()
+      guard("flight map", function()
+        ns.UI.markFlight(Api.flightButton(goal), L)
+      end)
+    end)
+  end
+end
+handlers.TAXIMAP_CLOSED = function()
+  ns.UI.clearFlightMark()
 end
 handlers.BAG_UPDATE_DELAYED = function()
   bagThrottle:mark()

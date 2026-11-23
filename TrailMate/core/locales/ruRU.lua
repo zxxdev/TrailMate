@@ -261,6 +261,7 @@ ns.LOCALES.ruRU = {
   ["Kill"] = "Убейте",
   ["Dropped by"] = "Добыча с",
   ["Search"] = "Обыщите",
+  ["TrailMate: fly here"] = "TrailMate: летите сюда",
   ["All done here"] = "Здесь всё сделано",
   ["Turn them in outside."] = "Сдайте их снаружи.",
   ["(done)"] = "(выполнено)",

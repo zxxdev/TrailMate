@@ -260,6 +260,7 @@ ns.LOCALES.deDE = {
   ["Kill"] = "Töte",
   ["Dropped by"] = "Beute von",
   ["Search"] = "Durchsuche",
+  ["TrailMate: fly here"] = "TrailMate: hierher fliegen",
   ["All done here"] = "Hier alles erledigt",
   ["Turn them in outside."] = "Gib sie draußen ab.",
   ["(done)"] = "(erledigt)",

@@ -768,6 +768,22 @@ describe("addon smoke test", function()
     end
     eventFrame().scripts.OnUpdate(eventFrame(), 11)
     assert.equals("Vuela de Hammerfall a Grom'gol.", arrow.label.shown_text)
+    -- At the flight master, Grom'gol beats on the flight map (the user asked).
+    local gromgol = fakeObject("TaxiButton2")
+    gromgol:Show()
+    rawset(_G, "TaxiButton2", gromgol)
+    rawset(_G, "NumTaxiNodes", function() return 2 end)
+    rawset(_G, "TaxiNodeName", function(i) return i == 1 and "Hammerfall" or "Grom'gol" end)
+    finally(function()
+      rawset(_G, "TaxiButton2", nil)
+      rawset(_G, "NumTaxiNodes", nil)
+      rawset(_G, "TaxiNodeName", nil)
+    end)
+    fire("TAXIMAP_OPENED")
+    local mark = named.TrailMateFlightMark
+    assert.is_true(mark.visible)
+    fire("TAXIMAP_CLOSED")
+    assert.is_false(mark.visible)
     -- Without that flight (Grom'gol grey on the flight map: not learned, or
     -- not connected), never to the flight master: straight to the step.
     _G.C_TaxiMap.GetAllTaxiNodes = function()

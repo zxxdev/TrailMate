@@ -263,6 +263,7 @@ local esES = {
   ["Kill"] = "Mata",
   ["Dropped by"] = "Lo suelta",
   ["Search"] = "Busca en",
+  ["TrailMate: fly here"] = "TrailMate: vuela aquí",
   ["All done here"] = "Todo hecho aquí",
   ["Turn them in outside."] = "Entrégalas fuera.",
   ["(done)"] = "(hecha)",

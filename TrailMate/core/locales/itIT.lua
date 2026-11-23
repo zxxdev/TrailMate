@@ -261,6 +261,7 @@ ns.LOCALES.itIT = {
   ["Kill"] = "Uccidi",
   ["Dropped by"] = "Lasciato da",
   ["Search"] = "Cerca in",
+  ["TrailMate: fly here"] = "TrailMate: vola qui",
   ["All done here"] = "Qui è tutto fatto",
   ["Turn them in outside."] = "Consegnale fuori.",
   ["(done)"] = "(fatta)",

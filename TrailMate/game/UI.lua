@@ -1061,3 +1061,139 @@ function UI.render(plan, current, statuses, L, arrowMethod)
   f.arrow:SetText(L["Map mark: %s"]:format(arrowMethod or L["none"]))
   setButtons(f, L, true)
 end
+
+-- On the open flight map, the point TrailMate says to fly to beats in gold
+-- (the user asked). Gold alone would melt into the parchment and the game's
+-- own yellow hover, so: a dark halo under it, a beat, and a ring going out
+-- like a minimap ping, all under the point's icon (designed with the design
+-- agent). Its tooltip gets a line that says why.
+local GLOW = "Interface\\GLUES\\Models\\UI_Draenei\\GenericGlow64"
+local PING = "Interface\\Cooldown\\ping4"
+
+local function flightMarkFrame()
+  if UI.flightMark then
+    return UI.flightMark
+  end
+  local gold = ns.Theme.GOLD
+  local m = CreateFrame("Frame", "TrailMateFlightMark", UIParent)
+  m.beats, m.rings = false, false -- set below when the client animates
+  m:SetSize(36, 36)
+  m.halo = m:CreateTexture(nil, "BACKGROUND")
+  m.halo:SetSize(34, 34)
+  m.halo:SetPoint("CENTER")
+  m.halo:SetTexture(GLOW)
+  m.halo:SetVertexColor(0, 0, 0, 0.55)
+  m.beat = m:CreateTexture(nil, "ARTWORK")
+  m.beat:SetSize(28, 28)
+  m.beat:SetPoint("CENTER")
+  m.beat:SetTexture(GLOW)
+  m.beat:SetBlendMode("ADD")
+  m.beat:SetVertexColor(gold[1], gold[2], gold[3], 1)
+  local beat = m.beat.CreateAnimationGroup and m.beat:CreateAnimationGroup()
+  if beat then
+    local fade = beat:CreateAnimation("Alpha")
+    fade:SetFromAlpha(0.35)
+    fade:SetToAlpha(0.9)
+    fade:SetDuration(0.8)
+    local grow = beat:CreateAnimation("Scale")
+    if grow.SetScaleFrom then
+      grow:SetScaleFrom(1, 1)
+      grow:SetScaleTo(1.15, 1.15)
+    end
+    grow:SetDuration(0.8)
+    beat:SetLooping("BOUNCE")
+    m.beats = beat
+  end
+  -- The ring only if this client has the ping's picture.
+  local hasPing = type(GetFileIDFromPath) ~= "function" or GetFileIDFromPath(PING) ~= nil
+  if hasPing then
+    m.ring = m:CreateTexture(nil, "OVERLAY")
+    m.ring:SetSize(16, 16)
+    m.ring:SetPoint("CENTER")
+    m.ring:SetTexture(PING)
+    m.ring:SetBlendMode("ADD")
+    m.ring:SetVertexColor(gold[1], gold[2], gold[3], 1)
+    local ring = m.ring.CreateAnimationGroup and m.ring:CreateAnimationGroup()
+    if ring then
+      local out = ring:CreateAnimation("Scale")
+      if out.SetScaleFrom then
+        out:SetScaleFrom(1, 1)
+        out:SetScaleTo(2.25, 2.25)
+      end
+      out:SetDuration(1.2)
+      local fade = ring:CreateAnimation("Alpha")
+      fade:SetFromAlpha(0.9)
+      fade:SetToAlpha(0)
+      fade:SetDuration(1.2)
+      if fade.SetEndDelay then
+        fade:SetEndDelay(0.6)
+      end
+      ring:SetLooping("REPEAT")
+      m.rings = ring
+    end
+  end
+  m:Hide()
+  UI.flightMark = m
+  return m
+end
+
+-- The tooltip of the marked point says why it beats.
+local function addFlightTip(button)
+  if button.trailMateTip or not button.HookScript then
+    return
+  end
+  button.trailMateTip = true
+  button:HookScript("OnEnter", function(self)
+    if UI.flightMarkOn == self and GameTooltip and GameTooltip:IsShown() then
+      local c = ns.Theme.COLORS["goto"]
+      GameTooltip:AddLine(UI.flightMarkText or "TrailMate", c[1], c[2], c[3])
+      GameTooltip:Show()
+    end
+  end)
+end
+
+--- Marks a flight map's point (its button or pin), or nothing (nil).
+function UI.markFlight(button, L)
+  local m = flightMarkFrame()
+  UI.flightMarkOn = button
+  if not button then
+    m:Hide()
+    return
+  end
+  UI.flightMarkText = L and L["TrailMate: fly here"] or "TrailMate: fly here"
+  -- The buttons are reused from one opening to the next: anchored again.
+  local parent = button.GetParent and button:GetParent() or UIParent
+  m:SetParent(parent)
+  m:ClearAllPoints()
+  m:SetPoint("CENTER", button, "CENTER", 0, 0)
+  if m.SetFrameStrata and button.GetFrameStrata then
+    m:SetFrameStrata(button:GetFrameStrata() or "DIALOG")
+  end
+  local level = button.GetFrameLevel and button:GetFrameLevel()
+  if type(level) == "number" then
+    m:SetFrameLevel(math.max(0, level - 1)) -- under the icon: it stays clean
+  end
+  addFlightTip(button)
+  m:Show()
+  if m.beats then
+    m.beats:Play()
+  end
+  if m.rings then
+    m.rings:Play()
+  end
+end
+
+--- The flight map closed: no mark.
+function UI.clearFlightMark()
+  UI.flightMarkOn = nil
+  local m = UI.flightMark
+  if m then
+    if m.beats then
+      m.beats:Stop()
+    end
+    if m.rings then
+      m.rings:Stop()
+    end
+    m:Hide()
+  end
+end

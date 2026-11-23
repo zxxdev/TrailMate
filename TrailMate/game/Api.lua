@@ -550,6 +550,41 @@ function Api.taxiMapID()
   return (safe(GetTaxiMapID))
 end
 
+--- On the open flight map, the button of a flight point (by its name, as
+--- the map calls it), or nil: the classic TaxiFrame's TaxiButtonN, or the
+--- pin of the modern FlightMapFrame. Not the point the player is at.
+function Api.flightButton(name)
+  if type(name) ~= "string" then
+    return nil
+  end
+  local n = safe(NumTaxiNodes)
+  if type(n) == "number" and TaxiNodeName then
+    for i = 1, n do
+      if safe(TaxiNodeName, i) == name then
+        local b = rawget(_G, "TaxiButton" .. i)
+        local current = TaxiNodeGetType and safe(TaxiNodeGetType, i) == "CURRENT"
+        if b and b.IsShown and b:IsShown() and not current then
+          return b
+        end
+      end
+    end
+  end
+  local map = rawget(_G, "FlightMapFrame")
+  if map and map.IsShown and map:IsShown() and map.EnumeratePinsByTemplate then
+    local ok, pins = pcall(map.EnumeratePinsByTemplate, map, "FlightMap_FlightPointPinTemplate")
+    if ok and pins then
+      for pin in pins do
+        local data = pin.taxiNodeData
+        if data and data.name == name and data.state ~= (Enum and Enum.FlightPathState
+          and Enum.FlightPathState.Current or 0) then
+          return pin
+        end
+      end
+    end
+  end
+  return nil
+end
+
 --- At an open flight map: the continent map, the current node's name, the
 --- names it can reach, and every node shown (the flight map only shows the
 --- ones this character has discovered).

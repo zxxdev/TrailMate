@@ -262,6 +262,7 @@ ns.LOCALES.ptBR = {
   ["Kill"] = "Mate",
   ["Dropped by"] = "Deixado por",
   ["Search"] = "Procure em",
+  ["TrailMate: fly here"] = "TrailMate: voe para cá",
   ["All done here"] = "Tudo feito aqui",
   ["Turn them in outside."] = "Entregue-as lá fora.",
   ["(done)"] = "(feita)",

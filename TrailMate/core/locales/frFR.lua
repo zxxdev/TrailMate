@@ -261,6 +261,7 @@ ns.LOCALES.frFR = {
   ["Kill"] = "Tuer",
   ["Dropped by"] = "Butin de",
   ["Search"] = "Fouiller",
+  ["TrailMate: fly here"] = "TrailMate : vole ici",
   ["All done here"] = "Tout est fait ici",
   ["Turn them in outside."] = "Rends-les dehors.",
   ["(done)"] = "(faite)",
