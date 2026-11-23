@@ -1213,19 +1213,18 @@ local function flightMarkFrame()
   if top.EnableMouse then
     top:EnableMouse(false)
   end
-  -- The ring only if this client has the ping's picture: a dark copy under
-  -- a gold one, so it reads on the parchment and on the black route lines.
+  -- The ring only if this client has the ping's picture. Added light only:
+  -- the picture is drawn on black, and a dark copy of it showed that black
+  -- as a square growing with the ring (seen in the game).
   local hasPing = type(GetFileIDFromPath) ~= "function" or GetFileIDFromPath(PING) ~= nil
   if hasPing then
-    for i, look in ipairs({ { 0.23, 0.15, 0, 0.9, "BLEND" }, { 1, 0.7, 0.1, 1, "ADD" } }) do
-      local ring = top:CreateTexture(nil, "OVERLAY", nil, i)
-      ring:SetSize(28, 28)
-      ring:SetPoint("CENTER")
-      ring:SetTexture(PING)
-      ring:SetBlendMode(look[5])
-      ring:SetVertexColor(look[1], look[2], look[3], look[4])
-      m.anims[#m.anims + 1] = ringOut(ring)
-    end
+    local ring = top:CreateTexture(nil, "OVERLAY", nil, 1)
+    ring:SetSize(28, 28)
+    ring:SetPoint("CENTER")
+    ring:SetTexture(PING)
+    ring:SetBlendMode("ADD")
+    ring:SetVertexColor(1, 0.7, 0.1, 1)
+    m.anims[#m.anims + 1] = ringOut(ring)
   end
   -- The pin, its tip just above the point's icon, bobbing with the beat.
   m.pin = top:CreateTexture(nil, "OVERLAY", nil, 3)
