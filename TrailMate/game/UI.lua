@@ -1149,8 +1149,8 @@ end
 -- same mark as on the world map. The game's glow and ping pictures are drawn
 -- on black and came out as squares, and a ring going out jumped back at
 -- each beat: none of them now. Its tooltip gets a line that says why.
-local DISC = "Interface\CharacterFrame\TempPortraitAlphaMask"
-local PIN = "Interface\AddOns\TrailMate\media\Pin"
+local DISC = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
+local PIN = "Interface\\AddOns\\TrailMate\\media\\Pin"
 local BEAT_TIME = 0.8 -- the halo and the pin go together
 
 -- Moved and grown by fractions of a pixel: snapped to whole pixels, a small
