@@ -83,6 +83,368 @@ local function chip(f, i)
   return b
 end
 
+-- The preview: hovering the current step shows who it is about, the quest
+-- giver, or the creature to kill or that drops the item, as the game's own
+-- 3D model, with what to do and the name under it. An object (a chest, a
+-- plant) has no model here: only the two lines of text.
+local PREVIEW_W, PREVIEW_PAD = 176, 8
+local MODEL_W, MODEL_H = PREVIEW_W - 2 * PREVIEW_PAD, 168
+local PREVIEW_DELAY, PREVIEW_FADE = 0.25, 0.12
+
+local function previewFrame()
+  if UI.preview then
+    return UI.preview
+  end
+  local template = BackdropTemplateMixin and "BackdropTemplate" or nil
+  local p = CreateFrame("Frame", "TrailMatePreview", UIParent, template)
+  p:SetFrameStrata("TOOLTIP")
+  p:SetClampedToScreen(true)
+  ns.Theme.panel(p)
+  p.model = CreateFrame("PlayerModel", nil, p)
+  p.model:SetSize(MODEL_W, MODEL_H)
+  p.model:SetPoint("TOP", 0, -PREVIEW_PAD)
+  -- What to do with it ("Talk to", "Kill"), small and grey, then the name.
+  p.verb = p:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  p.verb:SetWidth(MODEL_W)
+  p.verb:SetJustifyH("CENTER")
+  p.verb:SetMaxLines(1)
+  p.verb:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.muted))
+  p.name = p:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  p.name:SetWidth(MODEL_W)
+  p.name:SetPoint("TOP", p.verb, "BOTTOM", 0, -2)
+  p.name:SetJustifyH("CENTER")
+  p.name:SetMaxLines(2)
+  -- Never over a fight; a kept preview comes back after it.
+  p:RegisterEvent("PLAYER_REGEN_DISABLED")
+  p:RegisterEvent("PLAYER_REGEN_ENABLED")
+  p:SetScript("OnEvent", function(self, event)
+    if event == "PLAYER_REGEN_DISABLED" then
+      self:Hide()
+      if UI.frame and UI.frame.hoverLight then
+        UI.frame.hoverLight:Hide()
+      end
+    elseif UI.previewPinned() and UI.frame and UI.frame:IsShown() then
+      UI.showPreview(UI.frame)
+    end
+  end)
+  p:Hide()
+  UI.preview = p
+  return p
+end
+
+--- True if this client can draw a creature's model from its id.
+function UI.canShowCreatures()
+  local model = UI.preview and UI.preview.model
+  if not model then
+    local ok, made = pcall(CreateFrame, "PlayerModel", nil, UIParent)
+    model = ok and made or nil
+  end
+  return model ~= nil and type(model.SetCreature) == "function"
+end
+
+-- Each hover gets a number: a wait that ends after the mouse left (or came
+-- back) is not the current one and shows nothing.
+local hoverTurn = 0
+
+--- True when the player chose to keep the preview shown next to the window.
+function UI.previewPinned()
+  return UI.saved ~= nil and UI.saved.previewPinned == true
+end
+
+local function hidePreview()
+  hoverTurn = hoverTurn + 1
+  if UI.preview then
+    UI.preview:Hide()
+  end
+  if UI.frame and UI.frame.hoverLight then
+    UI.frame.hoverLight:Hide()
+  end
+end
+
+-- The mouse left the step or the magnifier: a kept preview stays. Otherwise
+-- it goes a moment later, so moving from the step onto the magnifier (whose
+-- OnEnter comes right after) does not make it blink.
+local LEAVE_DELAY = 0.1
+
+local function leavePreview()
+  hoverTurn = hoverTurn + 1
+  if UI.frame and UI.frame.hoverLight then
+    UI.frame.hoverLight:Hide()
+  end
+  if UI.previewPinned() then
+    return
+  end
+  local turn = hoverTurn
+  local function go()
+    if turn == hoverTurn and not UI.previewPinned() then
+      hidePreview()
+    end
+  end
+  if C_Timer and C_Timer.After then
+    C_Timer.After(LEAVE_DELAY, go)
+  else
+    go()
+  end
+end
+
+-- What the player does with who the step is about.
+local function verbOf(step, L)
+  if step.type == "accept" then
+    return L["Talk to"]
+  elseif step.type == "turnin" then
+    return L["Turn in to"]
+  elseif step.drop then
+    return L["Dropped by"]
+  elseif step.creature then
+    return L["Kill"]
+  end
+  return L["Search"]
+end
+
+local function overlaps(a1, a2, b1, b2)
+  return a1 and a2 and b1 and b2 and a1 < b2 and b1 < a2
+end
+
+-- On the right of the window, unless it would leave the screen or cover the
+-- arrow (its text and item button sit in the middle, near the window's top).
+local function previewOnLeft(f, height)
+  local right, top, screen = f:GetRight(), f:GetTop(), UIParent:GetWidth()
+  if right and screen and right + PREVIEW_W + 8 > screen then
+    return true
+  end
+  local arrow = ns.Arrow and ns.Arrow.frame
+  if right and top and arrow and arrow:IsShown() then
+    local left, aRight = arrow:GetLeft(), arrow:GetRight()
+    local aTop, aBottom = arrow:GetTop(), arrow:GetBottom()
+    if aBottom then
+      aBottom = aBottom - 40 -- the item button hangs under it
+    end
+    if overlaps(right + 8, right + 8 + PREVIEW_W, left, aRight) and overlaps(top - height, top, aBottom, aTop) then
+      return true
+    end
+  end
+  return false
+end
+
+local function heightOf(fs, fallback)
+  local h = fs.GetStringHeight and fs:GetStringHeight()
+  return (type(h) == "number" and h > 0) and h or fallback
+end
+
+-- Lays out and shows the preview of the current step next to the window.
+local function showPreview(f)
+  local step = f.current
+  if not (type(step) == "table" and (step.creature or step.who)) or (InCombatLockdown and InCombatLockdown()) then
+    hidePreview()
+    return
+  end
+  local L = (type(f.L) == "table" and f.L) or ns.L or setmetatable({}, { __index = function(_, k) return k end })
+  local p = previewFrame()
+  p.verb:SetText(verbOf(step, L))
+  p.name:SetText(step.who or "")
+  local shown = false
+  if step.creature and p.model.SetCreature then
+    shown = pcall(function()
+      p.model:ClearModel()
+      p.model:SetCreature(step.creature)
+    end)
+  end
+  p.model:SetShown(shown)
+  p.verb:ClearAllPoints()
+  if shown then
+    p.verb:SetPoint("TOP", p.model, "BOTTOM", 0, -4)
+  else
+    p.verb:SetPoint("TOP", 0, -PREVIEW_PAD)
+  end
+  -- The height comes from the text, so two lines never run over the edge.
+  local height = PREVIEW_PAD + (shown and (MODEL_H + 4) or 0)
+    + heightOf(p.verb, 10) + 2 + heightOf(p.name, 14) + PREVIEW_PAD
+  height = math.max(48, math.floor(height + 0.5))
+  p:SetSize(PREVIEW_W, height)
+  p:ClearAllPoints()
+  local left = previewOnLeft(f, height)
+  if left then
+    -- Clear of the item button left of the window when it is there.
+    local item = rawget(_G, "TrailMateItemButton")
+    p:SetPoint("TOPRIGHT", f, "TOPLEFT", (item and item:IsShown()) and -46 or -8, 0)
+  else
+    p:SetPoint("TOPLEFT", f, "TOPRIGHT", 8, 0)
+  end
+  if shown then
+    -- A little turned, towards the window.
+    pcall(p.model.SetFacing, p.model, left and 0.35 or -0.35)
+  end
+  -- Kept, it sits with the window (not over bags, map and tooltips); for a
+  -- hover, over everything, and the step it is about lights up.
+  local pinned = UI.previewPinned()
+  if pinned then
+    p:SetFrameStrata(f:GetFrameStrata() or "MEDIUM")
+    p:SetFrameLevel((f:GetFrameLevel() or 0) + 5)
+  else
+    p:SetFrameStrata("TOOLTIP")
+  end
+  if f.hoverLight then
+    f.hoverLight:SetShown(not pinned)
+  end
+  local fadeIn = rawget(_G, "UIFrameFadeIn")
+  if not p:IsShown() and fadeIn then
+    fadeIn(p, PREVIEW_FADE, 0, 1)
+  else
+    p:Show()
+  end
+end
+
+UI.showPreview = showPreview
+
+-- After the mouse rests a moment on the step: passing over it on the way to
+-- the buttons below shows nothing.
+local function previewSoon(f)
+  hoverTurn = hoverTurn + 1
+  local turn = hoverTurn
+  local function go()
+    if turn == hoverTurn then
+      showPreview(f)
+    end
+  end
+  if C_Timer and C_Timer.After then
+    C_Timer.After(PREVIEW_DELAY, go)
+  else
+    go()
+  end
+end
+
+-- The magnifier next to a step that has someone to show: hover it to see
+-- the preview, click it to keep the preview shown (or not).
+local LENS, STEP_W, STEP_W_LENS = 14, 280, 260
+
+local function lensLook(lens, lit)
+  local Theme = ns.Theme
+  local pinned = UI.previewPinned()
+  if lit or pinned then
+    lens.tex:SetVertexColor(1, 1, 1, 1)
+  else
+    local c = Theme.COLORS.muted
+    lens.tex:SetVertexColor(c[1], c[2], c[3], 0.8)
+  end
+  lens.on:SetShown(pinned)
+end
+
+-- Three soft blinks the first time the magnifier shows, never again.
+local function blinkOnce(lens)
+  if UI.saved.previewSeen then
+    return
+  end
+  UI.saved.previewSeen = true
+  local group = lens.CreateAnimationGroup and lens:CreateAnimationGroup()
+  if not group then
+    return
+  end
+  local fade = group:CreateAnimation("Alpha")
+  fade:SetFromAlpha(1)
+  fade:SetToAlpha(0.4)
+  fade:SetDuration(0.2)
+  group:SetLooping("BOUNCE")
+  local loops = 0
+  group:SetScript("OnLoop", function(self)
+    loops = loops + 1
+    if loops >= 6 then
+      self:Stop()
+    end
+  end)
+  group:Play()
+end
+
+local function makeLens(f)
+  local Theme = ns.Theme
+  local lens = CreateFrame("Button", nil, f)
+  lens:SetSize(LENS, LENS)
+  lens:SetPoint("TOPRIGHT", -14, -42)
+  lens:SetHitRectInsets(-4, -4, -4, -4)
+  -- Kept: a square behind it, like a button that stays pressed.
+  lens.on = lens:CreateTexture(nil, "BACKGROUND")
+  lens.on:SetSize(20, 20)
+  lens.on:SetPoint("CENTER")
+  lens.on:SetColorTexture(Theme.ACCENT[1], Theme.ACCENT[2], Theme.ACCENT[3], 0.35)
+  lens.tex = lens:CreateTexture(nil, "ARTWORK")
+  lens.tex:SetAllPoints()
+  lens.tex:SetTexture("Interface\\Common\\UI-Searchbox-Icon")
+  local function tip(self)
+    if GameTooltip then
+      local L = (type(f.L) == "table" and f.L) or ns.L
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      GameTooltip:SetText(UI.previewPinned() and L["Click to show it only on hover"] or L["Click to keep it shown"],
+        0.1, 1, 0.1)
+      GameTooltip:Show()
+    end
+  end
+  lens:SetScript("OnEnter", function(self)
+    lensLook(self, true)
+    -- Pointing at it means it: no wait.
+    hoverTurn = hoverTurn + 1
+    showPreview(f)
+    tip(self)
+  end)
+  lens:SetScript("OnLeave", function(self)
+    lensLook(self, false)
+    if GameTooltip then
+      GameTooltip:Hide()
+    end
+    leavePreview()
+  end)
+  lens:SetScript("OnClick", function(self)
+    run("preview")
+    -- Still under the mouse: the look and the tip say the new state.
+    lensLook(self, true)
+    tip(self)
+  end)
+  lens:Hide()
+  return lens
+end
+
+-- Shows the magnifier (and makes room for it) when the current step has
+-- someone to show.
+local function setLens(f)
+  local step = f.current
+  local has = type(step) == "table" and (step.creature ~= nil or step.who ~= nil)
+  f.step:SetWidth(has and STEP_W_LENS or STEP_W)
+  if not f.lens then
+    return
+  end
+  f.lens:SetShown(has)
+  if has then
+    lensLook(f.lens, false)
+    blinkOnce(f.lens)
+  end
+end
+
+-- No step with someone to show (a trip, a dungeon, an empty plan).
+local function noPreview(f)
+  f.current = nil
+  setLens(f)
+  hidePreview()
+end
+
+--- Keeps the preview shown next to the window (true) or only on hover.
+function UI.setPreviewPinned(on)
+  if not UI.saved then
+    return
+  end
+  UI.saved.previewPinned = on and true or nil
+  local f = UI.frame
+  if f and f.lens then
+    lensLook(f.lens, false)
+  end
+  -- Shown, it only moves to its new layer (no fade again). Turned off with
+  -- the mouse still on the step or the magnifier, it stays as a hover.
+  local over = f and ((f.lens and f.lens.IsMouseOver and f.lens:IsMouseOver())
+    or (f.hover and f.hover.IsMouseOver and f.hover:IsMouseOver()))
+  if f and f:IsShown() and (on or over) then
+    showPreview(f)
+  else
+    hidePreview()
+  end
+end
+
 function UI.create(saved)
   local template = BackdropTemplateMixin and "BackdropTemplate" or nil
   local f = CreateFrame("Frame", "TrailMateFrame", UIParent, template)
@@ -171,6 +533,48 @@ function UI.create(saved)
   f.back:SetPoint("BOTTOMRIGHT", -12, 10)
   f.back:Hide()
 
+  -- Hovering the current step (its icon, text and "why" line) shows the
+  -- preview. Only the mouse's movement is caught here: clicks and drags go
+  -- on to the window, so it still moves from anywhere.
+  local hover = CreateFrame("Frame", nil, f)
+  hover:SetPoint("TOPLEFT", f.icon, "TOPLEFT", -4, 4)
+  hover:SetPoint("BOTTOMRIGHT", f.why, "BOTTOMRIGHT", 4, -4)
+  if hover.SetMouseMotionEnabled and hover.SetMouseClickEnabled then
+    hover:SetMouseMotionEnabled(true)
+    hover:SetMouseClickEnabled(false)
+  else
+    hover:EnableMouse(true)
+  end
+  hover:SetScript("OnEnter", function()
+    previewSoon(f)
+  end)
+  hover:SetScript("OnLeave", leavePreview)
+  -- Lights the step while its preview is open: this is what it is about.
+  f.hoverLight = hover:CreateTexture(nil, "ARTWORK")
+  f.hoverLight:SetAllPoints()
+  f.hoverLight:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+  f.hoverLight:SetBlendMode("ADD")
+  f.hoverLight:SetAlpha(0.3)
+  f.hoverLight:Hide()
+  f.hover = hover
+  -- Over the hover area, so it gets the mouse and the clicks.
+  f.lens = makeLens(f)
+  -- Made now, so its combat events are there even when the game loads in
+  -- the middle of a fight with the preview kept shown.
+  previewFrame()
+  f:HookScript("OnHide", hidePreview)
+  f:HookScript("OnShow", function(self)
+    if UI.previewPinned() then
+      showPreview(self)
+    end
+  end)
+  -- Dropped somewhere else: the kept preview picks its side again.
+  f:HookScript("OnDragStop", function(self)
+    if UI.preview and UI.preview:IsShown() then
+      showPreview(self)
+    end
+  end)
+
   f:SetScript("OnMouseUp", function(_, button)
     if button == "RightButton" then
       ns.Panel.toggle()
@@ -257,6 +661,7 @@ function UI.renderTravel(lines, L)
   if not f then
     return
   end
+  noPreview(f)
   f.title:SetText(L["Travel"])
   f.counter:SetText(L["Travel"])
   goldCounter(f)
@@ -280,6 +685,7 @@ function UI.renderDungeon(d, L)
   if not f then
     return
   end
+  noPreview(f)
   f.title:SetText(d.name)
   f.counter:SetText(L["Dungeon"])
   goldCounter(f)
@@ -304,6 +710,7 @@ function UI.renderMarked(marked, waiting, guide, L)
   if not f then
     return
   end
+  noPreview(f)
   f.title:SetText(L["Your marked quest"])
   f.counter:SetText(guide and L["Guide paused"] or L["Route paused"])
   f.counter:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.muted))
@@ -335,6 +742,7 @@ function UI.render(plan, current, statuses, L, arrowMethod)
   goldCounter(f)
   f.why:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.warning))
   if not plan or not current then
+    noPreview(f)
     local empty = L["No plan loaded. Type /tm questlog to build one from your quest log."]
     f.counter:SetText("")
     setStepLook(f, "note")
@@ -346,6 +754,12 @@ function UI.render(plan, current, statuses, L, arrowMethod)
     return
   end
   local step = plan.steps[current]
+  f.current, f.L = step, L
+  setLens(f)
+  -- Kept, or the step changed under the mouse: show the new one.
+  if UI.previewPinned() or (UI.preview and UI.preview:IsShown()) then
+    showPreview(f)
+  end
   -- How far along: steps done or skipped, not the place of the current one
   -- (a step chosen from the list would make that look further than it is).
   local passed = 0

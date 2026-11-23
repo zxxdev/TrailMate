@@ -2,6 +2,12 @@
 
 Each version has its release on GitHub with the addon (`TrailMate-<version>.zip`, to copy into `World of Warcraft/_forever_/Interface/AddOns/`) and the companion bridge for Windows (`trailmate-bridge.exe`, optional).
 
+## 0.5.0-beta
+
+- **Step preview:** a magnifier next to the current step. Hover it (or the step) and the game's 3D model of who the step is about appears next to the window, with what to do: *Talk to* the quest giver, *Turn in to*, *Kill*, *Dropped by* the creature that drops the item, or *Search* for objects (a chest, a plant), which show only their name. Click the magnifier to keep the preview shown; the same choice is in Esc > Options > AddOns and `/tm preview on|off` (`/tm vista`). It hides in combat. From the Questie database for Forever, like the guides.
+- **Lighter:** the arrow still turns with your camera twenty times a second, but works out where you and the target are only five times a second, and does nothing while you do not turn; the walked-trail route is no longer worked out again while you stand in one spot. `/tm perf` (`/tm rendimiento`) measures for a minute what each part costs and writes it to the Log tab.
+- Fixed the icon: the shadow of the two middle toes had a light crescent in it (the light of the toe next to it). Each part of the paw now casts its own shadow, the same way in all of them.
+
 ## 0.4.0-beta
 
 - **Class quests as side quests:** at each new level (and when you log in) TrailMate says which quests of your class and race you can pick up now: totems, pets, forms, stances, mounts and the rest, levels 1 to 59. `/tm class` (`/tm clase`) lists them with who gives them and where, and the next level that opens more; `/tm class 1` takes you to the quest giver and back to your guide when it is handed in. When several trainers give the same quest, it is the nearest one, even if it opens a level or two later (a troll shaman gets Call of Earth in the Valley of Trials, not on Zephras Isle). From the Questie database for Forever, checked against Wowhead's.

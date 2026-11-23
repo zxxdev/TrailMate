@@ -276,14 +276,15 @@ function M.central(db, spawns)
 end
 
 --- Who starts or ends a quest (its startedBy or finishedBy field: { npcs,
---- objects, items }): their place ({ m, x, y } or nil) and their name. An
---- item has a name but no place.
+--- objects, items }): their place ({ m, x, y } or nil), their name, and the
+--- creature id when it is an NPC (the game draws its model from it). An item
+--- has a name but no place.
 function M.giver(db, by)
   by = by or {}
   for _, npc in ipairs(by[1] or {}) do
     local place = M.central(db, M.field(db, "Npc", npc, M.NPC.spawns))
     if place then
-      return place, M.field(db, "Npc", npc, M.NPC.name)
+      return place, M.field(db, "Npc", npc, M.NPC.name), npc
     end
   end
   for _, obj in ipairs(by[2] or {}) do

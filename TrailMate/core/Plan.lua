@@ -110,6 +110,16 @@ local function checkStep(step)
   if step.radius ~= nil and not (type(step.radius) == "number" and step.radius > 0 and step.radius <= 1) then
     return "has an invalid radius"
   end
+  -- Who the step is about, to show it: a creature id (its model) and a name.
+  if step.creature ~= nil and not isPositiveInt(step.creature) then
+    return "has an invalid creature"
+  end
+  if step.who ~= nil and not isText(step.who, Plan.MAX_TEXT) then
+    return "has an invalid who"
+  end
+  if step.drop ~= nil and step.drop ~= true then
+    return "has an invalid drop"
+  end
   return nil
 end
 

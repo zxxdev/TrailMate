@@ -103,13 +103,15 @@ local function itemPlaces(id, out)
 end
 
 -- Where a quest is given or taken back: { npcIds, objectIds, itemIds }.
+-- Returns the place, the giver's name, and its creature id when it is an NPC
+-- (the game draws its model from that id).
 local function giverPlace(givers)
   givers = givers or {}
   local list = {}
   for _, npc in ipairs(givers[1] or {}) do
     npcPlaces(npc, list)
     if #list > 0 then
-      return central(list), Q.field(db, "Npc", npc, Q.NPC.name)
+      return central(list), Q.field(db, "Npc", npc, Q.NPC.name), npc
     end
   end
   for _, obj in ipairs(givers[2] or {}) do
@@ -121,18 +123,50 @@ local function giverPlace(givers)
   return nil
 end
 
--- Where a quest's objective n (or all) is done.
+-- What an objective is about, to show it: { creature = id, name } for an NPC
+-- to kill or talk to, or for one that drops the item; { name } for an object.
+local function npcTarget(id)
+  local name = Q.field(db, "Npc", id, Q.NPC.name)
+  return name and { creature = id, name = name } or nil
+end
+local function objectTarget(id)
+  local name = Q.field(db, "Object", id, Q.OBJECT.name)
+  return name and { name = name } or nil
+end
+local function itemTarget(id)
+  for _, npc in ipairs(Q.field(db, "Item", id, Q.ITEM.npcDrops) or {}) do
+    if #npcPlaces(npc) > 0 then
+      local t = npcTarget(npc)
+      if t then
+        t.drop = true
+      end
+      return t
+    end
+  end
+  for _, obj in ipairs(Q.field(db, "Item", id, Q.ITEM.objectDrops) or {}) do
+    if #objectPlaces(obj) > 0 then
+      return objectTarget(obj)
+    end
+  end
+  return nil
+end
+
+-- Where a quest's objective n (or all) is done, and what it is about
+-- (objective n, or the first one).
 local function objectivePlace(questID, n)
   local obj = Q.field(db, "Quest", questID, Q.QUEST.objectives) or {}
-  local flat = {}
+  local flat, targets = {}, {}
   for _, c in ipairs(obj[1] or {}) do
     flat[#flat + 1] = function(out) return npcPlaces(c[1], out) end
+    targets[#flat] = function() return npcTarget(c[1]) end
   end
   for _, o in ipairs(obj[2] or {}) do
     flat[#flat + 1] = function(out) return objectPlaces(o[1], out) end
+    targets[#flat] = function() return objectTarget(o[1]) end
   end
   for _, i in ipairs(obj[3] or {}) do
     flat[#flat + 1] = function(out) return itemPlaces(i[1], out) end
+    targets[#flat] = function() return itemTarget(i[1]) end
   end
   for _, k in ipairs(obj[5] or {}) do -- kill credit: { { npcIds }, creditId, text }
     flat[#flat + 1] = function(out)
@@ -141,7 +175,10 @@ local function objectivePlace(questID, n)
       end
       return out
     end
+    targets[#flat] = function() return k[1] and k[1][1] and npcTarget(k[1][1]) end
   end
+  local which = targets[n or 1]
+  local target = which and which() or nil
   local list = {}
   if n and flat[n] then
     flat[n](list)
@@ -156,7 +193,7 @@ local function objectivePlace(questID, n)
       places(trigger[2], list)
     end
   end
-  return central(list)
+  return central(list), target
 end
 
 -- Guide text -> steps ---------------------------------------------------------
@@ -241,7 +278,7 @@ local function parseGuide(path, faction)
         id = tonumber(id)
         local s = quest(id)
         local place
-        place, s.npc = giverPlace(Q.field(db, "Quest", id, Q.QUEST.startedBy))
+        place, s.npc, s.cid = giverPlace(Q.field(db, "Quest", id, Q.QUEST.startedBy))
         guide.steps[#guide.steps + 1] = step("accept", s, place)
         added = true
       end
@@ -249,14 +286,18 @@ local function parseGuide(path, faction)
         id = tonumber(id)
         local s = quest(id)
         s.n = tonumber(n)
-        guide.steps[#guide.steps + 1] = step("complete", s, objectivePlace(id, s.n))
+        local place, target = objectivePlace(id, s.n)
+        if target then
+          s.tgt, s.cid, s.drop = target.name, target.creature, target.drop
+        end
+        guide.steps[#guide.steps + 1] = step("complete", s, place)
         added = true
       end
       for id in line:gmatch("%[QT(%d+)") do
         id = tonumber(id)
         local s = quest(id)
         local place
-        place, s.npc = giverPlace(Q.field(db, "Quest", id, Q.QUEST.finishedBy))
+        place, s.npc, s.cid = giverPlace(Q.field(db, "Quest", id, Q.QUEST.finishedBy))
         guide.steps[#guide.steps + 1] = step("turnin", s, place)
         added = true
       end
@@ -349,7 +390,10 @@ out:write([[
 --
 -- Step: t = accept | complete | turnin | goto | note | level, q = quest id,
 -- n = objective, m/x/y = where, npc = who, opt = optional (elite or group),
--- only = classes or races it is for, text = what to do (goto, note, level).
+-- only = classes or races it is for, text = what to do (goto, note, level),
+-- cid = creature to show (the quest giver, or the one to kill or that drops
+-- the item), tgt = what a "complete" step is about (an NPC or an object),
+-- drop = true when tgt is not to kill but drops the item.
 
 local _, ns = ...
 

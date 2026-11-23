@@ -145,7 +145,8 @@ function Arrow.setVia(point)
   Arrow.via = point
 end
 
---- Recomputes direction and distance. Called a few times per second.
+--- Recomputes direction and distance (the map work: where the player and
+--- the target are). Arrow.tick calls it a few times per second.
 function Arrow.update()
   local f, L = Arrow.frame, Arrow.L
   if not f then
@@ -153,6 +154,10 @@ function Arrow.update()
   end
   local target = Arrow.target
   local pin = ns.MinimapPin
+  -- What this was worked out for: Arrow.tick reuses it while it holds.
+  local last = { target = target, via = Arrow.via, label = Arrow.labelText,
+    off = (Arrow.saved.disabled or Arrow.away) and true or false }
+  Arrow.last = last
   if Arrow.saved.disabled or Arrow.away or not (target or Arrow.labelText) then
     f:Hide()
     pin.hide()
@@ -189,6 +194,7 @@ function Arrow.update()
     return
   end
   -- The minimap mark shows the target itself (not the trail's next dot).
+  local pinBearing = bearing
   pin.update(bearing, yards, Api.facing())
   if yards and yards <= ARRIVED_YARDS then
     f.icon:Hide()
@@ -207,4 +213,39 @@ function Arrow.update()
     f.icon:Hide()
   end
   f.distance:SetText(Geo.formatDistance(yards))
+  last.bearing, last.pinBearing, last.yards = bearing, pinBearing, yards
+end
+
+-- How often the map work is done again; in between only the turning.
+Arrow.GEO_EVERY = 0.2
+
+--- Called every frame or so (now: seconds, growing). Turning the camera
+--- needs the arrow to follow at once, and that only needs the facing; where
+--- the player and the target are changes slowly, so that is worked out again
+--- every GEO_EVERY seconds, or at once when the target, the trail's next dot
+--- or the text change.
+function Arrow.tick(now)
+  local last, f = Arrow.last, Arrow.frame
+  local off = (Arrow.saved and (Arrow.saved.disabled or Arrow.away)) and true or false
+  if last and last.at and now - last.at < Arrow.GEO_EVERY and last.target == Arrow.target
+    and last.via == Arrow.via and last.label == Arrow.labelText and last.off == off then
+    if last.bearing and f then
+      local facing = ns.Api.facing()
+      -- Not turned since the last frame: the arrow is already right.
+      if facing == last.facing then
+        return
+      end
+      last.facing = facing
+      ns.MinimapPin.update(last.pinBearing, last.yards, facing)
+      local rotation = ns.Geo.arrowRotation(last.bearing, facing)
+      if rotation then
+        aim(f.icon, rotation)
+      end
+    end
+    return
+  end
+  Arrow.update()
+  if Arrow.last then
+    Arrow.last.at = now
+  end
 end

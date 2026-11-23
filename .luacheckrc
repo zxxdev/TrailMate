@@ -34,6 +34,7 @@ read_globals = {
   "SetBinding", "SaveBindings", "GetBindingAction", "GetCurrentBindingSet", "GetAddOnInfo", "SetCVar",
   "Settings", "SettingsPanel", "HideUIPanel", "InterfaceOptions_AddCategory", "InterfaceOptionsFrame",
   "InterfaceOptionsFrame_OpenToCategory", "PixelUtil", "IsInInstance", "GetInstanceInfo",
+  "debugprofilestop", "UpdateAddOnMemoryUsage", "GetAddOnMemoryUsage",
 }
 
 files["spec/"] = { std = "+busted" }

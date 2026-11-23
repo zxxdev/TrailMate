@@ -41,19 +41,31 @@ function Options.create(L, actions)
   local list = {
     { "Open the TrailMate panel", actions.panel, true },
     { "Show or hide the step window", actions.steps },
+    -- The state is in the label: these are buttons, not check boxes.
+    { function()
+      return (actions.previewOn and actions.previewOn()) and L["Always show the preview: on"]
+        or L["Always show the preview: off"]
+    end, actions.preview },
     { "Show or hide the minimap button", actions.minimap },
     { "Arrow to the top of the screen", actions.arrowTop },
     { "Arrow to the middle of the screen", actions.arrowCenter },
     { "Commands in the chat (/tm help)", actions.help, true },
   }
   local last
+  local function label(a)
+    return type(a[1]) == "function" and a[1]() or L[a[1]]
+  end
+  local buttons = {}
   for i, a in ipairs(list) do
-    local b = Theme.button(f, L[a[1]], 300, function()
+    local b
+    b = Theme.button(f, label(a), 300, function()
       if a[3] then
         closeOptions()
       end
       a[2]()
+      b:SetText(label(a))
     end)
+    buttons[i] = b
     b:SetHeight(26)
     if i == 1 then
       b:SetPoint("TOPLEFT", about, "BOTTOMLEFT", 0, -16)
@@ -63,6 +75,12 @@ function Options.create(L, actions)
     end
     last = b
   end
+  -- Changed meanwhile with a command: the labels say it.
+  f:SetScript("OnShow", function()
+    for i, a in ipairs(list) do
+      buttons[i]:SetText(label(a))
+    end
+  end)
   local tip = Theme.label(f, "GameFontNormalSmall")
   tip:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, -16)
   tip:SetWidth(W - 32)

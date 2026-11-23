@@ -63,8 +63,18 @@ local function reportError(where, err)
   end
 end
 
+-- /tm perf: while it measures, how long each part takes (ms) and how often
+-- it runs. nil the rest of the time, so it costs nothing.
+local perf
+
 local function guard(where, fn, ...)
+  local t0 = perf and debugprofilestop()
   local ok, a, b = pcall(fn, ...)
+  if t0 then
+    local part = perf.parts[where] or { ms = 0, calls = 0 }
+    perf.parts[where] = part
+    part.ms, part.calls = part.ms + debugprofilestop() - t0, part.calls + 1
+  end
   if not ok then
     reportError(where, a)
     return nil
@@ -1436,6 +1446,8 @@ local HELP = {
   { "/tm status | estado", "Character summary" },
   { "/tm tracking on|off  (rastreos si|no)", "Skip hunter tracking spells" },
   { "/tm reserve | reserva <gold>", "Gold the trainer advice never spends" },
+  { "/tm preview | vista on|off", "Always show the step preview" },
+  { "/tm perf | rendimiento", "Measure for a minute what TrailMate costs (CPU and memory)" },
   { "/tm arrow | flecha on|off", "Show or hide the arrow" },
   { "/tm arrow | flecha top|center  (arriba|centro)", "Bring the arrow back to the top or the middle of the screen" },
   { "/tm trail | rastro on|off|show|export|clear", "Learn the ways you walk and follow them (dots on the map)" },
@@ -1559,6 +1571,83 @@ end)
 alias({ "tracking", "rastreos" }, function(rest)
   cdb.prefs.skipTracking = not yes(rest)
   say(L["Tracking spells: %s"]:format(cdb.prefs.skipTracking and L["skip"] or L["learn"]))
+end)
+-- The step preview: kept next to the window, or only on hover. With no
+-- word, it changes to the other one (that is what the magnifier sends).
+alias({ "preview", "vista" }, function(rest)
+  local on
+  if rest == nil or rest == "" then
+    on = not ns.UI.previewPinned()
+  else
+    on = yes(rest)
+  end
+  ns.UI.setPreviewPinned(on)
+  say(on and L["Preview always shown. Click the magnifier or type /tm preview off to undo."]
+    or L["Preview shown only on hover."])
+end)
+-- What TrailMate costs, to find what to make lighter: for a minute, the time
+-- each part takes, then its memory now and once the game has cleaned up what
+-- is no longer used. Written to the Log tab, to send it.
+local PERF_SECONDS = 60
+
+local function memoryKB()
+  if not (UpdateAddOnMemoryUsage and GetAddOnMemoryUsage) then
+    return 0
+  end
+  UpdateAddOnMemoryUsage()
+  return GetAddOnMemoryUsage("TrailMate") or 0
+end
+
+local function countKeys(t)
+  local n = 0
+  for _ in pairs(type(t) == "table" and t or {}) do
+    n = n + 1
+  end
+  return n
+end
+
+local function reportPerf(p)
+  local seconds = math.max(1, (debugprofilestop() - p.start) / 1000)
+  local rows, total = {}, 0
+  for where, part in pairs(p.parts) do
+    rows[#rows + 1] = { where = where, ms = part.ms, calls = part.calls }
+    total = total + part.ms
+  end
+  table.sort(rows, function(a, b)
+    return a.ms > b.ms
+  end)
+  say(("Performance over %d s: %.1f ms, %.2f ms per second (a part inside another counts in both)")
+    :format(seconds, total, total / seconds))
+  for i = 1, math.min(12, #rows) do
+    local r = rows[i]
+    out(("  %s: %.1f ms in %d runs, %.3f ms each"):format(r.where, r.ms, r.calls, r.ms / r.calls))
+  end
+  local now = memoryKB()
+  collectgarbage("collect")
+  local clean = memoryKB()
+  out(("  Memory: %.1f MB at the start, %.1f MB now, %.1f MB after cleaning up"):format(
+    p.memory / 1024, now / 1024, clean / 1024))
+  out(("  Data: %d trail dots, %d places of NPCs, %d quests learned, %d log lines"):format(
+    countKeys(trails and trails.nodes), countKeys(atlas and atlas.npcs), countKeys(atlas and atlas.quests),
+    countKeys(TrailMateDB and TrailMateDB.log)))
+end
+
+alias({ "perf", "rendimiento" }, function()
+  if perf then
+    say("Already measuring: the result comes in the chat and the Log tab.")
+    return
+  end
+  if not debugprofilestop then
+    say("This game client cannot measure times.")
+    return
+  end
+  perf = { parts = {}, start = debugprofilestop(), memory = memoryKB() }
+  say(("Measuring for %d seconds: play as usual, then send the Log tab."):format(PERF_SECONDS))
+  after(PERF_SECONDS, function()
+    local p = perf
+    perf = nil
+    guard("perf", reportPerf, p)
+  end)
 end)
 alias({ "reserve", "reserva" }, function(rest)
   local gold = tonumber(rest) or 0
@@ -1972,6 +2061,18 @@ local function selfTest()
       tostring(q.npc), first.mapID, tostring(Api.mapName(first.mapID)), first.x, first.y, tostring(q.tnpc),
       ok and "" or ("; " .. tostring(err)))
   end)
+  check("target preview", function()
+    -- Whether this client draws a creature from its id, and what the
+    -- current step would show (and how many steps of the plan have one).
+    local now = current and plan and plan.steps[current]
+    local withCreature = 0
+    for _, s in ipairs(plan and plan.steps or {}) do
+      withCreature = withCreature + (s.creature and 1 or 0)
+    end
+    return ns.UI.canShowCreatures(), ("models %s; now %s (creature %s); %d of %d steps with a creature"):format(
+      tostring(ns.UI.canShowCreatures()), tostring(now and now.who), tostring(now and now.creature), withCreature,
+      #(plan and plan.steps or {}))
+  end)
   check("chat", function()
     -- What the link needs from the client, and whether the inboxes exist.
     local link = ns.Chat.link
@@ -2151,6 +2252,12 @@ handlers.ADDON_LOADED = function(name)
       ns.UI.setShown(cdb.ui.hidden == true)
     end,
     minimap = toggleMinimapButton,
+    preview = function()
+      COMMANDS.preview()
+    end,
+    previewOn = function()
+      return ns.UI.previewPinned()
+    end,
     arrowTop = function()
       COMMANDS.arrow("top")
     end,
@@ -2505,9 +2612,19 @@ local function recordTrail()
   trailPrev = ns.Trails.add(trails, w.cont, w.x, w.y, trailPrev, w.mapID) or trailPrev
 end
 
+-- Where the last trail route was worked out from and to (world points).
+local routedFrom, routedTo
+local ROUTE_MOVE = 8 -- yards the player moves before the route is looked at again
+
+local function samePoint(a, b, yards)
+  return a and b and a.cont == b.cont and (a.x - b.x) ^ 2 + (a.y - b.y) ^ 2 < yards * yards
+end
+
 -- Follows a walked trail to the arrow's target when one helps: the arrow
--- points at the next dot and the map shows the dotted way.
-function followTrail()
+-- points at the next dot and the map shows the dotted way. often: the
+-- regular look every two seconds, which skips the work when the player has
+-- not moved and the target is the same (questing in one spot).
+function followTrail(often)
   local target = ns.Arrow.target
   local here = Api.playerWorld()
   local goal = target and Api.worldPos(target.mapID, target.x, target.y)
@@ -2517,7 +2634,17 @@ function followTrail()
   elseif not (here and goal) then
     why = "no position for you or the target"
   else
+    if often and not showLearned and samePoint(here, routedFrom, ROUTE_MOVE) and samePoint(goal, routedTo, 1) then
+      return
+    end
     path, why = ns.Trails.route(trails, here, goal)
+  end
+  -- Only a route really worked out counts: with trails off or no position,
+  -- the next look works it out again (/tm trail on while standing still).
+  if cdb.prefs.trails ~= false and here and goal then
+    routedFrom, routedTo = here, goal
+  else
+    routedFrom, routedTo = nil, nil
   end
   lastWhy = why
   ns.Arrow.setVia(path and ns.Trails.next(path, here) or nil)
@@ -2560,15 +2687,15 @@ frame:SetScript("OnUpdate", function(_, elapsed)
       buildFromQuestLog(false)
     end
     if detour or (plan and current) then
-      guard("arrow", updateTarget, true)
+      guard("arrow target", updateTarget, true)
     end
-    guard("trail", followTrail)
+    guard("trail route", followTrail, true)
   end
   -- Learn the way while walking; redraw the dotted route on an open map.
   sinceTrail = sinceTrail + elapsed
   if sinceTrail >= 0.5 then
     sinceTrail = 0
-    guard("trail", recordTrail)
+    guard("trail record", recordTrail)
     guard("map dots", ns.MapTrail.tick)
   end
   -- The talent window may switch tabs: keep the lit talent right.
@@ -2585,6 +2712,6 @@ frame:SetScript("OnUpdate", function(_, elapsed)
   end
   if sinceArrow >= 0.05 then
     sinceArrow = 0
-    guard("arrow", ns.Arrow.update)
+    guard("arrow draw", ns.Arrow.tick, clock)
   end
 end)

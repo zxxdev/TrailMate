@@ -101,16 +101,16 @@ for _, id in ipairs(all) do
     if type(races) == "number" and races > 0 then
       q.races = races
     end
-    local start, startName = Q.giver(db, Q.field(db, "Quest", id, Q.QUEST.startedBy))
+    local start, startName, startCreature = Q.giver(db, Q.field(db, "Quest", id, Q.QUEST.startedBy))
     if start then
       q.m, q.x, q.y = start.m, start.x, start.y
     end
-    q.npc = startName
-    local finish, finishName = Q.giver(db, Q.field(db, "Quest", id, Q.QUEST.finishedBy))
+    q.npc, q.cid = startName, startCreature
+    local finish, finishName, finishCreature = Q.giver(db, Q.field(db, "Quest", id, Q.QUEST.finishedBy))
     if finish then
       q.tm, q.tx, q.ty = finish.m, finish.x, finish.y
     end
-    q.tnpc = finishName
+    q.tnpc, q.tcid = finishName, finishCreature
     local negative = false
     for _, list in ipairs({ q.pre or {}, q.preAll or {} }) do
       for _, p in ipairs(list) do
@@ -239,7 +239,7 @@ out:write([[
 -- the races it is for, or all), pre (one of these handed in first), preAll
 -- (all of them), excl (taking one of these closes this one), crumb (this
 -- quest only leads to that one), m/x/y and npc where it starts, tm/tx/ty and
--- tnpc where it is handed in.
+-- tnpc where it is handed in, cid and tcid the creature ids of npc and tnpc.
 
 local _, ns = ...
 
@@ -275,11 +275,17 @@ for _, c in ipairs(CLASSES) do
     if q.npc then
       parts[#parts + 1] = ("npc = %s"):format(quote(q.npc))
     end
+    if q.cid then
+      parts[#parts + 1] = ("cid = %d"):format(q.cid)
+    end
     if q.tm then
       parts[#parts + 1] = ("tm = %d, tx = %s, ty = %s"):format(q.tm, q.tx, q.ty)
     end
     if q.tnpc then
       parts[#parts + 1] = ("tnpc = %s"):format(quote(q.tnpc))
+    end
+    if q.tcid then
+      parts[#parts + 1] = ("tcid = %d"):format(q.tcid)
     end
     out:write("    { " .. table.concat(parts, ", ") .. " },\n")
   end

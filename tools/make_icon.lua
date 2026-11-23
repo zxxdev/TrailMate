@@ -107,8 +107,9 @@ local function smin(a, b, k)
   return mix(b, a, h) - k * h * (1 - h)
 end
 
---- Signed distance to the paw print (negative inside).
-function M.pawDistance(x, y)
+--- Signed distance to each part of the paw print (negative inside): the
+--- pad first, then the four toes from left to right.
+function M.pawParts(x, y)
   x, y = x - PAW_X, y - PAW_Y
   x, y = x * COS + y * SIN, -x * SIN + y * COS
   local pad
@@ -116,16 +117,20 @@ function M.pawDistance(x, y)
     local d = math.sqrt((x - c[1]) ^ 2 + (y - c[2]) ^ 2) - c[3]
     pad = pad and smin(pad, d, 0.07) or d
   end
-  local best = pad
+  local parts = { pad }
   for _, e in ipairs(TOES) do
     local c, s = math.cos(e[5]), math.sin(e[5])
     local lx, ly = x - e[1], y - e[2]
     lx, ly = lx * c + ly * s, -lx * s + ly * c
     local dx, dy = lx / e[3], ly / e[4]
-    local d = (math.sqrt(dx * dx + dy * dy) - 1) * math.min(e[3], e[4])
-    best = math.min(best, d)
+    parts[#parts + 1] = (math.sqrt(dx * dx + dy * dy) - 1) * math.min(e[3], e[4])
   end
-  return best
+  return parts
+end
+
+--- Signed distance to the whole paw print (negative inside).
+function M.pawDistance(x, y)
+  return math.min(unpack(M.pawParts(x, y)))
 end
 
 -- Paints colour c over (r, g, b) with coverage a.
@@ -171,13 +176,18 @@ function M.pixel(px, py, style, face)
   r, g, b = over(r, g, b, tc, cover(t) * cover(M.trailDistance(x + TRAIL_SHADE, y - TRAIL_SHADE)) * face)
 
   -- The paw on top: outline, white, and the flat shadow where a copy moved
-  -- towards the light (top left) no longer covers it.
-  local p = M.pawDistance(x, y)
-  r, g, b = over(r, g, b, M.OUTLINE, cover(p - STROKE))
-  local inside = cover(p)
-  local lit = cover(M.pawDistance(x + SHADE, y - SHADE))
-  r, g, b = over(r, g, b, M.PAW_SHADE, inside)
-  r, g, b = over(r, g, b, M.PAW, inside * lit)
+  -- towards the light (top left) no longer covers it. Each part with its
+  -- own copy: the copy of a toe must not light up the shadow of the next.
+  local parts = M.pawParts(x, y)
+  r, g, b = over(r, g, b, M.OUTLINE, cover(math.min(unpack(parts)) - STROKE))
+  local moved = M.pawParts(x + SHADE, y - SHADE)
+  for i, d in ipairs(parts) do
+    local inside = cover(d)
+    if inside > 0 then
+      r, g, b = over(r, g, b, M.PAW_SHADE, inside)
+      r, g, b = over(r, g, b, M.PAW, inside * cover(moved[i]))
+    end
+  end
   return clamp(r), clamp(g), clamp(b), alpha
 end
 

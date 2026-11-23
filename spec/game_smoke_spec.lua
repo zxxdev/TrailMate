@@ -253,6 +253,32 @@ describe("addon smoke test", function()
     assert.equals("Plan terminado.", window.step.shown_text)
   end)
 
+  it("turns the arrow every frame but reads the map only a few times a second", function()
+    _G.SlashCmdList.TRAILMATE("diario")
+    tick()
+    local f = eventFrame()
+    f.scripts.OnUpdate(f, 0.3) -- the map work, just done
+    local reads, turns = 0, 0
+    local readMap, facing = _G.C_Map.GetPlayerMapPosition, _G.GetPlayerFacing
+    _G.C_Map.GetPlayerMapPosition = function(...)
+      reads = reads + 1
+      return readMap(...)
+    end
+    rawset(_G, "GetPlayerFacing", function()
+      turns = turns + 1
+      return facing()
+    end)
+    f.scripts.OnUpdate(f, 0.05)
+    f.scripts.OnUpdate(f, 0.05)
+    assert.equals(0, reads)
+    assert.is_true(turns >= 2)
+    -- Past GEO_EVERY, where the player is gets read again.
+    f.scripts.OnUpdate(f, 0.15)
+    assert.is_true(reads > 0)
+    _G.C_Map.GetPlayerMapPosition = readMap
+    rawset(_G, "GetPlayerFacing", facing)
+  end)
+
   it("steps aside in a dungeon with nothing to do there, and shows what is (the user's case)", function()
     _G.SlashCmdList.TRAILMATE("diario")
     eventFrame().scripts.OnUpdate(eventFrame(), 0.1)
@@ -1028,6 +1054,74 @@ describe("addon smoke test", function()
     assert.matches("Misión de clase: Taming the Beast%. La flecha te lleva hasta Thotar%.", output())
     assert.equals("class-6062", _G.TrailMateCharDB.plan.id)
     assert.equals("Coger: Taming the Beast", named.TrailMateFrame.step.shown_text)
+    -- Hovering the step shows who to look for, next to the window.
+    named.TrailMateFrame.hover.scripts.OnEnter()
+    local preview = named.TrailMatePreview
+    assert.is_true(preview.visible)
+    assert.equals("Habla con", preview.verb.shown_text)
+    assert.equals("Thotar", preview.name.shown_text)
+    named.TrailMateFrame.hover.scripts.OnLeave()
+    assert.is_false(preview.visible)
+    -- Passing over the step on the way to the buttons shows nothing: it
+    -- waits a moment, and the mouse is gone by then.
+    local timers = _G.C_Timer
+    local waiting
+    rawset(_G, "C_Timer", { After = function(_, fn) waiting = fn end })
+    named.TrailMateFrame.hover.scripts.OnEnter()
+    named.TrailMateFrame.hover.scripts.OnLeave()
+    waiting()
+    assert.is_false(preview.visible)
+    rawset(_G, "C_Timer", timers)
+    -- Kept shown: leaving the step does not close it; the magnifier undoes it.
+    printed = {}
+    _G.SlashCmdList.TRAILMATE("vista")
+    assert.matches("Vista previa fija%. Pulsa la lupa", output())
+    assert.is_true(_G.TrailMateCharDB.ui.previewPinned)
+    assert.is_true(preview.visible)
+    named.TrailMateFrame.hover.scripts.OnLeave()
+    assert.is_true(preview.visible)
+    local lens = named.TrailMateFrame.lens
+    lens.scripts.OnEnter(lens)
+    lens.scripts.OnLeave(lens)
+    assert.is_true(preview.visible)
+    printed = {}
+    lens.scripts.OnClick(lens)
+    assert.matches("Vista previa solo al pasar el ratón%.", output())
+    assert.is_nil(_G.TrailMateCharDB.ui.previewPinned)
+    assert.is_false(preview.visible)
+    _G.SlashCmdList.TRAILMATE("vista si")
+    assert.is_true(preview.visible)
+    -- A fight hides it; a kept preview comes back after it.
+    preview.scripts.OnEvent(preview, "PLAYER_REGEN_DISABLED")
+    assert.is_false(preview.visible)
+    preview.scripts.OnEvent(preview, "PLAYER_REGEN_ENABLED")
+    assert.is_true(preview.visible)
+    _G.SlashCmdList.TRAILMATE("vista no")
+    assert.is_false(preview.visible)
+  end)
+
+  it("measures what each part costs for a minute (/tm perf)", function()
+    local ms = 0
+    rawset(_G, "debugprofilestop", function()
+      ms = ms + 2
+      return ms
+    end)
+    local timers, waiting = _G.C_Timer, nil
+    rawset(_G, "C_Timer", { After = function(_, fn) waiting = fn end })
+    printed = {}
+    _G.SlashCmdList.TRAILMATE("rendimiento")
+    assert.matches("Measuring for 60 seconds", output())
+    fire("QUEST_LOG_UPDATE")
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.5)
+    waiting()
+    local said = output()
+    assert.matches("Performance over %d+ s", said)
+    assert.matches("QUEST_LOG_UPDATE: [%d.]+ ms in 1 runs", said)
+    assert.matches("arrow draw: [%d.]+ ms in 1 runs", said)
+    assert.matches("Memory: [%d.]+ MB at the start", said)
+    assert.matches("Data: %d+ trail dots", said)
+    rawset(_G, "C_Timer", timers)
+    rawset(_G, "debugprofilestop", nil)
   end)
 
   it("lets the player ignore a spell and announces only new ones at level up", function()
@@ -1149,8 +1243,9 @@ describe("addon smoke test", function()
     for _ in out:gmatch("%[[PF]A[SI][SL]%]") do
       checks = checks + 1
     end
-    assert.equals(25, checks)
+    assert.equals(26, checks)
     assert.matches("%[PASS%] dungeons: 19 in data", out)
+    assert.matches("%[PASS%] target preview: models true", out)
     assert.matches("%[PASS%] class quests: %d+ in data for HUNTER", out)
     assert.matches("%[PASS%] class quests: handed in: the game answered for %d+ of %d+; handed in: none", out)
     assert.matches("%[PASS%] class quests: level by level: [^\n]*10: [^\n]*Taming the Beast", out)
