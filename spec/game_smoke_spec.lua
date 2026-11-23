@@ -707,6 +707,69 @@ describe("addon smoke test", function()
     rawset(_G, "CreateVector2D", nil)
   end)
 
+  it("sends the arrow to the flight master when the step is far and flying is quicker (the user's case)",
+    function()
+    _G.SlashCmdList.TRAILMATE("guia off")
+    local function vec(x, y)
+      return { x = x, y = y, GetXY = function(self) return self.x, self.y end }
+    end
+    rawset(_G, "CreateVector2D", vec)
+    rawset(_G, "UnitLevel", function() return 33 end)
+    -- The player near (500, 500); Hammerfall's flight master next to him,
+    -- Grom'gol's far south, by the step's place.
+    _G.C_Map.GetWorldPosFromMapPos = function(mapID, v)
+      if mapID == 1415 then
+        return 0, vec(v.x * 100000 - 50000, v.y * 100000 - 50000)
+      elseif mapID == 1434 then
+        return 0, vec(v.x * 1000, v.y * 1000 - 12000)
+      elseif mapID == 1420 then -- Tirisfal, far north: its zeppelin is no shortcut here
+        return 0, vec(v.x * 1000, v.y * 1000 + 40000)
+      elseif mapID == 1411 or mapID == 1413 then -- Kalimdor
+        return 1, vec(v.x * 1000, v.y * 1000)
+      end
+      return 0, vec(v.x * 1000, v.y * 1000)
+    end
+    rawset(_G, "C_TaxiMap", {
+      GetTaxiNodesForMap = function(mapID)
+        if mapID ~= 1415 then
+          return {}
+        end
+        return {
+          { name = "Hammerfall", position = vec(0.506, 0.505), state = 1, faction = 1 },
+          { name = "Grom'gol", position = vec(0.505, 0.386), state = 1, faction = 1 },
+        }
+      end,
+      GetAllTaxiNodes = function()
+        return { { name = "Hammerfall", state = 0 }, { name = "Grom'gol", state = 1 } }
+      end,
+    })
+    rawset(_G, "Enum", { FlightPathFaction = { Neutral = 0, Horde = 1, Alliance = 2 },
+      FlightPathState = { Current = 0, Reachable = 1, Unreachable = 2 } })
+    rawset(_G, "UnitFactionGroup", function() return "Horde" end)
+    rawset(_G, "GetTaxiMapID", function() return 1415 end)
+    local onMap, waypoint = _G.C_QuestLog.GetQuestsOnMap, _G.C_QuestLog.GetNextWaypoint
+    finally(function()
+      _G.C_QuestLog.GetQuestsOnMap, _G.C_QuestLog.GetNextWaypoint = onMap, waypoint
+      rawset(_G, "C_TaxiMap", nil)
+      rawset(_G, "CreateVector2D", nil)
+    end)
+    _G.SlashCmdList.TRAILMATE("diario")
+    fire("TAXIMAP_OPENED") -- this character's flights, learned at a flight master
+    local arrow = named.TrailMateArrow
+    -- Close by: straight to it, with the step's text.
+    eventFrame().scripts.OnUpdate(eventFrame(), 2)
+    assert.equals("Hacer: Lobos", arrow.label.shown_text)
+    -- The quest's place far south, by Grom'gol: fly there first.
+    _G.C_QuestLog.GetQuestsOnMap = function() return {} end
+    _G.C_QuestLog.GetNextWaypoint = function(id)
+      if id == 10 then
+        return 1434, 0.5, 0.5
+      end
+    end
+    eventFrame().scripts.OnUpdate(eventFrame(), 11)
+    assert.equals("Vuela de Hammerfall a Grom'gol.", arrow.label.shown_text)
+  end)
+
   it("explains the strategy and lets the player pick another zone", function()
     _G.SlashCmdList.TRAILMATE("diario")
     _G.SlashCmdList.TRAILMATE("estrategia")

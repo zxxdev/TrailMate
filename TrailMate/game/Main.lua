@@ -30,6 +30,7 @@ local lastPath -- the trail route the arrow follows now
 local lastWhy -- why there is no trail route now (for the self-test)
 local showLearned = false -- /tm trail show: the map shows every learned dot
 local followTrail -- defined with the update loop, used by /tm trail
+local wayThere -- defined with the travel planner: a far step's quickest way
 
 local COLORS = {
   learn = "|cff40c040", skip = "|cffc04040", later = "|cffd0a020",
@@ -166,9 +167,17 @@ local function updateTarget(force)
   local changed = step ~= arrowStep
   arrowStep = step
   local target = stepTarget(step)
-  ns.Arrow.setTarget(target, step and step.text)
-  -- A quest that needs an item used: a button to click.
-  ns.ItemButton.set(step and step.type == "complete" and Api.questItem(step.questID) or nil)
+  -- Far away: the arrow goes the quickest way, to the flight master first
+  -- (the map's mark stays on the step's own place).
+  local way = target and wayThere(step, target)
+  if way then
+    ns.Arrow.setTarget(way.target, way.label or step.text, way.item and L["Click the item to use it"])
+    ns.ItemButton.set(way.item)
+  else
+    ns.Arrow.setTarget(target, step and step.text)
+    -- A quest that needs an item used: a button to click.
+    ns.ItemButton.set(step and step.type == "complete" and Api.questItem(step.questID) or nil)
+  end
   if changed then
     local focused = Api.focusQuest(step and step.questID)
     -- What the game really follows now (it keeps the last one when this
@@ -1136,8 +1145,10 @@ end
 
 -- Plans the quickest way to a zone with what the game says (flight points
 -- learned and seen connected, hearthstone, continent). Changes nothing:
--- returns the trip, the lines to show and the first place to go.
-local function planTrip(mapID, name)
+-- returns the trip, the lines to show and the first place to go. x, y: a
+-- point in the zone (a quest giver), else its middle.
+local function planTrip(mapID, name, x, y)
+  x, y = x or 0.5, y or 0.5
   local p = playerPoint()
   local nodes = Api.flightNodes(cdb.learnedFlights)
   local hearth = Api.hearth()
@@ -1146,7 +1157,7 @@ local function planTrip(mapID, name)
   end
   local trip = ns.Travel.plan({
     here = p.mapID and p.x and Api.worldPos(p.mapID, p.x, p.y),
-    dest = Api.worldPos(mapID, 0.5, 0.5),
+    dest = Api.worldPos(mapID, x, y),
     nodes = nodes,
     hearth = hearth,
     reach = function(a, b)
@@ -1165,14 +1176,14 @@ local function planTrip(mapID, name)
       lines[#lines + 1] = "- " .. describeStep(s, name, hearth)
       if not target and not item then
         if s.kind == "walk" then
-          target = s.to.name and nodeTarget(s.to) or { mapID = mapID, x = 0.5, y = 0.5 }
+          target = s.to.name and nodeTarget(s.to) or { mapID = mapID, x = x, y = y }
         elseif s.kind == "ship" and s.via then
           target = nodeTarget(s.via)
         end
       end
     end
     -- Flights on a continent never checked at a flight master are not used.
-    local dest = Api.worldPos(mapID, 0.5, 0.5)
+    local dest = Api.worldPos(mapID, x, y)
     local checked = false
     for _, n in ipairs(nodes) do
       checked = checked or (dest and n.cont == dest.cont and n.sure)
@@ -1184,6 +1195,44 @@ local function planTrip(mapID, name)
     lines[1] = L["Travel to %s"]:format(name)
   end
   return trip, lines, target, item
+end
+
+-- A step far away (the user's case: in Orgrimmar, the next quest giver in
+-- Desolace): when flying, a ship or the hearthstone is quicker than walking,
+-- the arrow goes to the first place of that trip (the flight master) and
+-- says the leg that saves the time ("Fly from Orgrimmar to Shadowprey
+-- Village."). Worked out again when the step or the player's map changes,
+-- or every WAY_AGAIN seconds. Returns { target, item, label } or nil.
+local WAY_AGAIN = 10
+local wayCache
+
+function wayThere(step, target)
+  local here = playerPoint()
+  local c = wayCache
+  if c and c.step == step and c.map == here.mapID and clock - c.at < WAY_AGAIN then
+    return c.way
+  end
+  local way
+  local from = here.mapID and here.x and Api.worldPos(here.mapID, here.x, here.y)
+  local to = target.mapID and Api.worldPos(target.mapID, target.x, target.y)
+  local near = from and to and from.cont == to.cont
+    and math.sqrt((from.x - to.x) ^ 2 + (from.y - to.y) ^ 2) < ns.Travel.WALK_YARDS
+  if from and to and not near then
+    local name = Api.mapName(target.mapID) or "?"
+    local trip, lines, first, item = planTrip(target.mapID, name, target.x, target.y)
+    if trip and trip.mode ~= "walk" and (first or item) then
+      local label
+      for i, s in ipairs(trip.steps) do
+        if s.kind ~= "walk" and lines[i + 1] then
+          label = lines[i + 1]:gsub("^%- ", "")
+          break
+        end
+      end
+      way = { target = first, item = item, label = label }
+    end
+  end
+  wayCache = { step = step, map = here.mapID, at = clock, way = way }
+  return way
 end
 
 -- Applies a trip: tells the player the steps and points the arrow at the
