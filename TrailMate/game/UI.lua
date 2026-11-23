@@ -291,8 +291,9 @@ local function showPreview(f, step)
   else
     p:SetFrameStrata("TOOLTIP")
   end
+  -- Only the step line it is about; a dungeon objective's row lights itself.
   if f.hoverLight then
-    f.hoverLight:SetShown(not pinned)
+    f.hoverLight:SetShown(not pinned and not step.dungeon)
   end
   local fadeIn = rawget(_G, "UIFrameFadeIn")
   if not p:IsShown() and fadeIn then
@@ -532,7 +533,12 @@ function UI.create(saved)
   f.arrow:Hide()
   -- Under the dungeon view: the guide waits outside.
   f.foot = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  f.foot:SetPoint("BOTTOMLEFT", 16, 14)
+  -- Both ends anchored and left-justified, so the text starts at the margin
+  -- whatever the font object says.
+  f.foot:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 16, 14)
+  f.foot:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -14, 14)
+  f.foot:SetJustifyH("LEFT")
+  f.foot:SetMaxLines(1)
   f.foot:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.muted))
   f.foot:Hide()
   f.drows, f.inDungeon = {}, false
