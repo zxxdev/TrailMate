@@ -38,8 +38,28 @@ describe("Dungeons", function()
     assert.same({}, Dungeons.toDoHere(sm, { [201] = { complete = false } }))
     -- One of its quests to do, one already done (handed in outside).
     local here = Dungeons.toDoHere(sm, { [1051] = { complete = false }, [1113] = { complete = true } })
-    assert.same({ { q = 1051, name = "Vorrel's Revenge" } }, here)
+    assert.same({ { q = 1051, name = "Vorrel's Revenge", targets = { { c = 3984, n = "Nancy Vishas", d = true } } } },
+      here)
     assert.same({}, Dungeons.toDoHere(nil, { [1051] = {} })) -- an unknown dungeon
+  end)
+
+  it("knows who to kill for each quest, to show them (the user's case: Into The Scarlet Monastery)", function()
+    local sm = Dungeons.here(data, 302)
+    local into = Dungeons.toDoHere(sm, { [1048] = { complete = false } })[1]
+    local bosses = {}
+    for _, t in ipairs(into.targets) do
+      bosses[#bosses + 1] = t.n
+      assert.is_true(t.c > 0, t.n) -- each one has its creature, for the model
+    end
+    assert.same({ "High Inquisitor Whitemane", "Scarlet Commander Mograine", "Herod", "Houndmaster Loksey" }, bosses)
+    -- Most quests of the dungeons say what they are about.
+    local all, with = 0, 0
+    for _, d in ipairs(data) do
+      for _, q in ipairs(d.quests) do
+        all, with = all + 1, with + (q.targets and 1 or 0)
+      end
+    end
+    assert.is_true(with > all * 0.6, ("%d of %d"):format(with, all))
   end)
 
   it("has every 1-60 dungeon with an entrance and the level of its enemies", function()
