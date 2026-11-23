@@ -1205,14 +1205,13 @@ local function ringOut(texture)
     return nil
   end
   unsnap(texture)
-  local grow = scaleAnim(group, 1.85, 1.2)
+  -- From the halo's edge outwards (it was born under the halo and only
+  -- peeped out, seen in a video of the game), once per beat.
+  local grow = scaleAnim(group, 1.4, 2 * BEAT_TIME)
   if grow.SetSmoothing then
     grow:SetSmoothing("OUT") -- fast out, slowing down as it fades
   end
-  local fade = alphaAnim(group, 1, 0, 1.2)
-  if fade.SetEndDelay then
-    fade:SetEndDelay(0.4)
-  end
+  alphaAnim(group, 0.9, 0, 2 * BEAT_TIME)
   group:SetLooping("REPEAT")
   return group
 end
@@ -1257,7 +1256,7 @@ local function flightMarkFrame()
   local hasPing = type(GetFileIDFromPath) ~= "function" or GetFileIDFromPath(PING) ~= nil
   if hasPing then
     local ring = top:CreateTexture(nil, "OVERLAY", nil, 1)
-    ring:SetSize(28, 28)
+    ring:SetSize(40, 40) -- the halo's size: it leaves from its edge
     ring:SetPoint("CENTER")
     ring:SetTexture(PING)
     ring:SetBlendMode("ADD")

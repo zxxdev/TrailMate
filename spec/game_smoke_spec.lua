@@ -601,6 +601,20 @@ describe("addon smoke test", function()
     eventFrame().scripts.OnUpdate(eventFrame(), 2)
     assert.is_true(mark.pin.visible)
     assert.is_false(mark.edge.visible)
+    -- Walking, the pin moves every frame with the minimap, not five times a
+    -- second (the user saw it jump): the way walked since the map work.
+    rawset(mark.pin, "SetPoint", function(self, ...) rawset(self, "point", { ... }) end)
+    local north = 0
+    rawset(_G, "UnitPosition", function() return 0, north end)
+    finally(function()
+      rawset(_G, "UnitPosition", nil)
+    end)
+    eventFrame().scripts.OnUpdate(eventFrame(), 2) -- the map work
+    local before = mark.pin.point[5]
+    north = 10 -- ten yards north, towards the quest
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.05)
+    local after = mark.pin.point[5]
+    assert.is_true(after < before - 5)
     -- Purple, not the gold of the game's quest marks.
     assert.same({ 0.61, 0.48, 0.83, 1 }, mark.edge.color)
   end)

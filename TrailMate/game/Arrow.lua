@@ -138,6 +138,8 @@ local function farAway(mapID, px, py, target)
   return towards(mapID, px, py, ns.Api.worldPos(target.mapID, target.x, target.y))
 end
 
+local worldYards, pinNow -- below, with Arrow.tick
+
 --- The next dot of a walked trail to follow on the way to the target (a
 --- world point), or nil to point straight at the target. The distance shown
 --- stays the distance to the target.
@@ -214,6 +216,36 @@ function Arrow.update()
   end
   f.distance:SetText(Geo.formatDistance(yards))
   last.bearing, last.pinBearing, last.yards = bearing, pinBearing, yards
+  -- Where the player stood for this, to move the minimap mark while walking.
+  last.north, last.west = worldYards()
+end
+
+-- Where the player stands in the world, in yards (north, west), or nil. A
+-- cheap call, unlike the map position: read every frame so the minimap mark
+-- stays on its spot while walking (it jumped five times a second, seen in
+-- the game).
+function worldYards()
+  local fn = rawget(_G, "UnitPosition")
+  if type(fn) ~= "function" then
+    return nil
+  end
+  local ok, west, north = pcall(fn, "player")
+  if ok and type(west) == "number" and type(north) == "number" then
+    return north, west
+  end
+  return nil
+end
+
+-- The minimap mark now: the target as seen at the last map work, less the
+-- way walked since. Returns bearing, yards and facing for MinimapPin.update.
+function pinNow(last, north, west)
+  local b, d = last.pinBearing, last.yards
+  if not (north and last.north and b and d) then
+    return b, d, last.facing
+  end
+  local east = -math.sin(b) * d - (last.west - west) -- walking west takes the target east
+  local ahead = math.cos(b) * d - (north - last.north)
+  return math.atan2(-east, ahead), math.sqrt(east * east + ahead * ahead), last.facing
 end
 
 -- How often the map work is done again; in between only the turning.
@@ -231,12 +263,14 @@ function Arrow.tick(now)
     and last.via == Arrow.via and last.label == Arrow.labelText and last.off == off then
     if last.bearing and f then
       local facing = ns.Api.facing()
-      -- Not turned since the last frame: the arrow is already right.
-      if facing == last.facing then
+      local north, west = worldYards()
+      local moved = north ~= nil and (north ~= last.nowNorth or west ~= last.nowWest)
+      -- Not turned nor moved since the last frame: all is already right.
+      if facing == last.facing and not moved then
         return
       end
-      last.facing = facing
-      ns.MinimapPin.update(last.pinBearing, last.yards, facing)
+      last.facing, last.nowNorth, last.nowWest = facing, north, west
+      ns.MinimapPin.update(pinNow(last, north, west))
       local rotation = ns.Geo.arrowRotation(last.bearing, facing)
       if rotation then
         aim(f.icon, rotation)
