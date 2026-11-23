@@ -2,8 +2,10 @@
 
 Each version has its release on GitHub with the addon (`TrailMate-<version>.zip`, to copy into `World of Warcraft/_forever_/Interface/AddOns/`) and the companion bridge for Windows (`trailmate-bridge.exe`, optional).
 
-## Unreleased
+## 0.5.0-beta
 
+- **Step preview:** a magnifier next to the current step. Hover it (or the step) and the game's 3D model of who the step is about appears next to the window, with what to do: *Talk to* the quest giver, *Turn in to*, *Kill*, *Dropped by* the creature that drops the item, or *Search* for objects (a chest, a plant), which show only their name. Click the magnifier to keep the preview shown; the same choice is in Esc > Options > AddOns and `/tm preview on|off` (`/tm vista`). It hides in combat. From the Questie database for Forever, like the guides.
+- **Lighter:** the arrow turns with your camera every frame but works out where you and the target are only a few times a second, and the walked-trail route is no longer worked out again while you stand in one spot. TrailMate takes less CPU and leaves much less memory behind. `/tm perf` (`/tm rendimiento`) measures for a minute what each part costs and writes it to the Log tab.
 - Fixed the icon: the shadow of the two middle toes had a light crescent in it (the light of the toe next to it). Each part of the paw now casts its own shadow, the same way in all of them.
 
 ## 0.4.0-beta

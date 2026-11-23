@@ -8,7 +8,7 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 
 **It needs no other addon.** The arrow, the minimap and world map marks, the guides and the travel planner are all its own. Other addons can stay installed; TrailMate does not use them.
 
-> **Status: beta (0.4.0-beta).** It is played and tested mostly on one character, a Horde hunter between levels 33 and 37; the class quests were also checked on a level 1 troll shaman. Expect rough edges: see [Known issues](#known-issues). Reports and pull requests are welcome, in English or Spanish ([CONTRIBUTING.md](CONTRIBUTING.md)). Not affiliated with Blizzard Entertainment.
+> **Status: beta (0.5.0-beta).** It is played and tested mostly on one character, a Horde hunter between levels 33 and 37; the class quests were also checked on a level 1 troll shaman. Expect rough edges: see [Known issues](#known-issues). Reports and pull requests are welcome, in English or Spanish ([CONTRIBUTING.md](CONTRIBUTING.md)). Not affiliated with Blizzard Entertainment.
 
 ## Screenshots
 
@@ -28,6 +28,7 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 | A route from your quest log | Without a guide, `/tm questlog` sorts your quests by level like the game colours them, picks **one zone** to work in, and routes it nearest first. It says what to leave for now (too hard, group or elite), what to consider abandoning and which zones come later. |
 | Choose your step | The window lists the next steps; click one (or `/tm pick 3`) to do it first. Steps tick themselves off from game events. |
 | Arrow | TrailMate's own arrow points at the current step with the distance, using your facing, and changes colour as you turn away from it. When a step needs an item (your hearthstone, a quest item), a button to use it appears next to the arrow and in the window. |
+| Step preview | A magnifier next to the current step: hover it (or the step) to see who the step is about, as the game's 3D model, with what to do: the quest giver to talk to or hand in to, the creature to kill or the one that drops the item. Objects (a chest, a plant) show their name only. Click the magnifier to keep the preview next to the window (`/tm preview on`). |
 | Map marks | A purple pin on the minimap with its tip on the target, so the game's quest marks underneath stay visible; when the target is off the minimap, a small purple arrow on its edge. The same pin on the world map. |
 | Dotted path | On the world map, dots along the way to the target, like a walked route. TrailMate learns the paths you walk (`/tm trail`) and the arrow follows them, so it goes round walls and up ramps instead of straight through a city. The addon can ship walked paths through the capitals; none are included yet. |
 | Arriving somewhere new | Reaching a quest hub (for example Grom'gol), it first lists the quests to pick up there and offers to set your hearthstone. |
@@ -104,6 +105,8 @@ The chat uses the keys `Ctrl+Alt+Shift+F1` to `F8` while a message goes out, and
 | `/tm minimap` | Show or hide the minimap button |
 | `/tm options` | TrailMate's page in Esc > Options > AddOns |
 | `/tm clear` · `/tm borrar` | Remove the plan |
+| `/tm preview on\|off` · `/tm vista si\|no` | Keep the step preview shown next to the window, or only on hover |
+| `/tm perf` · `/tm rendimiento` | Measure for a minute what TrailMate costs (CPU and memory), written to the log |
 | `/tm test` | Self-test, written to the log |
 | `/tm diag` | What this client exposes, for bug reports (no personal data) |
 
