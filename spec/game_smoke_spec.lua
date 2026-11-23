@@ -377,6 +377,9 @@ describe("addon smoke test", function()
     fire("QUEST_LOG_UPDATE")
     tick()
     assert.equals("Into The Scarlet Monastery (hecha)", window.drows[3].label.shown_text)
+    -- Done: who takes it back, with its magnifier (the user asked).
+    assert.matches("^Entregar: ", window.drows[8].label.shown_text)
+    assert.is_true(window.drows[8].lens.visible)
     assert.equals("2 misiones aquí", window.step.shown_text)
     complete[1051] = true
     fire("QUEST_LOG_UPDATE")
