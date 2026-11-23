@@ -1165,6 +1165,7 @@ local function planTrip(mapID, name, x, y)
     end,
     speed = (p.level or 1) >= 40 and ns.Travel.MOUNT or ns.Travel.RUN,
     ships = shipLinks(),
+    destZone = name, -- land in that zone when a flight point there is known
   })
   local lines, target, item = {}, nil, nil
   if trip then

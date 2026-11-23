@@ -60,18 +60,46 @@ local function sameCont(a, b)
   return a and b and a.cont ~= nil and a.cont == b.cont
 end
 
+--- The zone of a flight point, from its name ("Shadowprey Village,
+--- Desolace" gives "Desolace"), or nil.
+function Travel.zoneOf(node)
+  local zone = type(node.name) == "string" and node.name:match(",%s*([^,]+)$")
+  return zone and zone:match("^%s*(.-)%s*$") or nil
+end
+
+-- Where to land for the destination: when the player knows a flight point
+-- in the destination's own zone (ctx.destZone), only those. Straight lines
+-- do not know mountains: Thunder Bluff looks closer to a quest giver in
+-- Desolace than Shadowprey Village, but the walk from there crosses the
+-- mountains (the user's case).
+local function landings(ctx, dest, final)
+  local nodes = ctx.nodes or {}
+  if not (final and ctx.destZone) then
+    return nodes
+  end
+  local here = {}
+  for _, b in ipairs(nodes) do
+    if b.known and sameCont(b, dest) and Travel.zoneOf(b) == ctx.destZone then
+      here[#here + 1] = b
+    end
+  end
+  return #here > 0 and here or nodes
+end
+
 -- Best way from a point to the destination without the hearthstone.
--- Returns cost (seconds), steps; or nil when it needs a ship.
-local function overland(from, dest, ctx)
+-- final: dest is the trip's end (not a dock on the way). Returns cost
+-- (seconds), steps; or nil when it needs a ship.
+local function overland(from, dest, ctx, final)
   if not sameCont(from, dest) then
     return nil
   end
   local speed = ctx.speed or Travel.RUN
   local walkCost = dist(from, dest) / speed
   local best, bestSteps = walkCost, { { kind = "walk", to = dest } }
+  local lands = landings(ctx, dest, final)
   for _, a in ipairs(ctx.nodes or {}) do
     if a.known and sameCont(a, from) then
-      for _, b in ipairs(ctx.nodes) do
+      for _, b in ipairs(lands) do
         if b ~= a and b.known and sameCont(b, dest) and (ctx.reach == nil or ctx.reach(a, b) ~= false) then
           local cost = dist(from, a) / speed + Travel.TAXI_OVERHEAD + dist(a, b) / Travel.FLY + dist(b, dest) / speed
           if cost < best then
@@ -106,7 +134,7 @@ local function byShip(from, dest, ctx)
       local board, land = ends[1], ends[2]
       if sameCont(from, board) and sameCont(land, dest) then
         local before, beforeSteps = overland(from, board, ctx)
-        local after, afterSteps = overland(land, dest, ctx)
+        local after, afterSteps = overland(land, dest, ctx, true)
         if before and after and (not best or before + Travel.SHIP + after < best) then
           best = before + Travel.SHIP + after
           bestSteps = append(append({}, beforeSteps), { { kind = "ship", ship = ship.kind, from = board, to = land } })
@@ -118,10 +146,12 @@ local function byShip(from, dest, ctx)
   return best, bestSteps
 end
 
---- Plans the trip. ctx = { here, dest, nodes, reach, hearth, speed, ships } where
+--- Plans the trip. ctx = { here, dest, nodes, reach, hearth, speed, ships, destZone } where
 --- here and dest are { cont, x, y } in world yards, nodes are flight points
 --- { name, cont, x, y, known, mapID, mx, my }, reach(a, b) is true, false or
 --- nil (unknown), and hearth is { cont, x, y, name, ready, cooldown } or nil.
+--- destZone: the destination's zone name, to land in it when a known
+--- flight point is there.
 --- Returns { mode, cost, steps } with mode "walk", "fly", "hearth" or
 --- "ship", or nil if there is nothing to plan.
 function Travel.plan(ctx)
@@ -130,7 +160,7 @@ function Travel.plan(ctx)
     return nil
   end
   local options = {}
-  local cost, steps = overland(here, dest, ctx)
+  local cost, steps = overland(here, dest, ctx, true)
   if cost then
     options[#options + 1] = { cost = cost, steps = steps }
   end
@@ -140,7 +170,7 @@ function Travel.plan(ctx)
   end
   local h = ctx.hearth
   if h and h.ready and h.x then
-    for _, way in ipairs({ { overland(h, dest, ctx) }, { byShip(h, dest, ctx) } }) do
+    for _, way in ipairs({ { overland(h, dest, ctx, true) }, { byShip(h, dest, ctx) } }) do
       local after, afterSteps = way[1], way[2]
       if after then
         options[#options + 1] = {
