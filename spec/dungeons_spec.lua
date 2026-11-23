@@ -41,6 +41,13 @@ describe("Dungeons", function()
     assert.same({ { q = 1051, name = "Vorrel's Revenge", targets = { { c = 3984, n = "Nancy Vishas", d = true } } } },
       here)
     assert.same({}, Dungeons.toDoHere(nil, { [1051] = {} })) -- an unknown dungeon
+    -- With the done ones too, marked: the window says when all are done.
+    local all = Dungeons.toDoHere(sm, { [1051] = { complete = false }, [1113] = { complete = true } }, true)
+    assert.same({ 1051, 1113 }, { all[1].q, all[2].q })
+    assert.same({ false, true }, { all[1].done == true, all[2].done == true })
+    assert.is_false(Dungeons.allDone(all))
+    assert.is_true(Dungeons.allDone({ all[2] }))
+    assert.is_false(Dungeons.allDone({}))
   end)
 
   it("knows who to kill for each quest, to show them (the user's case: Into The Scarlet Monastery)", function()

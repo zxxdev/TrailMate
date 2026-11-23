@@ -312,13 +312,14 @@ describe("addon smoke test", function()
     -- Into The Scarlet Monastery too (the user's case): a heading per quest,
     -- the game's objectives with their count apart, a magnifier per boss.
     local objectivesOf = _G.C_QuestLog.GetQuestObjectives
+    local loksey = false
     _G.C_QuestLog.GetQuestObjectives = function(id)
       if id == 1048 then
         return {
           { text = "High Inquisitor Whitemane slain: 0/1", finished = false },
           { text = "Scarlet Commander Mograine slain: 1/1", finished = true },
           { text = "Herod slain: 0/1", finished = false },
-          { text = "Houndmaster Loksey slain: 0/1", finished = false },
+          { text = "Houndmaster Loksey slain: " .. (loksey and "1/1" or "0/1"), finished = loksey },
         }
       end
       return objectivesOf(id)
@@ -356,6 +357,32 @@ describe("addon smoke test", function()
     assert.is_true(preview.visible)
     assert.equals("Herod", preview.name.shown_text)
     _G.SlashCmdList.TRAILMATE("vista no")
+    -- Loksey slain, but the event came before the log had it (the user's
+    -- case): the dungeon view looks again every two seconds.
+    loksey = true
+    eventFrame().scripts.OnUpdate(eventFrame(), 2)
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.5)
+    assert.equals("1/1", window.drows[7].count.shown_text)
+    -- A quest finished stays, marked done; all finished: hand them in outside.
+    local isComplete = _G.C_QuestLog.IsComplete
+    local complete = { [1048] = true }
+    _G.C_QuestLog.IsComplete = function(id)
+      return complete[id] == true or isComplete(id)
+    end
+    finally(function()
+      _G.C_QuestLog.IsComplete = isComplete
+    end)
+    fire("QUEST_LOG_UPDATE")
+    tick()
+    assert.equals("Into The Scarlet Monastery (hecha)", window.drows[3].label.shown_text)
+    assert.equals("2 misiones aquí", window.step.shown_text)
+    complete[1051] = true
+    fire("QUEST_LOG_UPDATE")
+    tick()
+    assert.is_true(window.visible)
+    assert.equals("Todo hecho aquí", window.step.shown_text)
+    assert.equals("Entrégalas fuera.", window.foot.shown_text)
+    complete[1048], complete[1051] = nil, nil
     table.remove(quests, 4)
     -- Out again: the guide's step and its arrow are back.
     rawset(_G, "IsInInstance", function() return false end)

@@ -138,7 +138,7 @@ local function dungeonHere()
   for _, q in ipairs(Api.questLog()) do
     log[q.questID] = { complete = q.complete }
   end
-  local quests = ns.Dungeons.toDoHere(d, log)
+  local quests = ns.Dungeons.toDoHere(d, log, true) -- done ones too: "all done here"
   -- What is left of each, as the game words it ("Herod slain: 0/1").
   for _, q in ipairs(quests) do
     q.objectives = Api.questObjectives(q.q)
@@ -2340,6 +2340,15 @@ handlers.QUEST_LOG_UPDATE = function()
   questChanged()
 end
 
+-- A kill that counts for an objective: the game may say so before the quest
+-- log holds the new count, so these look again too.
+handlers.UNIT_QUEST_LOG_CHANGED = function(unit)
+  if unit == "player" then
+    questChanged()
+  end
+end
+handlers.QUEST_WATCH_UPDATE = questChanged
+
 handlers.QUEST_REMOVED = function()
   quiet(ns.Marked.QUIET)
   questChanged()
@@ -2685,6 +2694,11 @@ frame:SetScript("OnUpdate", function(_, elapsed)
   -- Quest objectives move (next area, turn-in): look again every two seconds.
   if sinceTarget >= 2 then
     sinceTarget = 0
+    -- In a dungeon, the objectives' counts too: an event may come before the
+    -- quest log has the last kill (the user's case: Loksey stuck at 0/1).
+    if inDungeon then
+      questThrottle:mark()
+    end
     -- Arrived in the zone the player chose: drop the detour and route it.
     if detour and detour.zone and Api.position() == detour.zone then
       cdb.arrival, cdb.arrivalDone = detour.zone, {}

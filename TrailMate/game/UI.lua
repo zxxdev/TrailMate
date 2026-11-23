@@ -821,7 +821,7 @@ local function objectiveRows(q)
   end
   if #said == 0 then
     for _, t in ipairs(targets) do
-      rows[#rows + 1] = { text = t.n, step = about(t) }
+      rows[#rows + 1] = { text = t.n, done = q.done, step = about(t) }
     end
     return rows
   end
@@ -838,7 +838,7 @@ local function objectiveRows(q)
     if not found and #targets == #said then
       found = targets[i]
     end
-    rows[#rows + 1] = { text = name, count = count, done = o.done, step = about(found) }
+    rows[#rows + 1] = { text = name, count = count, done = o.done or q.done, step = about(found) }
   end
   return rows
 end
@@ -870,21 +870,27 @@ function UI.renderDungeon(d, L)
   f.L, f.inDungeon = L, true
   f.title:SetText(d.name)
   goldCounter(f)
-  setStepLook(f, "complete")
   local quests = d.quests or {}
   local multi = #quests > 1
-  f.step:SetText(multi and L["%d quests here"]:format(#quests) or (quests[1] and quests[1].name or ""))
+  -- Every quest finished: say so, and that they are handed in outside.
+  local finished = ns.Dungeons.allDone(quests)
+  setStepLook(f, finished and "turnin" or "complete")
+  if finished then
+    f.step:SetText(L["All done here"])
+  else
+    f.step:SetText(multi and L["%d quests here"]:format(#quests) or (quests[1] and quests[1].name or ""))
+  end
   f.why:SetText("")
   setNext(f, {})
   f.arrow:SetText("")
   setButtons(f, L, false)
-  f.foot:SetText(L["The guide waits outside."])
+  f.foot:SetText(finished and L["Turn them in outside."] or L["The guide waits outside."])
   f.foot:Show()
 
   local rows, done, total = {}, 0, 0
   for _, q in ipairs(quests) do
     if multi then
-      rows[#rows + 1] = { header = q.name }
+      rows[#rows + 1] = { header = q.done and (q.name .. " " .. L["(done)"]) or q.name, headerDone = q.done }
     end
     for _, row in ipairs(objectiveRows(q)) do
       total = total + 1
@@ -930,7 +936,7 @@ function UI.renderDungeon(d, L)
       r.label:ClearAllPoints()
       r.label:SetPoint("LEFT", row.header and 0 or 16, 0)
       r.label:SetText(row.header or row.text or "")
-      r.label:SetTextColor(Theme.rgb((row.done or row.more) and muted or todo))
+      r.label:SetTextColor(Theme.rgb((row.done or row.more or row.headerDone) and muted or todo))
       r.count:SetText(row.count or "")
       r.count:SetTextColor(Theme.rgb(row.done and muted or Theme.COLORS.note))
       r.mark:SetShown(not (row.header or row.more))
