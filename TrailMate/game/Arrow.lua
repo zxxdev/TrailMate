@@ -231,6 +231,11 @@ function Arrow.tick(now)
     and last.via == Arrow.via and last.label == Arrow.labelText and last.off == off then
     if last.bearing and f then
       local facing = ns.Api.facing()
+      -- Not turned since the last frame: the arrow is already right.
+      if facing == last.facing then
+        return
+      end
+      last.facing = facing
       ns.MinimapPin.update(last.pinBearing, last.yards, facing)
       local rotation = ns.Geo.arrowRotation(last.bearing, facing)
       if rotation then
