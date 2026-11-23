@@ -278,6 +278,7 @@ local function updateMarked()
     detour.aboutKind = view.kind
     detour.about = ns.Marked.about(detour.marked, view.kind, {
       dungeons = ns.DUNGEONS, guides = ns.GUIDES, classQuests = ns.CLASS_QUESTS and ns.CLASS_QUESTS[Api.class() or ""],
+      info = ns.QUEST_INFO,
     }) or false
   end
   detour.label, detour.kind = view.text, view.kind
@@ -337,6 +338,9 @@ local function refresh()
 end
 
 local function loadPlan(p, quiet)
+  -- Who each step is about, for the magnifier, where the plan does not say
+  -- (a route made from the quest log): from the table of every quest.
+  ns.QuestInfo.fill(p and p.steps, ns.QUEST_INFO)
   local ok, err = Plan.validate(p)
   if not ok then
     say(L["Plan rejected: %s"]:format(tostring(err)))

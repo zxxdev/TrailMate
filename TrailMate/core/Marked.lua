@@ -58,8 +58,8 @@ end
 
 --- Who a marked quest is about, to show it in the preview: for its
 --- objectives, the first creature or object the data names; once done, who
---- takes it back. data = { dungeons, guides, classQuests } (TrailMate's own
---- lists). One with a model wins over one with only a name. nil when no
+--- takes it back. data = { dungeons, guides, classQuests, info } (TrailMate's
+--- own lists, then the table of every quest). One with a model wins over one with only a name. nil when no
 --- list knows the quest.
 function Marked.about(questID, kind, data)
   local turnin = kind == "turnin"
@@ -97,6 +97,10 @@ function Marked.about(questID, kind, data)
         end
       end
     end
+  end
+  -- No list has it, or none with a model: the table of every quest.
+  if not (found and (found.creature or found.model)) then
+    offer(ns.QuestInfo.about(data.info, questID, turnin and "turnin" or "complete"))
   end
   return found
 end

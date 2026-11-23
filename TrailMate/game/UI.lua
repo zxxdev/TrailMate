@@ -964,6 +964,12 @@ function UI.renderDungeon(d, L)
       done = done + (row.done and 1 or 0)
       rows[#rows + 1] = row
     end
+    -- Done: who takes it back, with a magnifier (the user asked: where to
+    -- hand it in, an NPC or an object). Not an objective: not counted.
+    if q.done and q.tnpc then
+      rows[#rows + 1] = { text = L["Turn in: "] .. q.tnpc, turnin = true,
+        step = { type = "turnin", creature = q.tcid, who = q.tnpc, model = q.tmodel, dungeon = true } }
+    end
   end
   f.counter:SetText(total > 0 and L["Dungeon %d/%d"]:format(done, total) or L["Dungeon"])
   -- Too many: what is done goes first, then the rest is in the quest log.
@@ -1005,6 +1011,9 @@ function UI.renderDungeon(d, L)
     end
     if row then
       local muted, todo = Theme.COLORS.muted, row.header and Theme.COLORS.complete or Theme.COLORS.note
+      if row.turnin then
+        todo = Theme.COLORS.turnin
+      end
       r.step = (not row.done) and row.step or false -- false, not nil: a field that is there
       r.lens.step = r.step
       r.label:ClearAllPoints()
@@ -1013,7 +1022,7 @@ function UI.renderDungeon(d, L)
       r.label:SetTextColor(Theme.rgb((row.done or row.more or row.headerDone) and muted or todo))
       r.count:SetText(row.count or "")
       r.count:SetTextColor(Theme.rgb(row.done and muted or Theme.COLORS.note))
-      r.mark:SetShown(not (row.header or row.more))
+      r.mark:SetShown(not (row.header or row.more or row.turnin))
       r.mark:SetTexture(row.done and DONE_MARK or TODO_MARK)
       local showLens = r.step and r.step.who ~= nil or false
       r.lens:SetShown(showLens)
