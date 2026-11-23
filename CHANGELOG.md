@@ -2,6 +2,10 @@
 
 Each version has its release on GitHub with the addon (`TrailMate-<version>.zip`, to copy into `World of Warcraft/_forever_/Interface/AddOns/`) and the companion bridge for Windows (`trailmate-bridge.exe`, optional).
 
+## 0.5.1-beta
+
+- **Objectives inside a dungeon:** the window used to say only "Do here: <quest>". Now it lists what is left of each quest of the dungeon in your log: its objectives as the game words them, with the count in a column of its own and a green check for the ones done, under a heading per quest when you carry several. A magnifier next to each creature to kill shows it in the preview; click it to keep that one shown. The counter says how many objectives are done. Who each dungeon quest is about comes from the Questie database for Forever.
+
 ## 0.5.0-beta
 
 - **Step preview:** a magnifier next to the current step. Hover it (or the step) and the game's 3D model of who the step is about appears next to the window, with what to do: *Talk to* the quest giver, *Turn in to*, *Kill*, *Dropped by* the creature that drops the item, or *Search* for objects (a chest, a plant), which show only their name. Click the magnifier to keep the preview shown; the same choice is in Esc > Options > AddOns and `/tm preview on|off` (`/tm vista`). It hides in combat. From the Questie database for Forever, like the guides.
