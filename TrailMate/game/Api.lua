@@ -639,6 +639,19 @@ function Api.vendorRepairs()
   return safe(CanMerchantRepair) == true
 end
 
+--- A quest's objectives as the game words them, with the count ("Herod
+--- slain: 0/1"): { { text, done } }, or an empty list.
+function Api.questObjectives(questID)
+  local list = C_QuestLog and safe(C_QuestLog.GetQuestObjectives, questID)
+  local out = {}
+  for _, o in ipairs(type(list) == "table" and list or {}) do
+    if type(o) == "table" and type(o.text) == "string" and o.text ~= "" and not isSecret(o.text) then
+      out[#out + 1] = { text = o.text, done = o.finished == true }
+    end
+  end
+  return out
+end
+
 --- How far a quest's objectives have got, as one number that only grows
 --- while you make progress (sum of counts plus finished objectives).
 function Api.questProgress(questID)

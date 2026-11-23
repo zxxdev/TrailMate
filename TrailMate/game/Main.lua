@@ -138,7 +138,12 @@ local function dungeonHere()
   for _, q in ipairs(Api.questLog()) do
     log[q.questID] = { complete = q.complete }
   end
-  return { name = d and d.name or name or "?", quests = ns.Dungeons.toDoHere(d, log) }
+  local quests = ns.Dungeons.toDoHere(d, log)
+  -- What is left of each, as the game words it ("Herod slain: 0/1").
+  for _, q in ipairs(quests) do
+    q.objectives = Api.questObjectives(q.q)
+  end
+  return { name = d and d.name or name or "?", quests = quests }
 end
 
 local function updateTarget(force)

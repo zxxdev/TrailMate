@@ -303,9 +303,60 @@ describe("addon smoke test", function()
     fire("QUEST_LOG_UPDATE")
     tick()
     assert.is_true(window.visible)
-    assert.equals("Hacer aquí: Vorrel's Revenge", window.step.shown_text)
-    assert.equals("Mazmorra", window.counter.shown_text)
+    assert.equals("Vorrel's Revenge", window.step.shown_text)
+    assert.equals("La guía te espera fuera.", window.foot.shown_text)
     assert.is_false(arrow.visible)
+    -- The game says nothing of its objectives here: the data's target.
+    assert.equals("Nancy Vishas", window.drows[1].label.shown_text)
+    assert.equals("Mazmorra 0/1", window.counter.shown_text)
+    -- Into The Scarlet Monastery too (the user's case): a heading per quest,
+    -- the game's objectives with their count apart, a magnifier per boss.
+    local objectivesOf = _G.C_QuestLog.GetQuestObjectives
+    _G.C_QuestLog.GetQuestObjectives = function(id)
+      if id == 1048 then
+        return {
+          { text = "High Inquisitor Whitemane slain: 0/1", finished = false },
+          { text = "Scarlet Commander Mograine slain: 1/1", finished = true },
+          { text = "Herod slain: 0/1", finished = false },
+          { text = "Houndmaster Loksey slain: 0/1", finished = false },
+        }
+      end
+      return objectivesOf(id)
+    end
+    finally(function()
+      _G.C_QuestLog.GetQuestObjectives = objectivesOf
+    end)
+    quests[4] = { questID = 1048, title = "Into The Scarlet Monastery", isHeader = false }
+    fire("QUEST_LOG_UPDATE")
+    tick()
+    assert.equals("2 misiones aquí", window.step.shown_text)
+    assert.equals("Mazmorra 1/5", window.counter.shown_text)
+    local rows = {}
+    for i = 1, 7 do
+      local r = window.drows[i]
+      rows[i] = r.label.shown_text .. "|" .. tostring(r.count.shown_text)
+    end
+    assert.same({ "Vorrel's Revenge|", "Nancy Vishas|", "Into The Scarlet Monastery|",
+      "High Inquisitor Whitemane slain|0/1", "Scarlet Commander Mograine slain|1/1", "Herod slain|0/1",
+      "Houndmaster Loksey slain|0/1" }, rows)
+    -- Herod's magnifier shows Herod; a slain one has nothing to show.
+    local herod = window.drows[6]
+    herod.lens.scripts.OnEnter(herod.lens)
+    local preview = named.TrailMatePreview
+    assert.is_true(preview.visible)
+    assert.equals("Herod", preview.name.shown_text)
+    assert.equals("Mata", preview.verb.shown_text)
+    herod.lens.scripts.OnLeave(herod.lens)
+    assert.is_false(window.drows[5].step)
+    -- Clicking it keeps Herod on show, even as the quest log changes.
+    herod.lens.scripts.OnClick(herod.lens)
+    assert.is_true(_G.TrailMateCharDB.ui.previewPinned)
+    fire("QUEST_LOG_UPDATE")
+    tick()
+    assert.is_true(preview.visible)
+    assert.equals("Herod", preview.name.shown_text)
+    _G.SlashCmdList.TRAILMATE("vista no")
+    table.remove(quests, 4)
     -- Out again: the guide's step and its arrow are back.
     rawset(_G, "IsInInstance", function() return false end)
     _G.C_Map.GetBestMapForUnit = function() return 1429 end
