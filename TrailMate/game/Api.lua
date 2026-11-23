@@ -550,6 +550,45 @@ function Api.taxiMapID()
   return (safe(GetTaxiMapID))
 end
 
+--- On the open flight map, the button of a flight point (by its name, as
+--- the map calls it), or nil: the classic TaxiFrame's TaxiButtonN, or the
+--- pin of the modern FlightMapFrame. Not the point the player is at.
+function Api.flightButton(name)
+  if type(name) ~= "string" then
+    return nil
+  end
+  local n = safe(NumTaxiNodes)
+  if type(n) == "number" and TaxiNodeName then
+    for i = 1, n do
+      if safe(TaxiNodeName, i) == name then
+        local b = rawget(_G, "TaxiButton" .. i)
+        local current = TaxiNodeGetType and safe(TaxiNodeGetType, i) == "CURRENT"
+        if b and b.IsShown and b:IsShown() and not current then
+          return b
+        end
+      end
+    end
+  end
+  local map = rawget(_G, "FlightMapFrame")
+  if map and map.IsShown and map:IsShown() and map.EnumeratePinsByTemplate then
+    -- The whole walk guarded: the enumerator returns an iterator with its
+    -- state (like pairs), and a client may build it differently.
+    local current = Enum and Enum.FlightPathState and Enum.FlightPathState.Current or 0
+    local ok, found = pcall(function()
+      for pin in map:EnumeratePinsByTemplate("FlightMap_FlightPointPinTemplate") do
+        local data = pin.taxiNodeData
+        if data and data.name == name and data.state ~= current then
+          return pin
+        end
+      end
+    end)
+    if ok and found then
+      return found
+    end
+  end
+  return nil
+end
+
 --- At an open flight map: the continent map, the current node's name, the
 --- names it can reach, and every node shown (the flight map only shows the
 --- ones this character has discovered).
@@ -637,6 +676,19 @@ end
 
 function Api.vendorRepairs()
   return safe(CanMerchantRepair) == true
+end
+
+--- A quest's objectives as the game words them, with the count ("Herod
+--- slain: 0/1"): { { text, done } }, or an empty list.
+function Api.questObjectives(questID)
+  local list = C_QuestLog and safe(C_QuestLog.GetQuestObjectives, questID)
+  local out = {}
+  for _, o in ipairs(type(list) == "table" and list or {}) do
+    if type(o) == "table" and type(o.text) == "string" and o.text ~= "" and not isSecret(o.text) then
+      out[#out + 1] = { text = o.text, done = o.finished == true }
+    end
+  end
+  return out
 end
 
 --- How far a quest's objectives have got, as one number that only grows

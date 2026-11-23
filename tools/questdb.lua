@@ -299,4 +299,63 @@ function M.giver(db, by)
   return nil
 end
 
+local function hasSpawns(db, kind, id, field)
+  local spawns = M.field(db, kind, id, field)
+  return type(spawns) == "table" and next(spawns) ~= nil
+end
+
+--- Who or what each objective of a quest is about, to show it, in the
+--- database's order and once per name: { c = creature id, n = name } for a
+--- creature to kill (or to talk to, for a kill credit), with d = true when
+--- it is not to kill but drops the item; { n = name } for an object. Spawns
+--- are not needed to be placed on a map: inside a dungeon they often are not.
+function M.targets(db, questID)
+  local obj = M.field(db, "Quest", questID, M.QUEST.objectives) or {}
+  local out, seen = {}, {}
+  local function add(t)
+    if t and t.n and not seen[t.n] then
+      seen[t.n] = true
+      out[#out + 1] = t
+    end
+  end
+  local function npc(id, drop)
+    local name = M.field(db, "Npc", id, M.NPC.name)
+    return name and { c = id, n = name, d = drop or nil } or nil
+  end
+  local function object(id)
+    local name = M.field(db, "Object", id, M.OBJECT.name)
+    return name and { n = name } or nil
+  end
+  for _, c in ipairs(obj[1] or {}) do
+    add(npc(c[1]))
+  end
+  for _, o in ipairs(obj[2] or {}) do
+    add(object(o[1]))
+  end
+  for _, i in ipairs(obj[3] or {}) do
+    local found
+    for _, id in ipairs(M.field(db, "Item", i[1], M.ITEM.npcDrops) or {}) do
+      if hasSpawns(db, "Npc", id, M.NPC.spawns) then
+        found = npc(id, true)
+        break
+      end
+    end
+    if not found then
+      for _, id in ipairs(M.field(db, "Item", i[1], M.ITEM.objectDrops) or {}) do
+        if hasSpawns(db, "Object", id, M.OBJECT.spawns) then
+          found = object(id)
+          break
+        end
+      end
+    end
+    add(found)
+  end
+  for _, k in ipairs(obj[5] or {}) do -- kill credit: { { npcIds }, creditId, text }
+    if k[1] and k[1][1] then
+      add(npc(k[1][1]))
+    end
+  end
+  return out
+end
+
 return M

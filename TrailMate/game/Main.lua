@@ -30,6 +30,7 @@ local lastPath -- the trail route the arrow follows now
 local lastWhy -- why there is no trail route now (for the self-test)
 local showLearned = false -- /tm trail show: the map shows every learned dot
 local followTrail -- defined with the update loop, used by /tm trail
+local wayThere -- defined with the travel planner: a far step's quickest way
 
 local COLORS = {
   learn = "|cff40c040", skip = "|cffc04040", later = "|cffd0a020",
@@ -138,7 +139,12 @@ local function dungeonHere()
   for _, q in ipairs(Api.questLog()) do
     log[q.questID] = { complete = q.complete }
   end
-  return { name = d and d.name or name or "?", quests = ns.Dungeons.toDoHere(d, log) }
+  local quests = ns.Dungeons.toDoHere(d, log, true) -- done ones too: "all done here"
+  -- What is left of each, as the game words it ("Herod slain: 0/1").
+  for _, q in ipairs(quests) do
+    q.objectives = Api.questObjectives(q.q)
+  end
+  return { name = d and d.name or name or "?", quests = quests }
 end
 
 local function updateTarget(force)
@@ -146,10 +152,12 @@ local function updateTarget(force)
   -- inside, and the guide's next step is outside.
   ns.Arrow.setAway(inDungeon ~= nil)
   if inDungeon then
+    wayThere(nil) -- no far step now: nothing to mark at a flight master
     ns.ItemButton.set(nil)
     return
   end
   if detour then
+    wayThere(nil)
     ns.Arrow.setTarget(detour.target, detour.label, detour.item and L["Click the item to use it"])
     ns.ItemButton.set(detour.item)
     return
@@ -161,9 +169,17 @@ local function updateTarget(force)
   local changed = step ~= arrowStep
   arrowStep = step
   local target = stepTarget(step)
-  ns.Arrow.setTarget(target, step and step.text)
-  -- A quest that needs an item used: a button to click.
-  ns.ItemButton.set(step and step.type == "complete" and Api.questItem(step.questID) or nil)
+  -- Far away: the arrow goes the quickest way, to the flight master first
+  -- (the map's mark stays on the step's own place).
+  local way = wayThere(target and step, target)
+  if way then
+    ns.Arrow.setTarget(way.target, way.label or step.text, way.item and L["Click the item to use it"])
+    ns.ItemButton.set(way.item)
+  else
+    ns.Arrow.setTarget(target, step and step.text)
+    -- A quest that needs an item used: a button to click.
+    ns.ItemButton.set(step and step.type == "complete" and Api.questItem(step.questID) or nil)
+  end
   if changed then
     local focused = Api.focusQuest(step and step.questID)
     -- What the game really follows now (it keeps the last one when this
@@ -229,6 +245,8 @@ local function render()
   if inDungeon then
     if #inDungeon.quests > 0 then
       ns.UI.renderDungeon(inDungeon, L)
+    else
+      ns.UI.stepAside()
     end
     return
   end
@@ -1131,8 +1149,10 @@ end
 
 -- Plans the quickest way to a zone with what the game says (flight points
 -- learned and seen connected, hearthstone, continent). Changes nothing:
--- returns the trip, the lines to show and the first place to go.
-local function planTrip(mapID, name)
+-- returns the trip, the lines to show and the first place to go. x, y: a
+-- point in the zone (a quest giver), else its middle.
+local function planTrip(mapID, name, x, y)
+  x, y = x or 0.5, y or 0.5
   local p = playerPoint()
   local nodes = Api.flightNodes(cdb.learnedFlights)
   local hearth = Api.hearth()
@@ -1141,7 +1161,7 @@ local function planTrip(mapID, name)
   end
   local trip = ns.Travel.plan({
     here = p.mapID and p.x and Api.worldPos(p.mapID, p.x, p.y),
-    dest = Api.worldPos(mapID, 0.5, 0.5),
+    dest = Api.worldPos(mapID, x, y),
     nodes = nodes,
     hearth = hearth,
     reach = function(a, b)
@@ -1149,6 +1169,7 @@ local function planTrip(mapID, name)
     end,
     speed = (p.level or 1) >= 40 and ns.Travel.MOUNT or ns.Travel.RUN,
     ships = shipLinks(),
+    destZone = name, -- land in that zone when a flight point there is known
   })
   local lines, target, item = {}, nil, nil
   if trip then
@@ -1160,14 +1181,14 @@ local function planTrip(mapID, name)
       lines[#lines + 1] = "- " .. describeStep(s, name, hearth)
       if not target and not item then
         if s.kind == "walk" then
-          target = s.to.name and nodeTarget(s.to) or { mapID = mapID, x = 0.5, y = 0.5 }
+          target = s.to.name and nodeTarget(s.to) or { mapID = mapID, x = x, y = y }
         elseif s.kind == "ship" and s.via then
           target = nodeTarget(s.via)
         end
       end
     end
     -- Flights on a continent never checked at a flight master are not used.
-    local dest = Api.worldPos(mapID, 0.5, 0.5)
+    local dest = Api.worldPos(mapID, x, y)
     local checked = false
     for _, n in ipairs(nodes) do
       checked = checked or (dest and n.cont == dest.cont and n.sure)
@@ -1181,10 +1202,69 @@ local function planTrip(mapID, name)
   return trip, lines, target, item
 end
 
+-- The flight point a trip flies to first (its name, as the flight map
+-- calls it), or nil: marked on the flight map when it opens.
+local function flightOf(trip)
+  for _, s in ipairs(trip and trip.steps or {}) do
+    if s.kind == "fly" and s.to and s.to.name then
+      return s.to.name
+    end
+  end
+  return nil
+end
+
+-- A step far away (the user's case: in Orgrimmar, the next quest giver in
+-- Desolace): when flying, a ship or the hearthstone is quicker than walking,
+-- the arrow goes to the first place of that trip (the flight master) and
+-- says the leg that saves the time ("Fly from Orgrimmar to Shadowprey
+-- Village."). Worked out again when the step or the player's map changes,
+-- or every WAY_AGAIN seconds. Returns { target, item, label, flyTo } or nil.
+-- With no step (none, a dungeon, a detour), it forgets the last one, so the
+-- flight map never marks a flight that no longer applies.
+local WAY_AGAIN = 10
+local wayCache
+
+local function sameSpot(a, b)
+  return a and b and a.mapID == b.mapID and a.x == b.x and a.y == b.y
+end
+
+function wayThere(step, target)
+  if not (step and target) then
+    wayCache = nil
+    return nil
+  end
+  local here = playerPoint()
+  local c = wayCache
+  if c and c.step == step and sameSpot(c.target, target) and c.map == here.mapID and clock - c.at < WAY_AGAIN then
+    return c.way
+  end
+  local way
+  local from = here.mapID and here.x and Api.worldPos(here.mapID, here.x, here.y)
+  local to = target.mapID and Api.worldPos(target.mapID, target.x, target.y)
+  local near = from and to and from.cont == to.cont
+    and math.sqrt((from.x - to.x) ^ 2 + (from.y - to.y) ^ 2) < ns.Travel.WALK_YARDS
+  if from and to and not near then
+    local name = Api.mapName(target.mapID) or "?"
+    local trip, lines, first, item = planTrip(target.mapID, name, target.x, target.y)
+    if trip and trip.mode ~= "walk" and (first or item) then
+      local label
+      for i, s in ipairs(trip.steps) do
+        if s.kind ~= "walk" and lines[i + 1] then
+          label = lines[i + 1]:gsub("^%- ", "")
+          break
+        end
+      end
+      way = { target = first, item = item, label = label, flyTo = flightOf(trip) }
+    end
+  end
+  wayCache = { step = step, target = target, map = here.mapID, at = clock, way = way }
+  return way
+end
+
 -- Applies a trip: tells the player the steps and points the arrow at the
 -- first place to go, until they arrive.
 function travelTo(mapID, name)
-  local _, lines, target, item = planTrip(mapID, name)
+  local trip, lines, target, item = planTrip(mapID, name)
   travelLines = lines
   detour = {
     -- First the hearthstone: no place to point at, a stone to click.
@@ -1193,6 +1273,7 @@ function travelTo(mapID, name)
     label = lines[2] and lines[2]:sub(3) or lines[1],
     zone = mapID,
     zoneName = name,
+    flyTo = flightOf(trip),
   }
   -- Saved with the character, so a /reload or a new login on the way
   -- resumes the trip instead of dropping it.
@@ -2335,6 +2416,15 @@ handlers.QUEST_LOG_UPDATE = function()
   questChanged()
 end
 
+-- A kill that counts for an objective: the game may say so before the quest
+-- log holds the new count, so these look again too.
+handlers.UNIT_QUEST_LOG_CHANGED = function(unit)
+  if unit == "player" then
+    questChanged()
+  end
+end
+handlers.QUEST_WATCH_UPDATE = questChanged
+
 handlers.QUEST_REMOVED = function()
   quiet(ns.Marked.QUIET)
   questChanged()
@@ -2540,7 +2630,10 @@ end
 handlers.TAXIMAP_OPENED = function()
   learnNpc("flight")
   -- Learn which flights are open from here, and which flight points this
-  -- character has on this continent (the flight map shows only those).
+  -- character can fly to on this continent: the one here and the ones the
+  -- map says are reachable. A grey one (unreachable) is not counted: the
+  -- arrow must never send the player to a flight master for a flight they
+  -- cannot take (the user asked).
   local node, reachable, all, mapID = Api.taxiReach()
   if node then
     Atlas.recordFlights(atlas, node, reachable)
@@ -2551,13 +2644,38 @@ handlers.TAXIMAP_OPENED = function()
     -- (Forever's are 1463 and 1464, classic's 1414 and 1415).
     local here = Api.playerWorld()
     local cont = here and here.cont or Api.continentOf(mapID) or mapID
-    local set = {}
-    for _, name in ipairs(all) do
-      set[name] = true
+    -- Saved before 0.5.1 with the grey points too: started again once.
+    if cdb.learnedFlightsRule ~= 2 then
+      cdb.learnedFlights, cdb.learnedFlightsRule = {}, 2
     end
     cdb.learnedFlights = cdb.learnedFlights or {}
+    -- Added to what other flight masters taught: one that does not reach a
+    -- point does not mean the character forgot it.
+    local set = cdb.learnedFlights[cont] or {}
+    if node then
+      set[node] = true
+    end
+    for _, name in ipairs(reachable or {}) do
+      set[name] = true
+    end
     cdb.learnedFlights[cont] = set
   end
+  -- The point TrailMate says to fly to beats on the map (the user asked). A
+  -- moment later: the flight map lays its buttons out after this event.
+  local goal = (detour and detour.flyTo) or (wayCache and wayCache.way and wayCache.way.flyTo)
+  if wayCache then
+    wayCache.at = -math.huge -- the flights known just changed: work it out again
+  end
+  if goal then
+    after(0.1, function()
+      guard("flight map", function()
+        ns.UI.markFlight(Api.flightButton(goal), L)
+      end)
+    end)
+  end
+end
+handlers.TAXIMAP_CLOSED = function()
+  ns.UI.clearFlightMark()
 end
 handlers.BAG_UPDATE_DELAYED = function()
   bagThrottle:mark()
@@ -2680,6 +2798,11 @@ frame:SetScript("OnUpdate", function(_, elapsed)
   -- Quest objectives move (next area, turn-in): look again every two seconds.
   if sinceTarget >= 2 then
     sinceTarget = 0
+    -- In a dungeon, the objectives' counts too: an event may come before the
+    -- quest log has the last kill (the user's case: Loksey stuck at 0/1).
+    if inDungeon then
+      questThrottle:mark()
+    end
     -- Arrived in the zone the player chose: drop the detour and route it.
     if detour and detour.zone and Api.position() == detour.zone then
       cdb.arrival, cdb.arrivalDone = detour.zone, {}

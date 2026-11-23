@@ -41,6 +41,27 @@ describe("Travel", function()
     assert.is_true(trip.cost < 12000 / T.RUN)
   end)
 
+  it("lands in the destination's zone when a flight point there is known (the user's case: Desolace)", function()
+    -- Bibbly in Desolace, near the mountains east; Thunder Bluff, behind them,
+    -- is closer in a straight line than Shadowprey Village, in Desolace.
+    local org = { name = "Orgrimmar, Durotar", cont = 1, x = 10000, y = 0, known = true }
+    local bluff = { name = "Thunder Bluff, Mulgore", cont = 1, x = 2000, y = 0, known = true }
+    local shadowprey = { name = "Shadowprey Village, Desolace", cont = 1, x = -2500, y = 0, known = true }
+    local bibbly = { cont = 1, x = 0, y = 0 }
+    local ctx = { here = { cont = 1, x = 10000, y = 50 }, dest = bibbly, nodes = { org, bluff, shadowprey } }
+    -- Without the zone, straight lines pick Thunder Bluff.
+    assert.equals("Thunder Bluff, Mulgore", T.plan(ctx).steps[2].to.name)
+    ctx.destZone = "Desolace"
+    local trip = T.plan(ctx)
+    assert.equals("fly", trip.mode)
+    assert.equals("Shadowprey Village, Desolace", trip.steps[2].to.name)
+    -- No known flight point there: as before, the nearest one.
+    shadowprey.known = false
+    assert.equals("Thunder Bluff, Mulgore", T.plan(ctx).steps[2].to.name)
+    assert.equals("Desolace", T.zoneOf({ name = "Shadowprey Village, Desolace" }))
+    assert.is_nil(T.zoneOf({ name = "Hammerfall" }))
+  end)
+
   it("never flies to a point the player has not learned", function()
     local trip = T.plan({ here = arathi, dest = stranglethorn, nodes = { hammerfall, unknownNear } })
     assert.equals("walk", trip.mode)

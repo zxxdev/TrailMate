@@ -159,15 +159,26 @@ function Dungeons.here(list, mapID, name)
 end
 
 --- The quests of this dungeon in the quest log ({ [questID] = { complete } })
---- with something still to do inside: { { q, name } }. Handed in or done
---- ones are not listed (they are done outside).
-function Dungeons.toDoHere(d, questLog)
+--- with something still to do inside: { { q, name, targets } }. Handed in
+--- ones are not listed; done ones (to hand in outside) only with withDone,
+--- marked done = true, so the window can say they are finished.
+function Dungeons.toDoHere(d, questLog, withDone)
   local out = {}
   for _, q in ipairs(d and d.quests or {}) do
     local entry = questLog and questLog[q.q]
-    if entry and not entry.complete then
-      out[#out + 1] = { q = q.q, name = q.name }
+    if entry and (withDone or not entry.complete) then
+      out[#out + 1] = { q = q.q, name = q.name, targets = q.targets, done = entry.complete and true or nil }
     end
   end
   return out
+end
+
+--- True when every quest of the list is done.
+function Dungeons.allDone(quests)
+  for _, q in ipairs(quests or {}) do
+    if not q.done then
+      return false
+    end
+  end
+  return #(quests or {}) > 0
 end

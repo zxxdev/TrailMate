@@ -178,6 +178,7 @@ for _, id in ipairs(ids("Quest")) do
       q.tm, q.tx, q.ty = finish.m, finish.x, finish.y
     end
     q.tnpc = finishName
+    q.targets = Q.targets(db, id)
     quests[d] = quests[d] or {}
     table.insert(quests[d], q)
   end
@@ -199,6 +200,8 @@ out:write([[
 -- Quest fields: q id, level, req (level to pick it up), side ("A", "H" or
 -- both), classes (bit mask, or all), pre (needs one of these quests first),
 -- m/x/y and npc where it starts, tm/tx/ty and tnpc where it is handed in.
+-- targets: who or what its objectives are about, to show them: c = creature
+-- id (its 3D model), n = name, d = true when it drops the item (not to kill).
 
 local _, ns = ...
 
@@ -258,6 +261,14 @@ for _, d in ipairs(DUNGEONS) do
     end
     if q.tnpc then
       parts[#parts + 1] = ("tnpc = %s"):format(quote(q.tnpc))
+    end
+    if q.targets and #q.targets > 0 then
+      local shown = {}
+      for _, t in ipairs(q.targets) do
+        shown[#shown + 1] = "{ " .. (t.c and ("c = %d, "):format(t.c) or "") .. ("n = %s"):format(quote(t.n))
+          .. (t.d and ", d = true" or "") .. " }"
+      end
+      parts[#parts + 1] = "targets = { " .. table.concat(shown, ", ") .. " }"
     end
     out:write("      { " .. table.concat(parts, ", ") .. " },\n")
     total = total + 1

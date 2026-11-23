@@ -172,6 +172,10 @@ local function leavePreview()
     UI.frame.hoverLight:Hide()
   end
   if UI.previewPinned() then
+    -- Kept: back to the kept one after looking at another objective.
+    if UI.frame and UI.previewStep ~= UI.frame.current then
+      UI.showPreview(UI.frame)
+    end
     return
   end
   local turn = hoverTurn
@@ -231,9 +235,13 @@ local function heightOf(fs, fallback)
   return (type(h) == "number" and h > 0) and h or fallback
 end
 
--- Lays out and shows the preview of the current step next to the window.
-local function showPreview(f)
-  local step = f.current
+-- Lays out and shows the preview next to the window: of step (a dungeon
+-- objective under the mouse), or of the current step.
+local function showPreview(f, step)
+  if type(step) ~= "table" then
+    step = f.current
+  end
+  UI.previewStep = step
   if not (type(step) == "table" and (step.creature or step.who)) or (InCombatLockdown and InCombatLockdown()) then
     hidePreview()
     return
@@ -283,8 +291,9 @@ local function showPreview(f)
   else
     p:SetFrameStrata("TOOLTIP")
   end
+  -- Only the step line it is about; a dungeon objective's row lights itself.
   if f.hoverLight then
-    f.hoverLight:SetShown(not pinned)
+    f.hoverLight:SetShown(not pinned and not step.dungeon)
   end
   local fadeIn = rawget(_G, "UIFrameFadeIn")
   if not p:IsShown() and fadeIn then
@@ -298,12 +307,12 @@ UI.showPreview = showPreview
 
 -- After the mouse rests a moment on the step: passing over it on the way to
 -- the buttons below shows nothing.
-local function previewSoon(f)
+local function previewSoon(f, step)
   hoverTurn = hoverTurn + 1
   local turn = hoverTurn
   local function go()
     if turn == hoverTurn then
-      showPreview(f)
+      showPreview(f, step)
     end
   end
   if C_Timer and C_Timer.After then
@@ -319,7 +328,12 @@ local LENS, STEP_W, STEP_W_LENS = 14, 280, 260
 
 local function lensLook(lens, lit)
   local Theme = ns.Theme
-  local pinned = UI.previewPinned()
+  local pinned
+  if lens.isOn then
+    pinned = lens.isOn() == true
+  else
+    pinned = UI.previewPinned()
+  end
   if lit or pinned then
     lens.tex:SetVertexColor(1, 1, 1, 1)
   else
@@ -354,12 +368,14 @@ local function blinkOnce(lens)
   group:Play()
 end
 
-local function makeLens(f)
+-- A magnifier button in parent (the window, or a dungeon objective's row).
+-- lens.step: what it shows (nil: the current step); lens.isOn: whether its
+-- "kept" square shows (nil: whenever the preview is kept); lens.click: what
+-- a click does (nil: keep the preview shown, or not).
+local function newLens(f, parent)
   local Theme = ns.Theme
-  local lens = CreateFrame("Button", nil, f)
+  local lens = CreateFrame("Button", nil, parent)
   lens:SetSize(LENS, LENS)
-  lens:SetPoint("TOPRIGHT", -14, -42)
-  lens:SetHitRectInsets(-4, -4, -4, -4)
   -- Kept: a square behind it, like a button that stays pressed.
   lens.on = lens:CreateTexture(nil, "BACKGROUND")
   lens.on:SetSize(20, 20)
@@ -368,12 +384,13 @@ local function makeLens(f)
   lens.tex = lens:CreateTexture(nil, "ARTWORK")
   lens.tex:SetAllPoints()
   lens.tex:SetTexture("Interface\\Common\\UI-Searchbox-Icon")
+  lens.step, lens.isOn, lens.click = false, false, false -- the window's own, until a row sets them
   local function tip(self)
     if GameTooltip then
       local L = (type(f.L) == "table" and f.L) or ns.L
+      local on = self.isOn and self.isOn() or (not self.isOn and UI.previewPinned())
       GameTooltip:SetOwner(self, "ANCHOR_TOP")
-      GameTooltip:SetText(UI.previewPinned() and L["Click to show it only on hover"] or L["Click to keep it shown"],
-        0.1, 1, 0.1)
+      GameTooltip:SetText(on and L["Click to show it only on hover"] or L["Click to keep it shown"], 0.1, 1, 0.1)
       GameTooltip:Show()
     end
   end
@@ -381,7 +398,7 @@ local function makeLens(f)
     lensLook(self, true)
     -- Pointing at it means it: no wait.
     hoverTurn = hoverTurn + 1
-    showPreview(f)
+    showPreview(f, self.step)
     tip(self)
   end)
   lens:SetScript("OnLeave", function(self)
@@ -392,12 +409,23 @@ local function makeLens(f)
     leavePreview()
   end)
   lens:SetScript("OnClick", function(self)
-    run("preview")
+    if self.click then
+      self.click(self)
+    else
+      run("preview")
+    end
     -- Still under the mouse: the look and the tip say the new state.
     lensLook(self, true)
     tip(self)
   end)
   lens:Hide()
+  return lens
+end
+
+local function makeLens(f)
+  local lens = newLens(f, f)
+  lens:SetPoint("TOPRIGHT", -14, -42)
+  lens:SetHitRectInsets(-4, -4, -4, -4)
   return lens
 end
 
@@ -503,6 +531,17 @@ function UI.create(saved)
   f.arrow = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
   f.arrow:SetPoint("BOTTOMLEFT", 16, 14)
   f.arrow:Hide()
+  -- Under the dungeon view: the guide waits outside.
+  f.foot = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+  -- Both ends anchored and left-justified, so the text starts at the margin
+  -- whatever the font object says.
+  f.foot:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 16, 14)
+  f.foot:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -14, 14)
+  f.foot:SetJustifyH("LEFT")
+  f.foot:SetMaxLines(1)
+  f.foot:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.muted))
+  f.foot:Hide()
+  f.drows, f.inDungeon = {}, false
   -- A Done or Skip by mistake is one click away from being undone.
   f.undo = ns.Theme.button(f, "", 72, function()
     run("undo")
@@ -654,6 +693,8 @@ local function setStepLook(f, kind)
   f.step:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS[kind] or ns.Theme.COLORS.note))
 end
 
+local endDungeon -- below, with the dungeon view
+
 --- While travelling to a chosen zone the window shows the trip, not the
 --- quests of the zone being left. lines: title, then "- step" lines.
 function UI.renderTravel(lines, L)
@@ -661,6 +702,7 @@ function UI.renderTravel(lines, L)
   if not f then
     return
   end
+  endDungeon(f)
   noPreview(f)
   f.title:SetText(L["Travel"])
   f.counter:SetText(L["Travel"])
@@ -678,28 +720,284 @@ function UI.renderTravel(lines, L)
   setButtons(f, L, false)
 end
 
+-- Inside a dungeon: a row per objective (and a heading per quest when there
+-- are several), each with its done mark, the game's count in a column of its
+-- own so it is never cut, and a magnifier for the creature it is about. All
+-- of them share the one preview.
+local DROW_H, DROWS = 16, 10
+local DONE_MARK = "Interface\\RaidFrame\\ReadyCheck-Ready"
+local TODO_MARK = "Interface\\COMMON\\Indicator-Gray"
+
+local function sameTarget(a, b)
+  return type(a) == "table" and type(b) == "table" and a.dungeon and b.dungeon and a.who ~= nil and a.who == b.who
+end
+
+local function dungeonRow(f, i)
+  local r = CreateFrame("Button", nil, f)
+  r:SetSize(WIDTH - 50, DROW_H) -- from x 36 to the window's right margin
+  if i == 1 then
+    r:SetPoint("TOPLEFT", f.step, "BOTTOMLEFT", 0, -6)
+  else
+    r:SetPoint("TOPLEFT", f.drows[i - 1], "BOTTOMLEFT", 0, 0)
+  end
+  -- Over the step's hover area, which reaches down here.
+  local level = f.hover and f.hover.GetFrameLevel and f.hover:GetFrameLevel()
+  if type(level) == "number" then
+    r:SetFrameLevel(level + 2)
+  end
+  if r.SetMouseMotionEnabled and r.SetMouseClickEnabled then
+    r:SetMouseMotionEnabled(true)
+    r:SetMouseClickEnabled(false) -- the window still drags from here
+  end
+  r.mark = r:CreateTexture(nil, "ARTWORK")
+  r.mark:SetSize(12, 12)
+  r.mark:SetPoint("LEFT", 0, 0)
+  r.label = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  r.label:SetPoint("LEFT", 16, 0)
+  r.label:SetWidth(208)
+  r.label:SetJustifyH("LEFT")
+  r.label:SetMaxLines(1)
+  r.count = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  r.count:SetPoint("RIGHT", -20, 0)
+  r.count:SetWidth(32)
+  r.count:SetJustifyH("RIGHT")
+  r:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+  local light = r.GetHighlightTexture and r:GetHighlightTexture()
+  if light and light.SetAlpha then
+    light:SetAlpha(0.3)
+  end
+  r:SetScript("OnEnter", function(self)
+    if self.step then
+      previewSoon(f, self.step)
+    end
+  end)
+  r:SetScript("OnLeave", function()
+    leavePreview()
+  end)
+  -- Its magnifier: hover to see this one, click to keep this one shown.
+  r.lens = newLens(f, r)
+  r.lens:SetPoint("RIGHT", 0, 0)
+  r.lens:SetHitRectInsets(-4, -4, -1, -1)
+  r.lens.isOn = function()
+    return UI.previewPinned() and sameTarget(f.current, r.lens.step)
+  end
+  r.lens.click = function(self)
+    if self.isOn() then
+      run("preview off")
+      showPreview(f, self.step) -- the mouse is still on it: as a hover now
+    else
+      f.current = self.step
+      if UI.previewPinned() then
+        showPreview(f)
+      else
+        run("preview on")
+      end
+    end
+    for _, other in ipairs(f.drows) do
+      lensLook(other.lens, false)
+    end
+  end
+  r:Hide()
+  return r
+end
+
+-- The game's objective text with its count apart: "Herod slain: 0/1" gives
+-- "Herod slain", "0/1" (and "0/1 Herod slain" too).
+local function splitCount(s)
+  local name, count = s:match("^(.-):%s*(%d+%s*/%s*%d+)$")
+  if not name then
+    count, name = s:match("^(%d+%s*/%s*%d+)%s+(.+)$")
+  end
+  return name or s, count
+end
+
+-- The rows of one quest's objectives: the game's own (worded and counted
+-- in the player's language), each matched to the creature it names; or,
+-- when the game says nothing, the data's targets.
+local function objectiveRows(q)
+  local rows, targets, said = {}, q.targets or {}, q.objectives or {}
+  local function about(t)
+    return t and { type = "complete", creature = t.c, who = t.n, drop = t.d, dungeon = true } or nil
+  end
+  if #said == 0 then
+    for _, t in ipairs(targets) do
+      rows[#rows + 1] = { text = t.n, done = q.done, step = about(t) }
+    end
+    return rows
+  end
+  -- Each creature goes with one objective at most ("X slain" and "Head of
+  -- X" would both name X). The data's names are English: in another
+  -- language they only match by their place in the list, and only when
+  -- there are as many of each; otherwise that row has no magnifier.
+  local used = {}
+  for i, o in ipairs(said) do
+    local name, count = splitCount(o.text)
+    local found
+    for _, t in ipairs(targets) do
+      if not used[t] and o.text:find(t.n, 1, true) then
+        found = t
+        break
+      end
+    end
+    -- Not named in the text (an item it drops): the same place in the list.
+    if not found and #targets == #said and not used[targets[i]] then
+      found = targets[i]
+    end
+    if found then
+      used[found] = true
+    end
+    rows[#rows + 1] = { text = name, count = count, done = o.done or q.done, step = about(found) }
+  end
+  return rows
+end
+
+-- Back to the plain window after a dungeon.
+function endDungeon(f)
+  if not f.inDungeon then
+    return
+  end
+  f.inDungeon = false
+  for _, r in ipairs(f.drows or {}) do
+    r:Hide()
+  end
+  if f.foot then
+    f.foot:Hide()
+  end
+  f:SetHeight(HEIGHT)
+end
+
+--- In a dungeon with nothing of the log to do there: the window steps
+--- aside, with no dungeon view or preview left behind.
+function UI.stepAside()
+  local f = UI.frame
+  if not f then
+    return
+  end
+  endDungeon(f)
+  noPreview(f)
+end
+
 --- Inside a dungeon with quests of the log to do there: { name, quests =
---- { { name } } }. No arrow and no Done / Skip: the guide waits outside.
+--- { { name, targets, objectives = { { text, done } } } } }. No arrow and
+--- no Done / Skip: the guide waits outside.
 function UI.renderDungeon(d, L)
   local f = UI.frame
   if not f then
     return
   end
-  noPreview(f)
+  local Theme = ns.Theme
+  f.L, f.inDungeon = L, true
   f.title:SetText(d.name)
-  f.counter:SetText(L["Dungeon"])
   goldCounter(f)
-  setStepLook(f, "complete")
-  local names = {}
-  for _, q in ipairs(d.quests) do
-    names[#names + 1] = q.name
+  local quests = d.quests or {}
+  local multi = #quests > 1
+  -- Every quest finished: say so, and that they are handed in outside.
+  local finished = ns.Dungeons.allDone(quests)
+  setStepLook(f, finished and "turnin" or "complete")
+  if finished then
+    f.step:SetText(L["All done here"])
+  else
+    f.step:SetText(multi and L["%d quests here"]:format(#quests) or (quests[1] and quests[1].name or ""))
   end
-  f.step:SetText(L["Do here: %s"]:format(table.concat(names, ", ")))
-  f.why:SetText(L["The guide waits outside."])
-  f.why:SetTextColor(ns.Theme.rgb(ns.Theme.COLORS.muted))
+  f.why:SetText("")
   setNext(f, {})
   f.arrow:SetText("")
   setButtons(f, L, false)
+  f.foot:SetText(finished and L["Turn them in outside."] or L["The guide waits outside."])
+  f.foot:Show()
+
+  local rows, done, total = {}, 0, 0
+  for _, q in ipairs(quests) do
+    if multi then
+      rows[#rows + 1] = { header = q.done and (q.name .. " " .. L["(done)"]) or q.name, headerDone = q.done }
+    end
+    for _, row in ipairs(objectiveRows(q)) do
+      total = total + 1
+      done = done + (row.done and 1 or 0)
+      rows[#rows + 1] = row
+    end
+  end
+  f.counter:SetText(total > 0 and L["Dungeon %d/%d"]:format(done, total) or L["Dungeon"])
+  -- Too many: what is done goes first, then the rest is in the quest log.
+  if #rows > DROWS then
+    local kept = {}
+    for _, row in ipairs(rows) do
+      if not row.done then
+        kept[#kept + 1] = row
+      end
+    end
+    -- A heading left with nothing under it goes too.
+    rows = {}
+    for i, row in ipairs(kept) do
+      local following = kept[i + 1]
+      if not (row.header and (following == nil or following.header)) then
+        rows[#rows + 1] = row
+      end
+    end
+  end
+  if #rows > DROWS then
+    local more = #rows - (DROWS - 1)
+    for i = #rows, DROWS, -1 do
+      rows[i] = nil
+    end
+    rows[DROWS] = { text = L["+%d more in the quest log"]:format(more), more = true }
+  end
+
+  f.drows = f.drows or {}
+  local firstStep
+  for i = 1, DROWS do
+    local r = f.drows[i]
+    local row = rows[i]
+    if row and not r then
+      r = dungeonRow(f, i)
+      f.drows[i] = r
+    end
+    if r then
+      r:SetShown(row ~= nil)
+    end
+    if row then
+      local muted, todo = Theme.COLORS.muted, row.header and Theme.COLORS.complete or Theme.COLORS.note
+      r.step = (not row.done) and row.step or false -- false, not nil: a field that is there
+      r.lens.step = r.step
+      r.label:ClearAllPoints()
+      r.label:SetPoint("LEFT", row.header and 0 or 16, 0)
+      r.label:SetText(row.header or row.text or "")
+      r.label:SetTextColor(Theme.rgb((row.done or row.more or row.headerDone) and muted or todo))
+      r.count:SetText(row.count or "")
+      r.count:SetTextColor(Theme.rgb(row.done and muted or Theme.COLORS.note))
+      r.mark:SetShown(not (row.header or row.more))
+      r.mark:SetTexture(row.done and DONE_MARK or TODO_MARK)
+      local showLens = r.step and r.step.creature ~= nil or false
+      r.lens:SetShown(showLens)
+      if showLens then
+        lensLook(r.lens, false)
+        firstStep = firstStep or r.step
+      end
+    end
+  end
+  f:SetHeight(math.max(HEIGHT, 60 + #rows * DROW_H + 36))
+
+  -- The one kept on show stays while it is still to do; else the first.
+  local kept
+  for i = 1, #rows do
+    local r = f.drows[i]
+    if r.step and sameTarget(r.step, f.current) then
+      kept = r.step
+    end
+  end
+  f.current = kept or firstStep
+  f.step:SetWidth(STEP_W)
+  if f.lens then
+    f.lens:Hide() -- each row has its own
+  end
+  for i = 1, #rows do
+    lensLook(f.drows[i].lens, false)
+  end
+  if UI.previewPinned() and f.current then
+    showPreview(f)
+  elseif not f.current and UI.preview and UI.preview:IsShown() then
+    hidePreview()
+  end
 end
 
 --- The arrow follows a quest the player marked. marked: { label, kind };
@@ -710,6 +1008,7 @@ function UI.renderMarked(marked, waiting, guide, L)
   if not f then
     return
   end
+  endDungeon(f)
   noPreview(f)
   f.title:SetText(L["Your marked quest"])
   f.counter:SetText(guide and L["Guide paused"] or L["Route paused"])
@@ -731,6 +1030,7 @@ function UI.render(plan, current, statuses, L, arrowMethod)
   if not f then
     return
   end
+  endDungeon(f)
   -- Say what is being followed: a guide, or TrailMate's own route.
   local title = plan and plan.title or "TrailMate"
   if plan and ns.Guide.isGuide(plan) then
@@ -786,4 +1086,140 @@ function UI.render(plan, current, statuses, L, arrowMethod)
   setNext(f, upcoming, indices)
   f.arrow:SetText(L["Map mark: %s"]:format(arrowMethod or L["none"]))
   setButtons(f, L, true)
+end
+
+-- On the open flight map, the point TrailMate says to fly to beats in gold
+-- (the user asked). Gold alone would melt into the parchment and the game's
+-- own yellow hover, so: a dark halo under it, a beat, and a ring going out
+-- like a minimap ping, all under the point's icon (designed with the design
+-- agent). Its tooltip gets a line that says why.
+local GLOW = "Interface\\GLUES\\Models\\UI_Draenei\\GenericGlow64"
+local PING = "Interface\\Cooldown\\ping4"
+
+local function flightMarkFrame()
+  if UI.flightMark then
+    return UI.flightMark
+  end
+  local gold = ns.Theme.GOLD
+  local m = CreateFrame("Frame", "TrailMateFlightMark", UIParent)
+  m.beats, m.rings = false, false -- set below when the client animates
+  m:SetSize(36, 36)
+  m.halo = m:CreateTexture(nil, "BACKGROUND")
+  m.halo:SetSize(34, 34)
+  m.halo:SetPoint("CENTER")
+  m.halo:SetTexture(GLOW)
+  m.halo:SetVertexColor(0, 0, 0, 0.55)
+  m.beat = m:CreateTexture(nil, "ARTWORK")
+  m.beat:SetSize(28, 28)
+  m.beat:SetPoint("CENTER")
+  m.beat:SetTexture(GLOW)
+  m.beat:SetBlendMode("ADD")
+  m.beat:SetVertexColor(gold[1], gold[2], gold[3], 1)
+  local beat = m.beat.CreateAnimationGroup and m.beat:CreateAnimationGroup()
+  if beat then
+    local fade = beat:CreateAnimation("Alpha")
+    fade:SetFromAlpha(0.35)
+    fade:SetToAlpha(0.9)
+    fade:SetDuration(0.8)
+    local grow = beat:CreateAnimation("Scale")
+    if grow.SetScaleFrom then
+      grow:SetScaleFrom(1, 1)
+      grow:SetScaleTo(1.15, 1.15)
+    end
+    grow:SetDuration(0.8)
+    beat:SetLooping("BOUNCE")
+    m.beats = beat
+  end
+  -- The ring only if this client has the ping's picture.
+  local hasPing = type(GetFileIDFromPath) ~= "function" or GetFileIDFromPath(PING) ~= nil
+  if hasPing then
+    m.ring = m:CreateTexture(nil, "OVERLAY")
+    m.ring:SetSize(16, 16)
+    m.ring:SetPoint("CENTER")
+    m.ring:SetTexture(PING)
+    m.ring:SetBlendMode("ADD")
+    m.ring:SetVertexColor(gold[1], gold[2], gold[3], 1)
+    local ring = m.ring.CreateAnimationGroup and m.ring:CreateAnimationGroup()
+    if ring then
+      local out = ring:CreateAnimation("Scale")
+      if out.SetScaleFrom then
+        out:SetScaleFrom(1, 1)
+        out:SetScaleTo(2.25, 2.25)
+      end
+      out:SetDuration(1.2)
+      local fade = ring:CreateAnimation("Alpha")
+      fade:SetFromAlpha(0.9)
+      fade:SetToAlpha(0)
+      fade:SetDuration(1.2)
+      if fade.SetEndDelay then
+        fade:SetEndDelay(0.6)
+      end
+      ring:SetLooping("REPEAT")
+      m.rings = ring
+    end
+  end
+  m:Hide()
+  UI.flightMark = m
+  return m
+end
+
+-- The tooltip of the marked point says why it beats.
+local function addFlightTip(button)
+  if button.trailMateTip or not button.HookScript then
+    return
+  end
+  button.trailMateTip = true
+  button:HookScript("OnEnter", function(self)
+    if UI.flightMarkOn == self and GameTooltip and GameTooltip:IsShown() then
+      local c = ns.Theme.COLORS["goto"]
+      GameTooltip:AddLine(UI.flightMarkText or "TrailMate", c[1], c[2], c[3])
+      GameTooltip:Show()
+    end
+  end)
+end
+
+--- Marks a flight map's point (its button or pin), or nothing (nil).
+function UI.markFlight(button, L)
+  local m = flightMarkFrame()
+  UI.flightMarkOn = button
+  if not button then
+    m:Hide()
+    return
+  end
+  UI.flightMarkText = L and L["TrailMate: fly here"] or "TrailMate: fly here"
+  -- The buttons are reused from one opening to the next: anchored again.
+  local parent = button.GetParent and button:GetParent() or UIParent
+  m:SetParent(parent)
+  m:ClearAllPoints()
+  m:SetPoint("CENTER", button, "CENTER", 0, 0)
+  if m.SetFrameStrata and button.GetFrameStrata then
+    m:SetFrameStrata(button:GetFrameStrata() or "DIALOG")
+  end
+  local level = button.GetFrameLevel and button:GetFrameLevel()
+  if type(level) == "number" then
+    m:SetFrameLevel(math.max(0, level - 1)) -- under the icon: it stays clean
+  end
+  addFlightTip(button)
+  m:Show()
+  if m.beats then
+    m.beats:Play()
+  end
+  if m.rings then
+    m.rings:Play()
+  end
+end
+
+--- The flight map closed: no mark.
+function UI.clearFlightMark()
+  UI.flightMarkOn = nil
+  local m = UI.flightMark
+  if m then
+    if m.beats then
+      m.beats:Stop()
+    end
+    if m.rings then
+      m.rings:Stop()
+    end
+    m:Hide()
+  end
 end

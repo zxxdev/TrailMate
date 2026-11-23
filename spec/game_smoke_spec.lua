@@ -303,9 +303,87 @@ describe("addon smoke test", function()
     fire("QUEST_LOG_UPDATE")
     tick()
     assert.is_true(window.visible)
-    assert.equals("Hacer aquí: Vorrel's Revenge", window.step.shown_text)
-    assert.equals("Mazmorra", window.counter.shown_text)
+    assert.equals("Vorrel's Revenge", window.step.shown_text)
+    assert.equals("La guía te espera fuera.", window.foot.shown_text)
     assert.is_false(arrow.visible)
+    -- The game says nothing of its objectives here: the data's target.
+    assert.equals("Nancy Vishas", window.drows[1].label.shown_text)
+    assert.equals("Mazmorra 0/1", window.counter.shown_text)
+    -- Into The Scarlet Monastery too (the user's case): a heading per quest,
+    -- the game's objectives with their count apart, a magnifier per boss.
+    local objectivesOf = _G.C_QuestLog.GetQuestObjectives
+    local loksey = false
+    _G.C_QuestLog.GetQuestObjectives = function(id)
+      if id == 1048 then
+        return {
+          { text = "High Inquisitor Whitemane slain: 0/1", finished = false },
+          { text = "Scarlet Commander Mograine slain: 1/1", finished = true },
+          { text = "Herod slain: 0/1", finished = false },
+          { text = "Houndmaster Loksey slain: " .. (loksey and "1/1" or "0/1"), finished = loksey },
+        }
+      end
+      return objectivesOf(id)
+    end
+    finally(function()
+      _G.C_QuestLog.GetQuestObjectives = objectivesOf
+    end)
+    quests[4] = { questID = 1048, title = "Into The Scarlet Monastery", isHeader = false }
+    fire("QUEST_LOG_UPDATE")
+    tick()
+    assert.equals("2 misiones aquí", window.step.shown_text)
+    assert.equals("Mazmorra 1/5", window.counter.shown_text)
+    local rows = {}
+    for i = 1, 7 do
+      local r = window.drows[i]
+      rows[i] = r.label.shown_text .. "|" .. tostring(r.count.shown_text)
+    end
+    assert.same({ "Vorrel's Revenge|", "Nancy Vishas|", "Into The Scarlet Monastery|",
+      "High Inquisitor Whitemane slain|0/1", "Scarlet Commander Mograine slain|1/1", "Herod slain|0/1",
+      "Houndmaster Loksey slain|0/1" }, rows)
+    -- Herod's magnifier shows Herod; a slain one has nothing to show.
+    local herod = window.drows[6]
+    herod.lens.scripts.OnEnter(herod.lens)
+    local preview = named.TrailMatePreview
+    assert.is_true(preview.visible)
+    assert.equals("Herod", preview.name.shown_text)
+    assert.equals("Mata", preview.verb.shown_text)
+    herod.lens.scripts.OnLeave(herod.lens)
+    assert.is_false(window.drows[5].step)
+    -- Clicking it keeps Herod on show, even as the quest log changes.
+    herod.lens.scripts.OnClick(herod.lens)
+    assert.is_true(_G.TrailMateCharDB.ui.previewPinned)
+    fire("QUEST_LOG_UPDATE")
+    tick()
+    assert.is_true(preview.visible)
+    assert.equals("Herod", preview.name.shown_text)
+    _G.SlashCmdList.TRAILMATE("vista no")
+    -- Loksey slain, but the event came before the log had it (the user's
+    -- case): the dungeon view looks again every two seconds.
+    loksey = true
+    eventFrame().scripts.OnUpdate(eventFrame(), 2)
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.5)
+    assert.equals("1/1", window.drows[7].count.shown_text)
+    -- A quest finished stays, marked done; all finished: hand them in outside.
+    local isComplete = _G.C_QuestLog.IsComplete
+    local complete = { [1048] = true }
+    _G.C_QuestLog.IsComplete = function(id)
+      return complete[id] == true or isComplete(id)
+    end
+    finally(function()
+      _G.C_QuestLog.IsComplete = isComplete
+    end)
+    fire("QUEST_LOG_UPDATE")
+    tick()
+    assert.equals("Into The Scarlet Monastery (hecha)", window.drows[3].label.shown_text)
+    assert.equals("2 misiones aquí", window.step.shown_text)
+    complete[1051] = true
+    fire("QUEST_LOG_UPDATE")
+    tick()
+    assert.is_true(window.visible)
+    assert.equals("Todo hecho aquí", window.step.shown_text)
+    assert.equals("Entrégalas fuera.", window.foot.shown_text)
+    complete[1048], complete[1051] = nil, nil
+    table.remove(quests, 4)
     -- Out again: the guide's step and its arrow are back.
     rawset(_G, "IsInInstance", function() return false end)
     _G.C_Map.GetBestMapForUnit = function() return 1429 end
@@ -627,6 +705,102 @@ describe("addon smoke test", function()
     assert.is_nil(_G.TrailMateCharDB.trip)
     rawset(_G, "C_TaxiMap", nil)
     rawset(_G, "CreateVector2D", nil)
+  end)
+
+  it("sends the arrow to the flight master when the step is far and flying is quicker (the user's case)",
+    function()
+    _G.SlashCmdList.TRAILMATE("guia off")
+    local function vec(x, y)
+      return { x = x, y = y, GetXY = function(self) return self.x, self.y end }
+    end
+    rawset(_G, "CreateVector2D", vec)
+    rawset(_G, "UnitLevel", function() return 33 end)
+    -- The player near (500, 500); Hammerfall's flight master next to him,
+    -- Grom'gol's far south, by the step's place.
+    _G.C_Map.GetWorldPosFromMapPos = function(mapID, v)
+      if mapID == 1415 then
+        return 0, vec(v.x * 100000 - 50000, v.y * 100000 - 50000)
+      elseif mapID == 1434 then
+        return 0, vec(v.x * 1000, v.y * 1000 - 12000)
+      elseif mapID == 1420 then -- Tirisfal, far north: its zeppelin is no shortcut here
+        return 0, vec(v.x * 1000, v.y * 1000 + 40000)
+      elseif mapID == 1411 or mapID == 1413 then -- Kalimdor
+        return 1, vec(v.x * 1000, v.y * 1000)
+      end
+      return 0, vec(v.x * 1000, v.y * 1000)
+    end
+    rawset(_G, "C_TaxiMap", {
+      GetTaxiNodesForMap = function(mapID)
+        if mapID ~= 1415 then
+          return {}
+        end
+        return {
+          { name = "Hammerfall", position = vec(0.506, 0.505), state = 1, faction = 1 },
+          { name = "Grom'gol", position = vec(0.505, 0.386), state = 1, faction = 1 },
+        }
+      end,
+      GetAllTaxiNodes = function()
+        return { { name = "Hammerfall", state = 0 }, { name = "Grom'gol", state = 1 } }
+      end,
+    })
+    rawset(_G, "Enum", { FlightPathFaction = { Neutral = 0, Horde = 1, Alliance = 2 },
+      FlightPathState = { Current = 0, Reachable = 1, Unreachable = 2 } })
+    rawset(_G, "UnitFactionGroup", function() return "Horde" end)
+    rawset(_G, "GetTaxiMapID", function() return 1415 end)
+    local onMap, waypoint = _G.C_QuestLog.GetQuestsOnMap, _G.C_QuestLog.GetNextWaypoint
+    finally(function()
+      _G.C_QuestLog.GetQuestsOnMap, _G.C_QuestLog.GetNextWaypoint = onMap, waypoint
+      rawset(_G, "C_TaxiMap", nil)
+      rawset(_G, "CreateVector2D", nil)
+    end)
+    _G.SlashCmdList.TRAILMATE("diario")
+    fire("TAXIMAP_OPENED") -- this character's flights, learned at a flight master
+    local arrow = named.TrailMateArrow
+    -- Close by: straight to it, with the step's text.
+    eventFrame().scripts.OnUpdate(eventFrame(), 2)
+    assert.equals("Hacer: Lobos", arrow.label.shown_text)
+    -- The quest's place far south, by Grom'gol: fly there first.
+    _G.C_QuestLog.GetQuestsOnMap = function() return {} end
+    _G.C_QuestLog.GetNextWaypoint = function(id)
+      if id == 10 then
+        return 1434, 0.5, 0.5
+      end
+    end
+    eventFrame().scripts.OnUpdate(eventFrame(), 11)
+    assert.equals("Vuela de Hammerfall a Grom'gol.", arrow.label.shown_text)
+    -- At the flight master, Grom'gol beats on the flight map (the user asked).
+    local gromgol = fakeObject("TaxiButton2")
+    gromgol:Show()
+    rawset(_G, "TaxiButton2", gromgol)
+    rawset(_G, "NumTaxiNodes", function() return 2 end)
+    rawset(_G, "TaxiNodeName", function(i) return i == 1 and "Hammerfall" or "Grom'gol" end)
+    finally(function()
+      rawset(_G, "TaxiButton2", nil)
+      rawset(_G, "NumTaxiNodes", nil)
+      rawset(_G, "TaxiNodeName", nil)
+    end)
+    fire("TAXIMAP_OPENED")
+    local mark = named.TrailMateFlightMark
+    assert.is_true(mark.visible)
+    fire("TAXIMAP_CLOSED")
+    assert.is_false(mark.visible)
+    -- Without that flight (Grom'gol grey on the flight map: not learned, or
+    -- not connected), never to the flight master: straight to the step.
+    _G.C_TaxiMap.GetAllTaxiNodes = function()
+      return { { name = "Hammerfall", state = 0 }, { name = "Grom'gol", state = 2 } }
+    end
+    fire("TAXIMAP_OPENED")
+    -- Learned before, still remembered; but no flight from here goes there.
+    assert.is_true(_G.TrailMateCharDB.learnedFlights[0]["Grom'gol"])
+    eventFrame().scripts.OnUpdate(eventFrame(), 11)
+    assert.equals("Hacer: Lobos", arrow.label.shown_text)
+    -- A grey point never learned before is not counted as learned.
+    _G.C_TaxiMap.GetAllTaxiNodes = function()
+      return { { name = "Hammerfall", state = 0 }, { name = "Grom'gol", state = 1 },
+        { name = "Kargath", state = 2 } }
+    end
+    fire("TAXIMAP_OPENED")
+    assert.is_nil(_G.TrailMateCharDB.learnedFlights[0]["Kargath"])
   end)
 
   it("explains the strategy and lets the player pick another zone", function()

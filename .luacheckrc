@@ -35,6 +35,7 @@ read_globals = {
   "Settings", "SettingsPanel", "HideUIPanel", "InterfaceOptions_AddCategory", "InterfaceOptionsFrame",
   "InterfaceOptionsFrame_OpenToCategory", "PixelUtil", "IsInInstance", "GetInstanceInfo",
   "debugprofilestop", "UpdateAddOnMemoryUsage", "GetAddOnMemoryUsage",
+  "NumTaxiNodes", "TaxiNodeName", "TaxiNodeGetType", "GetFileIDFromPath",
 }
 
 files["spec/"] = { std = "+busted" }
