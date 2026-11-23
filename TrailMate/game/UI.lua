@@ -1154,12 +1154,28 @@ local PIN = "Interface\\AddOns\\TrailMate\\media\\Pin"
 local BEAT_TIME = 0.8 -- the beat, the ring (twice as long) and the pin go together
 
 -- An animation that bounces back and forth, or nil when the client has none.
+-- Moved and grown by fractions of a pixel: snapped to whole pixels, a small
+-- picture goes in steps (the user saw the beat stutter).
+local function unsnap(texture)
+  if texture.SetSnapToPixelGrid then
+    pcall(texture.SetSnapToPixelGrid, texture, false)
+    pcall(texture.SetTexelSnappingBias, texture, 0)
+  end
+end
+
 local function bounce(texture, build)
   local group = texture.CreateAnimationGroup and texture:CreateAnimationGroup()
   if not group then
     return nil
   end
   build(group)
+  unsnap(texture)
+  -- Eased at both ends: a beat, not a bounce off a wall.
+  pcall(function()
+    for _, a in ipairs({ group:GetAnimations() }) do
+      a:SetSmoothing("IN_OUT")
+    end
+  end)
   group:SetLooping("BOUNCE")
   return group
 end
@@ -1188,7 +1204,11 @@ local function ringOut(texture)
   if not group then
     return nil
   end
-  scaleAnim(group, 1.85, 1.2)
+  unsnap(texture)
+  local grow = scaleAnim(group, 1.85, 1.2)
+  if grow.SetSmoothing then
+    grow:SetSmoothing("OUT") -- fast out, slowing down as it fades
+  end
   local fade = alphaAnim(group, 1, 0, 1.2)
   if fade.SetEndDelay then
     fade:SetEndDelay(0.4)
