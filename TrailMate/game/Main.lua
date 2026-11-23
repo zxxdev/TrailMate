@@ -2639,7 +2639,13 @@ function followTrail(often)
     end
     path, why = ns.Trails.route(trails, here, goal)
   end
-  routedFrom, routedTo = here, goal
+  -- Only a route really worked out counts: with trails off or no position,
+  -- the next look works it out again (/tm trail on while standing still).
+  if cdb.prefs.trails ~= false and here and goal then
+    routedFrom, routedTo = here, goal
+  else
+    routedFrom, routedTo = nil, nil
+  end
   lastWhy = why
   ns.Arrow.setVia(path and ns.Trails.next(path, here) or nil)
   if showLearned then

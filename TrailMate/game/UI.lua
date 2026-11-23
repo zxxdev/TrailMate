@@ -120,6 +120,9 @@ local function previewFrame()
   p:SetScript("OnEvent", function(self, event)
     if event == "PLAYER_REGEN_DISABLED" then
       self:Hide()
+      if UI.frame and UI.frame.hoverLight then
+        UI.frame.hoverLight:Hide()
+      end
     elseif UI.previewPinned() and UI.frame and UI.frame:IsShown() then
       UI.showPreview(UI.frame)
     end
@@ -131,8 +134,12 @@ end
 
 --- True if this client can draw a creature's model from its id.
 function UI.canShowCreatures()
-  local ok, model = pcall(CreateFrame, "PlayerModel", nil, UIParent)
-  return ok and model ~= nil and type(model.SetCreature) == "function"
+  local model = UI.preview and UI.preview.model
+  if not model then
+    local ok, made = pcall(CreateFrame, "PlayerModel", nil, UIParent)
+    model = ok and made or nil
+  end
+  return model ~= nil and type(model.SetCreature) == "function"
 end
 
 -- Each hover gets a number: a wait that ends after the mouse left (or came
@@ -154,15 +161,29 @@ local function hidePreview()
   end
 end
 
--- The mouse left the step or the magnifier: a kept preview stays.
+-- The mouse left the step or the magnifier: a kept preview stays. Otherwise
+-- it goes a moment later, so moving from the step onto the magnifier (whose
+-- OnEnter comes right after) does not make it blink.
+local LEAVE_DELAY = 0.1
+
 local function leavePreview()
+  hoverTurn = hoverTurn + 1
+  if UI.frame and UI.frame.hoverLight then
+    UI.frame.hoverLight:Hide()
+  end
   if UI.previewPinned() then
-    hoverTurn = hoverTurn + 1
-    if UI.frame and UI.frame.hoverLight then
-      UI.frame.hoverLight:Hide()
+    return
+  end
+  local turn = hoverTurn
+  local function go()
+    if turn == hoverTurn and not UI.previewPinned() then
+      hidePreview()
     end
+  end
+  if C_Timer and C_Timer.After then
+    C_Timer.After(LEAVE_DELAY, go)
   else
-    hidePreview()
+    go()
   end
 end
 
@@ -347,11 +368,7 @@ local function makeLens(f)
   lens.tex = lens:CreateTexture(nil, "ARTWORK")
   lens.tex:SetAllPoints()
   lens.tex:SetTexture("Interface\\Common\\UI-Searchbox-Icon")
-  lens:SetScript("OnEnter", function(self)
-    lensLook(self, true)
-    -- Pointing at it means it: no wait.
-    hoverTurn = hoverTurn + 1
-    showPreview(f)
+  local function tip(self)
     if GameTooltip then
       local L = (type(f.L) == "table" and f.L) or ns.L
       GameTooltip:SetOwner(self, "ANCHOR_TOP")
@@ -359,6 +376,13 @@ local function makeLens(f)
         0.1, 1, 0.1)
       GameTooltip:Show()
     end
+  end
+  lens:SetScript("OnEnter", function(self)
+    lensLook(self, true)
+    -- Pointing at it means it: no wait.
+    hoverTurn = hoverTurn + 1
+    showPreview(f)
+    tip(self)
   end)
   lens:SetScript("OnLeave", function(self)
     lensLook(self, false)
@@ -367,8 +391,11 @@ local function makeLens(f)
     end
     leavePreview()
   end)
-  lens:SetScript("OnClick", function()
+  lens:SetScript("OnClick", function(self)
     run("preview")
+    -- Still under the mouse: the look and the tip say the new state.
+    lensLook(self, true)
+    tip(self)
   end)
   lens:Hide()
   return lens
@@ -407,10 +434,11 @@ function UI.setPreviewPinned(on)
   if f and f.lens then
     lensLook(f.lens, false)
   end
-  if UI.preview then
-    UI.preview:Hide() -- shown again below on the right layer
-  end
-  if on and f and f:IsShown() then
+  -- Shown, it only moves to its new layer (no fade again). Turned off with
+  -- the mouse still on the step or the magnifier, it stays as a hover.
+  local over = f and ((f.lens and f.lens.IsMouseOver and f.lens:IsMouseOver())
+    or (f.hover and f.hover.IsMouseOver and f.hover:IsMouseOver()))
+  if f and f:IsShown() and (on or over) then
     showPreview(f)
   else
     hidePreview()
@@ -531,6 +559,9 @@ function UI.create(saved)
   f.hover = hover
   -- Over the hover area, so it gets the mouse and the clicks.
   f.lens = makeLens(f)
+  -- Made now, so its combat events are there even when the game loads in
+  -- the middle of a fight with the preview kept shown.
+  previewFrame()
   f:HookScript("OnHide", hidePreview)
   f:HookScript("OnShow", function(self)
     if UI.previewPinned() then
