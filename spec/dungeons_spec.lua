@@ -38,8 +38,11 @@ describe("Dungeons", function()
     assert.same({}, Dungeons.toDoHere(sm, { [201] = { complete = false } }))
     -- One of its quests to do, one already done (handed in outside).
     local here = Dungeons.toDoHere(sm, { [1051] = { complete = false }, [1113] = { complete = true } })
-    assert.same({ { q = 1051, name = "Vorrel's Revenge", targets = { { c = 3984, n = "Nancy Vishas", d = true } } } },
-      here)
+    assert.equals(1, #here)
+    assert.same({ 1051, "Vorrel's Revenge" }, { here[1].q, here[1].name })
+    assert.same({ { c = 3984, n = "Nancy Vishas", d = true } }, here[1].targets)
+    -- Who takes it back, for the magnifier once it is done.
+    assert.is_string(here[1].tnpc)
     assert.same({}, Dungeons.toDoHere(nil, { [1051] = {} })) -- an unknown dungeon
     -- With the done ones too, marked: the window says when all are done.
     local all = Dungeons.toDoHere(sm, { [1051] = { complete = false }, [1113] = { complete = true } }, true)

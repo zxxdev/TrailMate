@@ -41,11 +41,12 @@ read_globals = {
 files["spec/"] = { std = "+busted" }
 
 -- Generated data (tools/build_guides.lua, tools/build_dungeons.lua,
--- tools/build_class_quests.lua): long lines are fine there.
+-- tools/build_class_quests.lua, tools/build_quest_info.lua): long lines are fine there.
 files["TrailMate/data/Guides.lua"] = { max_line_length = false }
 files["TrailMate/data/Dungeons.lua"] = { max_line_length = false }
 files["TrailMate/data/ClassQuests.lua"] = { max_line_length = false }
 files["TrailMate/data/GuideQuests.lua"] = { max_line_length = false }
+files["TrailMate/data/QuestInfo.lua"] = { max_line_length = false }
 
 -- Translations: long texts on one line read better there.
 files["TrailMate/core/locales/"] = { max_line_length = false }
