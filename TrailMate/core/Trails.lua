@@ -25,6 +25,7 @@ Trails.MAX = 6000 -- dots kept at most (the saved file stays small)
 Trails.AHEAD = 20 -- a dot this close counts as reached
 Trails.MIN_ALONG = 40 -- a trail is only followed for at least this many yards
 Trails.MIN_GAIN = 30 -- ...and only if it ends this much closer to the goal
+Trails.MAX_LEFT = 300 -- ...and this close to it: a trail that stops further away is no route
 -- Walking off the trail in a straight line is risky (walls): that part
 -- counts double when choosing how far to follow the trail.
 Trails.OFF_TRAIL = 2
@@ -229,6 +230,12 @@ function Trails.route(t, here, goal)
   if along < Trails.MIN_ALONG or left > straight - Trails.MIN_GAIN then
     return nil, ("the best trail is too short (%.0f yards along, %.0f of %.0f yards left)"):format(along, left,
       straight)
+  end
+  -- A trail that stops far from the goal only goes the right general way,
+  -- often into a dead end (the user's case: from the Valley of Honor to the
+  -- Valley of Spirits, on the way to Desolace): not a route.
+  if left > Trails.MAX_LEFT then
+    return nil, ("the trails end far from the target (%.0f yards left)"):format(left)
   end
   local path, i = {}, best
   while i do

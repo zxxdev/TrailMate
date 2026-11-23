@@ -74,6 +74,14 @@ describe("Trails", function()
     assert.is_nil(Trails.route(t, { cont = 0, x = 0, y = 0 }, { cont = 0, x = 0, y = 20 }))
   end)
 
+  it("follows no trail that stops far from the target (the user's case: Orgrimmar to Desolace)", function()
+    walk(CHICANE)
+    -- The same chicane leads the right way, but the goal is far beyond its end.
+    local path, why = Trails.route(t, { cont = 0, x = 0, y = 0 }, { cont = 0, x = 0, y = 3000 })
+    assert.is_nil(path)
+    assert.matches("end far from the target", why)
+  end)
+
   it("never turns a few dots next to the player into a straight line through the wall (the user's case)", function()
     -- A few steps walked towards the gate, nothing further.
     walk({ { 0, 0 }, { 0, 30 } })
