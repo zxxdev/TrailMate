@@ -6,6 +6,7 @@ Each version has its release on GitHub with the addon (`TrailMate-<version>.zip`
 
 - **Objects in the preview:** a quest about a chest or another object (Reclaimed Treasures in Uldaman: the Garrett Family Chest) now has its magnifier too, inside the dungeon and on the step. Objects have no 3D model here, so the preview shows the icon of the item you take from it, with *Search* and the object's name.
 - **A magnifier for the quest you mark:** when you click a quest in the tracker or the quest log and the arrow follows it, the window shows its magnifier too: the creature or object of its objectives, and who takes it back once it is done, when TrailMate's lists know the quest.
+- Marking again the quest the game followed before a reload works: TrailMate took it as its own while the guide's quest was not in your log yet, and ignored the click.
 - **The flight map's mark can be seen now:** the gold beat melted into the parchment. The point to fly to gets a dark disc under it, a gold ring with a dark edge going out over it, and TrailMate's purple pin floating just above it, the same mark as on the world map. The chat says which point it is.
 
 ## 0.5.1-beta
