@@ -270,7 +270,8 @@ for _, d in ipairs(DUNGEONS) do
       local shown = {}
       for _, t in ipairs(q.targets) do
         shown[#shown + 1] = "{ " .. (t.c and ("c = %d, "):format(t.c) or "") .. ("n = %s"):format(quote(t.n))
-          .. (t.d and ", d = true" or "") .. (t.l and (", l = %d"):format(t.l) or "") .. (t.m and (", m = %d"):format(t.m) or "") .. " }"
+          .. (t.d and ", d = true" or "") .. (t.l and (", l = %d"):format(t.l) or "")
+          .. (t.m and (", m = %d"):format(t.m) or "") .. " }"
       end
       parts[#parts + 1] = "targets = { " .. table.concat(shown, ", ") .. " }"
     end

@@ -858,7 +858,8 @@ end
 local function objectiveRows(q)
   local rows, targets, said = {}, q.targets or {}, q.objectives or {}
   local function about(t)
-    return t and { type = "complete", creature = t.c, who = t.n, drop = t.d, loot = t.l, model = t.m, dungeon = true } or nil
+    return t and { type = "complete", creature = t.c, who = t.n, drop = t.d, loot = t.l, model = t.m,
+      dungeon = true } or nil
   end
   if #said == 0 then
     for _, t in ipairs(targets) do
