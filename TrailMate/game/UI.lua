@@ -1214,16 +1214,16 @@ local function flightMarkFrame()
   m.beat:SetSize(40, 40)
   m.beat:SetPoint("CENTER")
   m.beat:SetTexture(DISC)
-  m.beat:SetVertexColor(1, 0.66, 0, 1) -- more orange than the theme's gold: apart from the parchment
+  m.beat:SetVertexColor(1, 0.75, 0.15, 1) -- warmer than the quest gold, still read as gold
   m.anims[#m.anims + 1] = bounce(m.beat, function(g)
-    alphaAnim(g, 0.35, 0.8, BEAT_TIME)
+    alphaAnim(g, 0.6, 1, BEAT_TIME) -- always some gold around it
     scaleAnim(g, 1.1, BEAT_TIME)
   end)
   m.disc = m:CreateTexture(nil, "BACKGROUND", nil, 1)
-  m.disc:SetSize(32, 32)
+  m.disc:SetSize(26, 26) -- just past the icon: not a dark circle of its own
   m.disc:SetPoint("CENTER")
   m.disc:SetTexture(DISC)
-  m.disc:SetVertexColor(0.17, 0.11, 0.02, 0.85)
+  m.disc:SetVertexColor(0.40, 0.22, 0.00, 0.90) -- dark bronze, not black (the user saw a black circle)
   -- Over it.
   local top = CreateFrame("Frame", nil, UIParent)
   m.top = top
