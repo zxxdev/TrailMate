@@ -1195,6 +1195,9 @@ local function flightMarkFrame()
   m.beat:SetSize(46, 46)
   m.beat:SetPoint("CENTER")
   m.beat:SetTexture(GLOW)
+  -- Added light: the glow's picture is drawn on black, which any other blend
+  -- shows as a dark square (seen in the game).
+  m.beat:SetBlendMode("ADD")
   m.beat:SetVertexColor(1, 0.66, 0, 1) -- more orange than the theme's gold: apart from the parchment
   m.anims[#m.anims + 1] = bounce(m.beat, function(g)
     alphaAnim(g, 0.45, 1, BEAT_TIME)
