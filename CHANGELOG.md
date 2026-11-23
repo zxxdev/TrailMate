@@ -8,7 +8,7 @@ Each version has its release on GitHub with the addon (`TrailMate-<version>.zip`
 - **Objects that give or take quests:** when a quest starts or is handed in at an object (a wanted board, a chest), its step shows that object's 3D model too. Dungeon quests show who gives them and who takes them back, like the guides.
 - **A magnifier for the quest you mark:** when you click a quest in the tracker or the quest log and the arrow follows it, the window shows its magnifier too: the creature or object of its objectives, and who takes it back once it is done, when TrailMate's lists know the quest.
 - Marking again the quest the game followed before a reload works: TrailMate took it as its own while the guide's quest was not in your log yet, and ignored the click.
-- **The flight map's mark can be seen now:** the gold beat melted into the parchment. The point to fly to gets a gold halo that breathes around it and TrailMate's purple pin floating just above it, the same mark as on the world map. The chat says which point it is.
+- **The flight map's mark can be seen now:** the gold beat melted into the parchment. The point to fly to gets a thin gold ring with a soft gold glow that beats behind it, and TrailMate's purple pin floating just above it, the same mark as on the world map. The chat says which point it is.
 - The purple pin on the minimap stays on its spot while you walk: since 0.5.0 it moved only five times a second and jumped.
 
 ## 0.5.1-beta
