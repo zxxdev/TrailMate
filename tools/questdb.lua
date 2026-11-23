@@ -315,8 +315,9 @@ end
 
 --- Who starts or ends a quest (its startedBy or finishedBy field: { npcs,
 --- objects, items }): their place ({ m, x, y } or nil), their name, and the
---- creature id when it is an NPC (the game draws its model from it). An item
---- has a name but no place.
+--- creature id when it is an NPC (the game draws its model from it), or the
+--- model file when it is an object (see loadModels). An item has a name but
+--- no place.
 function M.giver(db, by)
   by = by or {}
   for _, npc in ipairs(by[1] or {}) do
@@ -328,7 +329,7 @@ function M.giver(db, by)
   for _, obj in ipairs(by[2] or {}) do
     local place = M.central(db, M.field(db, "Object", obj, M.OBJECT.spawns))
     if place then
-      return place, M.field(db, "Object", obj, M.OBJECT.name)
+      return place, M.field(db, "Object", obj, M.OBJECT.name), nil, M.model(db, obj)
     end
   end
   if by[3] and by[3][1] then

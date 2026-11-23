@@ -65,7 +65,10 @@ function Marked.about(questID, kind, data)
   local turnin = kind == "turnin"
   local found
   local function offer(t)
-    if t and (not found or (t.creature and not found.creature)) then
+    local function drawn(x)
+      return x.creature ~= nil or x.model ~= nil
+    end
+    if t and (not found or (drawn(t) and not drawn(found))) then
       found = t
     end
   end
@@ -74,7 +77,7 @@ function Marked.about(questID, kind, data)
       if q.q == questID then
         local t = q.targets and q.targets[1]
         if turnin then
-          offer(shown("turnin", nil, q.tnpc))
+          offer(shown("turnin", q.tcid, q.tnpc, nil, nil, q.tmodel))
         elseif t then
           offer(shown("complete", t.c, t.n, t.d, t.l, t.m))
         end
@@ -83,10 +86,10 @@ function Marked.about(questID, kind, data)
   end
   for _, q in ipairs(data.classQuests or {}) do
     if q.q == questID and turnin then
-      offer(shown("turnin", q.tcid, q.tnpc))
+      offer(shown("turnin", q.tcid, q.tnpc, nil, nil, q.tmodel))
     end
   end
-  if not (found and found.creature) then
+  if not (found and (found.creature or found.model)) then
     for _, g in ipairs(data.guides or {}) do
       for _, s in ipairs(g.steps or {}) do
         if s.q == questID and s.t == (turnin and "turnin" or "complete") then

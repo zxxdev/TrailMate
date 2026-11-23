@@ -120,7 +120,7 @@ local function giverPlace(givers)
   for _, obj in ipairs(givers[2] or {}) do
     objectPlaces(obj, list)
     if #list > 0 then
-      return central(list), Q.field(db, "Object", obj, Q.OBJECT.name)
+      return central(list), Q.field(db, "Object", obj, Q.OBJECT.name), nil, Q.model(db, obj)
     end
   end
   return nil
@@ -285,7 +285,7 @@ local function parseGuide(path, faction)
         id = tonumber(id)
         local s = quest(id)
         local place
-        place, s.npc, s.cid = giverPlace(Q.field(db, "Quest", id, Q.QUEST.startedBy))
+        place, s.npc, s.cid, s.model = giverPlace(Q.field(db, "Quest", id, Q.QUEST.startedBy))
         guide.steps[#guide.steps + 1] = step("accept", s, place)
         added = true
       end
@@ -304,7 +304,7 @@ local function parseGuide(path, faction)
         id = tonumber(id)
         local s = quest(id)
         local place
-        place, s.npc, s.cid = giverPlace(Q.field(db, "Quest", id, Q.QUEST.finishedBy))
+        place, s.npc, s.cid, s.model = giverPlace(Q.field(db, "Quest", id, Q.QUEST.finishedBy))
         guide.steps[#guide.steps + 1] = step("turnin", s, place)
         added = true
       end
@@ -401,7 +401,8 @@ out:write([[
 -- cid = creature to show (the quest giver, or the one to kill or that drops
 -- the item), tgt = what a "complete" step is about (an NPC or an object),
 -- drop = true when tgt is not to kill but drops the item, loot = the item
--- looted from the object tgt (its icon), model = the object's 3D model file.
+-- looted from the object tgt (its icon), model = the 3D model file of an
+-- object (tgt, or the one a quest starts or ends at).
 
 local _, ns = ...
 
