@@ -1142,99 +1142,67 @@ function UI.render(plan, current, statuses, L, arrowMethod)
 end
 
 -- On the open flight map, the point TrailMate says to fly to beats in gold
--- (the user asked). Tried in the game and simplified each time: a solid gold
--- halo that breathes (grows and shrinks, never lighter, so the map never
--- shows through), a small dark bronze disc that keeps the silver icon apart
--- from it, and TrailMate's purple pin floating just above the point, the
--- same mark as on the world map. The game's glow and ping pictures are drawn
--- on black and came out as squares, and a ring going out jumped back at
--- each beat: none of them now. Its tooltip gets a line that says why.
-local DISC = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
+-- (the user asked). Tried in the game until it was smooth: a thin gold ring
+-- with a dark edge round the point's icon, a soft gold glow behind it whose
+-- transparency beats, and TrailMate's purple pin standing just above the
+-- point, the same mark as on the world map. Nothing grows or moves: the game
+-- does that in whole-pixel steps, which stuttered; only the transparency
+-- changes, and that is smooth. Both pictures are TrailMate's own
+-- (tools/make_ring.lua): the game's glows are drawn on black, which showed as
+-- squares and grey shadows. Its tooltip gets a line that says why.
+local RING = "Interface\\AddOns\\TrailMate\\media\\Ring"
+local GLOW = "Interface\\AddOns\\TrailMate\\media\\Glow"
 local PIN = "Interface\\AddOns\\TrailMate\\media\\Pin"
-local BEAT_TIME = 0.8 -- the halo and the pin go together
+local BEAT_TIME = 0.9 -- from dim to bright, then back
 
--- Moved and grown by fractions of a pixel: snapped to whole pixels, a small
--- picture goes in steps (the user saw the beat stutter).
-local function unsnap(texture)
-  if texture.SetSnapToPixelGrid then
-    pcall(texture.SetSnapToPixelGrid, texture, false)
-    pcall(texture.SetTexelSnappingBias, texture, 0)
-  end
-end
-
--- An animation that goes back and forth, or nil when the client has none.
-local function bounce(texture, build)
+-- The glow's beat: its transparency goes back and forth, eased at both ends.
+local function beat(texture)
   local group = texture.CreateAnimationGroup and texture:CreateAnimationGroup()
   if not group then
     return nil
   end
-  build(group)
-  unsnap(texture)
-  -- Eased at both ends: a beat, not a bounce off a wall.
-  pcall(function()
-    for _, a in ipairs({ group:GetAnimations() }) do
-      a:SetSmoothing("IN_OUT")
-    end
-  end)
+  local a = group:CreateAnimation("Alpha")
+  a:SetFromAlpha(0.25)
+  a:SetToAlpha(0.95)
+  a:SetDuration(BEAT_TIME)
+  if a.SetSmoothing then
+    a:SetSmoothing("IN_OUT")
+  end
   group:SetLooping("BOUNCE")
   return group
-end
-
-local function scaleAnim(group, to, duration)
-  local a = group:CreateAnimation("Scale")
-  if a.SetScaleFrom then
-    a:SetScaleFrom(1, 1)
-    a:SetScaleTo(to, to)
-  end
-  a:SetDuration(duration)
-  return a
 end
 
 local function flightMarkFrame()
   if UI.flightMark then
     return UI.flightMark
   end
-  -- Under the point's icon.
+  -- Under the point's icon: the glow, then the ring.
   local m = CreateFrame("Frame", "TrailMateFlightMark", UIParent)
   m.anims = {}
   m:SetSize(52, 52)
   if m.EnableMouse then
     m:EnableMouse(false) -- the point keeps its clicks and tooltip
   end
-  m.beat = m:CreateTexture(nil, "BACKGROUND", nil, 0)
-  -- A round disc, a band of it showing around the dark one: the game's soft
-  -- glow pictures came out as a square in Forever (seen twice in the game).
-  m.beat:SetSize(40, 40)
-  m.beat:SetPoint("CENTER")
-  m.beat:SetTexture(DISC)
-  m.beat:SetVertexColor(1, 0.75, 0.15, 1) -- warmer than the quest gold, still read as gold
-  m.anims[#m.anims + 1] = bounce(m.beat, function(g)
-    -- Solid gold that breathes: a lighter beat let the grey stone show
-    -- through (seen in a video of the game).
-    scaleAnim(g, 1.15, BEAT_TIME)
-  end)
-  m.disc = m:CreateTexture(nil, "BACKGROUND", nil, 1)
-  m.disc:SetSize(26, 26) -- just past the icon: not a dark circle of its own
-  m.disc:SetPoint("CENTER")
-  m.disc:SetTexture(DISC)
-  m.disc:SetVertexColor(0.40, 0.22, 0.00, 0.90) -- dark bronze, not black (the user saw a black circle)
-  -- Over it.
+  m.glow = m:CreateTexture(nil, "BACKGROUND", nil, 0)
+  m.glow:SetSize(50, 50)
+  m.glow:SetPoint("CENTER")
+  m.glow:SetTexture(GLOW)
+  m.anims[#m.anims + 1] = beat(m.glow)
+  m.ring = m:CreateTexture(nil, "BACKGROUND", nil, 1)
+  m.ring:SetSize(40, 40) -- the ring just outside the 24-pixel icon
+  m.ring:SetPoint("CENTER")
+  m.ring:SetTexture(RING)
+  -- Over it: the pin, its tip just above the point's icon, standing still.
   local top = CreateFrame("Frame", nil, UIParent)
   m.top = top
   top:SetSize(52, 52)
   if top.EnableMouse then
     top:EnableMouse(false)
   end
-  -- The pin, its tip just above the point's icon, bobbing with the beat.
-  m.pin = top:CreateTexture(nil, "OVERLAY", nil, 3)
+  m.pin = top:CreateTexture(nil, "OVERLAY")
   m.pin:SetSize(26, 26)
-  m.pin:SetPoint("BOTTOM", top, "CENTER", 0, 14)
+  m.pin:SetPoint("BOTTOM", top, "CENTER", 0, 15)
   m.pin:SetTexture(PIN)
-  m.anims[#m.anims + 1] = bounce(m.pin, function(g)
-    local up = g:CreateAnimation("Translation")
-    up:SetOffset(0, 4)
-    up:SetDuration(BEAT_TIME)
-  end)
   top:Hide()
   m:Hide()
   UI.flightMark = m
