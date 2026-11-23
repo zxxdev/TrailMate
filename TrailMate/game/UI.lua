@@ -1130,7 +1130,6 @@ end
 -- a dark edge going out like a minimap ping, and TrailMate's purple pin
 -- floating just above the point, the same mark as on the world map. Its
 -- tooltip gets a line that says why.
-local GLOW = "Interface\\GLUES\\Models\\UI_Draenei\\GenericGlow64"
 local PING = "Interface\\Cooldown\\ping4"
 local DISC = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 local PIN = "Interface\\AddOns\\TrailMate\\media\\Pin"
@@ -1192,15 +1191,14 @@ local function flightMarkFrame()
     m:EnableMouse(false) -- the point keeps its clicks and tooltip
   end
   m.beat = m:CreateTexture(nil, "BACKGROUND", nil, 0)
-  m.beat:SetSize(46, 46)
+  -- A round disc, a band of it showing around the dark one: the game's soft
+  -- glow pictures came out as a square in Forever (seen twice in the game).
+  m.beat:SetSize(40, 40)
   m.beat:SetPoint("CENTER")
-  m.beat:SetTexture(GLOW)
-  -- Added light: the glow's picture is drawn on black, which any other blend
-  -- shows as a dark square (seen in the game).
-  m.beat:SetBlendMode("ADD")
+  m.beat:SetTexture(DISC)
   m.beat:SetVertexColor(1, 0.66, 0, 1) -- more orange than the theme's gold: apart from the parchment
   m.anims[#m.anims + 1] = bounce(m.beat, function(g)
-    alphaAnim(g, 0.45, 1, BEAT_TIME)
+    alphaAnim(g, 0.35, 0.8, BEAT_TIME)
     scaleAnim(g, 1.1, BEAT_TIME)
   end)
   m.disc = m:CreateTexture(nil, "BACKGROUND", nil, 1)
