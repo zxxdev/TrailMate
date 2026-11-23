@@ -132,6 +132,7 @@ flowchart LR
 
 - The quest guides follow the order of the community leveling guides for Forever written for [Guidelime](https://github.com/max-ri/Guidelime) (the TUGs guides). All 1777 quests they use were checked against Wowhead's Forever database: the three it does not have are left out.
 - Quest giver, objective and turn-in places come from the quest database of [Questie](https://github.com/Questie/Questie) for Forever. TrailMate takes the most central spawn of each NPC or object.
+- The 3D model of each quest object (a chest, an urn) joins two sources: its appearance from the game object table of [cMaNGOS classic-db](https://github.com/cmangos/classic-db), and that appearance's model file from Forever's own client data, read on [wago.tools](https://wago.tools).
 - Dungeon entrances (in Forever's coordinates), the level of the enemies inside and the dungeon quests come from the same database; `tools/build_dungeons.lua` writes `TrailMate/data/Dungeons.lua`. A dungeon's range runs from the level most of its enemies have to its strongest boss.
 - Class quests are the database's quests for exactly one class, up to level 59; `tools/build_class_quests.lua` writes `TrailMate/data/ClassQuests.lua`. Each quest it picks (`--ids` lists them) was checked against Wowhead's Forever database on 2026-11-22: the one it does not have is left out, with a note in the builder.
 - `tools/build_guides.lua` turns both into `TrailMate/data/Guides.lua`. When TrailMate sees a quest giver in the game, the place it saw wins.
