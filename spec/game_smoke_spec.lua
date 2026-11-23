@@ -253,6 +253,32 @@ describe("addon smoke test", function()
     assert.equals("Plan terminado.", window.step.shown_text)
   end)
 
+  it("turns the arrow every frame but reads the map only a few times a second", function()
+    _G.SlashCmdList.TRAILMATE("diario")
+    tick()
+    local f = eventFrame()
+    f.scripts.OnUpdate(f, 0.3) -- the map work, just done
+    local reads, turns = 0, 0
+    local readMap, facing = _G.C_Map.GetPlayerMapPosition, _G.GetPlayerFacing
+    _G.C_Map.GetPlayerMapPosition = function(...)
+      reads = reads + 1
+      return readMap(...)
+    end
+    rawset(_G, "GetPlayerFacing", function()
+      turns = turns + 1
+      return facing()
+    end)
+    f.scripts.OnUpdate(f, 0.05)
+    f.scripts.OnUpdate(f, 0.05)
+    assert.equals(0, reads)
+    assert.is_true(turns >= 2)
+    -- Past GEO_EVERY, where the player is gets read again.
+    f.scripts.OnUpdate(f, 0.15)
+    assert.is_true(reads > 0)
+    _G.C_Map.GetPlayerMapPosition = readMap
+    rawset(_G, "GetPlayerFacing", facing)
+  end)
+
   it("steps aside in a dungeon with nothing to do there, and shows what is (the user's case)", function()
     _G.SlashCmdList.TRAILMATE("diario")
     eventFrame().scripts.OnUpdate(eventFrame(), 0.1)

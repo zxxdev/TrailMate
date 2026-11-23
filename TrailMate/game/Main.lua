@@ -2612,9 +2612,19 @@ local function recordTrail()
   trailPrev = ns.Trails.add(trails, w.cont, w.x, w.y, trailPrev, w.mapID) or trailPrev
 end
 
+-- Where the last trail route was worked out from and to (world points).
+local routedFrom, routedTo
+local ROUTE_MOVE = 8 -- yards the player moves before the route is looked at again
+
+local function samePoint(a, b, yards)
+  return a and b and a.cont == b.cont and (a.x - b.x) ^ 2 + (a.y - b.y) ^ 2 < yards * yards
+end
+
 -- Follows a walked trail to the arrow's target when one helps: the arrow
--- points at the next dot and the map shows the dotted way.
-function followTrail()
+-- points at the next dot and the map shows the dotted way. often: the
+-- regular look every two seconds, which skips the work when the player has
+-- not moved and the target is the same (questing in one spot).
+function followTrail(often)
   local target = ns.Arrow.target
   local here = Api.playerWorld()
   local goal = target and Api.worldPos(target.mapID, target.x, target.y)
@@ -2624,8 +2634,12 @@ function followTrail()
   elseif not (here and goal) then
     why = "no position for you or the target"
   else
+    if often and not showLearned and samePoint(here, routedFrom, ROUTE_MOVE) and samePoint(goal, routedTo, 1) then
+      return
+    end
     path, why = ns.Trails.route(trails, here, goal)
   end
+  routedFrom, routedTo = here, goal
   lastWhy = why
   ns.Arrow.setVia(path and ns.Trails.next(path, here) or nil)
   if showLearned then
@@ -2669,7 +2683,7 @@ frame:SetScript("OnUpdate", function(_, elapsed)
     if detour or (plan and current) then
       guard("arrow target", updateTarget, true)
     end
-    guard("trail route", followTrail)
+    guard("trail route", followTrail, true)
   end
   -- Learn the way while walking; redraw the dotted route on an open map.
   sinceTrail = sinceTrail + elapsed
@@ -2692,6 +2706,6 @@ frame:SetScript("OnUpdate", function(_, elapsed)
   end
   if sinceArrow >= 0.05 then
     sinceArrow = 0
-    guard("arrow draw", ns.Arrow.update)
+    guard("arrow draw", ns.Arrow.tick, clock)
   end
 end)
