@@ -456,6 +456,33 @@ describe("addon smoke test", function()
     assert.matches("ya no está en el diario", output())
   end)
 
+  it("counts a mark of the quest the game followed again at login (the user's case)", function()
+    _G.C_SuperTrack.GetSuperTrackedQuestID = function() return superTracked end
+    local setTracked = _G.C_SuperTrack.SetSuperTrackedQuestID
+    finally(function()
+      _G.C_SuperTrack.SetSuperTrackedQuestID = setTracked
+      table.remove(quests, 3)
+    end)
+    -- After a reload the game follows Reclaimed Treasures again, and the
+    -- guide's quest cannot be followed (not in the log yet): it stays.
+    quests[3] = { questID = 2342, title = "Reclaimed Treasures", isHeader = false }
+    superTracked = 2342
+    _G.C_SuperTrack.SetSuperTrackedQuestID = function() end
+    _G.SlashCmdList.TRAILMATE("diario")
+    _G.C_SuperTrack.SetSuperTrackedQuestID = setTracked
+    local window = named.TrailMateFrame
+    assert.equals("Hacer: Lobos", window.step.shown_text)
+    -- The player marks another quest, then Reclaimed Treasures again: both count.
+    superTracked = 11
+    fire("SUPER_TRACKING_CHANGED")
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.1)
+    assert.equals("Entregar: Jabalies", window.step.shown_text)
+    superTracked = 2342
+    fire("SUPER_TRACKING_CHANGED")
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.1)
+    assert.equals("Hacer: Reclaimed Treasures", window.step.shown_text)
+  end)
+
   it("shows the chest of a marked dungeon quest, with the icon of what is in it (the user's case)", function()
     _G.C_SuperTrack.GetSuperTrackedQuestID = function() return superTracked end
     rawset(_G, "GetItemIcon", function(id) return id == 8026 and "icon-8026" or nil end)

@@ -1010,6 +1010,10 @@ local function followMark()
   if not isMark then
     return
   end
+  -- The game follows the player's quest now: a quest left over from before
+  -- (followed again at login while the guide's quest is not in the log yet)
+  -- is no longer TrailMate's, so marking it again counts (the user's case).
+  ourFocus = nil
   detour = { marked = questID }
   if not updateMarked() then
     return
