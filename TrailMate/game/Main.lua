@@ -1436,6 +1436,7 @@ local HELP = {
   { "/tm status | estado", "Character summary" },
   { "/tm tracking on|off  (rastreos si|no)", "Skip hunter tracking spells" },
   { "/tm reserve | reserva <gold>", "Gold the trainer advice never spends" },
+  { "/tm preview | vista on|off", "Always show the step preview" },
   { "/tm arrow | flecha on|off", "Show or hide the arrow" },
   { "/tm arrow | flecha top|center  (arriba|centro)", "Bring the arrow back to the top or the middle of the screen" },
   { "/tm trail | rastro on|off|show|export|clear", "Learn the ways you walk and follow them (dots on the map)" },
@@ -1559,6 +1560,19 @@ end)
 alias({ "tracking", "rastreos" }, function(rest)
   cdb.prefs.skipTracking = not yes(rest)
   say(L["Tracking spells: %s"]:format(cdb.prefs.skipTracking and L["skip"] or L["learn"]))
+end)
+-- The step preview: kept next to the window, or only on hover. With no
+-- word, it changes to the other one (that is what the magnifier sends).
+alias({ "preview", "vista" }, function(rest)
+  local on
+  if rest == nil or rest == "" then
+    on = not ns.UI.previewPinned()
+  else
+    on = yes(rest)
+  end
+  ns.UI.setPreviewPinned(on)
+  say(on and L["Preview always shown. Click the magnifier or type /tm preview off to undo."]
+    or L["Preview shown only on hover."])
 end)
 alias({ "reserve", "reserva" }, function(rest)
   local gold = tonumber(rest) or 0
@@ -2163,6 +2177,12 @@ handlers.ADDON_LOADED = function(name)
       ns.UI.setShown(cdb.ui.hidden == true)
     end,
     minimap = toggleMinimapButton,
+    preview = function()
+      COMMANDS.preview()
+    end,
+    previewOn = function()
+      return ns.UI.previewPinned()
+    end,
     arrowTop = function()
       COMMANDS.arrow("top")
     end,

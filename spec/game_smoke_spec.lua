@@ -1046,6 +1046,27 @@ describe("addon smoke test", function()
     waiting()
     assert.is_false(preview.visible)
     rawset(_G, "C_Timer", timers)
+    -- Kept shown: leaving the step does not close it; the magnifier undoes it.
+    printed = {}
+    _G.SlashCmdList.TRAILMATE("vista")
+    assert.matches("Vista previa fija%. Pulsa la lupa", output())
+    assert.is_true(_G.TrailMateCharDB.ui.previewPinned)
+    assert.is_true(preview.visible)
+    named.TrailMateFrame.hover.scripts.OnLeave()
+    assert.is_true(preview.visible)
+    local lens = named.TrailMateFrame.lens
+    lens.scripts.OnEnter(lens)
+    lens.scripts.OnLeave(lens)
+    assert.is_true(preview.visible)
+    printed = {}
+    lens.scripts.OnClick(lens)
+    assert.matches("Vista previa solo al pasar el ratón%.", output())
+    assert.is_nil(_G.TrailMateCharDB.ui.previewPinned)
+    assert.is_false(preview.visible)
+    _G.SlashCmdList.TRAILMATE("vista si")
+    assert.is_true(preview.visible)
+    _G.SlashCmdList.TRAILMATE("vista no")
+    assert.is_false(preview.visible)
   end)
 
   it("lets the player ignore a spell and announces only new ones at level up", function()
