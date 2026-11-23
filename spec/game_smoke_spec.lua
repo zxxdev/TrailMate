@@ -506,14 +506,22 @@ describe("addon smoke test", function()
     assert.is_true(preview.visible)
     assert.equals("Garrett Family Chest", preview.name.shown_text)
     assert.equals("Busca en", preview.verb.shown_text)
-    -- Its model (object 124388, appearance 10, model file 196976), not the icon.
-    assert.is_true(preview.model.visible)
+    -- The game has not said it took the model file: the icon of the item.
+    assert.is_false(preview.object.visible)
+    assert.is_true(preview.icon.visible)
+    window.lens.scripts.OnLeave(window.lens)
+    -- It took it (object 124388, appearance 10, model file 196976): the
+    -- chest in its own frame, never the creature shown before.
+    preview.object.GetModelFileID = function() return 196976 end
+    window.lens.scripts.OnEnter(window.lens)
+    assert.is_true(preview.object.visible)
+    assert.is_false(preview.model.visible)
     assert.is_false(preview.icon.visible)
     window.lens.scripts.OnLeave(window.lens)
-    -- A client that cannot draw it: the icon of the item looted from it.
-    preview.model.SetModel = function() error("no model") end
+    -- A client that cannot draw it: the icon again.
+    preview.object.SetModel = function() error("no model") end
     window.lens.scripts.OnEnter(window.lens)
-    assert.is_false(preview.model.visible)
+    assert.is_false(preview.object.visible)
     assert.is_true(preview.icon.visible)
     window.lens.scripts.OnLeave(window.lens)
   end)

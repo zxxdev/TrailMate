@@ -93,7 +93,6 @@ local PREVIEW_W, PREVIEW_PAD = 176, 8
 local MODEL_W, MODEL_H = PREVIEW_W - 2 * PREVIEW_PAD, 168
 local PREVIEW_DELAY, PREVIEW_FADE = 0.25, 0.12
 local ICON_S, OBJECT_ICON = 44, "Interface\\Icons\\INV_Box_02"
-local OBJECT_CAM = 1.6 -- how far back the camera stands for an object's model
 
 local function previewFrame()
   if UI.preview then
@@ -107,6 +106,10 @@ local function previewFrame()
   p.model = CreateFrame("PlayerModel", nil, p)
   p.model:SetSize(MODEL_W, MODEL_H)
   p.model:SetPoint("TOP", 0, -PREVIEW_PAD)
+  p.object = CreateFrame("PlayerModel", nil, p) -- an object's model (a chest)
+  p.object:SetSize(MODEL_W, MODEL_H)
+  p.object:SetPoint("TOP", 0, -PREVIEW_PAD)
+  p.object:Hide()
   p.icon = p:CreateTexture(nil, "ARTWORK")
   p.icon:SetSize(ICON_S, ICON_S)
   p.icon:SetPoint("TOP", 0, -PREVIEW_PAD - 4)
@@ -274,23 +277,26 @@ local function showPreview(f, step)
   local p = previewFrame()
   p.verb:SetText(verbOf(step, L))
   p.name:SetText(step.who or "")
-  local shown = false
+  local shown, view = false, p.model -- view: the frame that shows it
   if step.creature and p.model.SetCreature then
     shown = pcall(function()
       p.model:ClearModel()
-      p.model:SetCamDistanceScale(1)
       p.model:SetCreature(step.creature)
     end)
-  elseif step.model and p.model.SetModel then
-    -- An object (a chest): its model file; no camera of its own, so a little
-    -- further back to see all of it.
-    shown = pcall(function()
-      p.model:ClearModel()
-      p.model:SetModel(step.model)
-      p.model:SetCamDistanceScale(OBJECT_CAM)
+  elseif step.model and p.object.SetModel then
+    -- An object (a chest): its model file, in a frame of its own (the
+    -- creature frame kept showing the creature before, seen in the game),
+    -- and only when the game says it took that file.
+    view = p.object
+    local ok = pcall(function()
+      p.object:ClearModel()
+      p.object:SetModel(step.model)
     end)
+    local took, file = pcall(function() return p.object:GetModelFileID() end)
+    shown = ok and took and file == step.model
   end
-  p.model:SetShown(shown)
+  p.model:SetShown(shown and view == p.model)
+  p.object:SetShown(shown and view == p.object)
   -- No model: an object to search (a chest) gets the icon of what is in it.
   local icon = not shown and objectIcon(step) or nil
   p.icon:SetShown(icon ~= nil)
@@ -299,7 +305,7 @@ local function showPreview(f, step)
   end
   p.verb:ClearAllPoints()
   if shown then
-    p.verb:SetPoint("TOP", p.model, "BOTTOM", 0, -4)
+    p.verb:SetPoint("TOP", view, "BOTTOM", 0, -4)
   elseif icon then
     p.verb:SetPoint("TOP", p.icon, "BOTTOM", 0, -6)
   else
@@ -321,7 +327,7 @@ local function showPreview(f, step)
   end
   if shown then
     -- A little turned, towards the window.
-    pcall(p.model.SetFacing, p.model, left and 0.35 or -0.35)
+    pcall(view.SetFacing, view, left and 0.35 or -0.35)
   end
   -- Kept, it sits with the window (not over bags, map and tooltips); for a
   -- hover, over everything, and the step it is about lights up.
