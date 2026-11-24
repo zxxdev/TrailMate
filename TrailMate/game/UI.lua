@@ -1288,6 +1288,12 @@ function UI.markFlight(button, L)
       level = under + 1
     end
     m.top:SetFrameLevel(level + 3)
+  else
+    -- No levels to go by: the pin over the mark at least.
+    local base = m.GetFrameLevel and m:GetFrameLevel()
+    if type(base) == "number" and m.top.SetFrameLevel then
+      m.top:SetFrameLevel(base + 4)
+    end
   end
   addFlightTip(button)
   m:Show()

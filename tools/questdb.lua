@@ -248,11 +248,17 @@ function M.loadModels(db, dir)
     end
   end
   db.models = {}
-  local sql = assert(io.open(dir .. "/gameobject_template.sql")):read("*a")
-  -- (entry, type, displayId, 'name', ...): only the first three are needed.
-  for entry, display in sql:gmatch("%((%d+),%d+,(%d+),'") do
-    db.models[tonumber(entry)] = files[tonumber(display)]
+  local f = assert(io.open(dir .. "/gameobject_template.sql"))
+  for line in f:lines() do
+    -- Only that table's rows: (entry, type, displayId, 'name', ...), and
+    -- only the first three are needed.
+    if line:find("^INSERT INTO `gameobject_template`") then
+      for entry, display in line:gmatch("%((%d+),%d+,(%d+),'") do
+        db.models[tonumber(entry)] = files[tonumber(display)]
+      end
+    end
   end
+  f:close()
   return db.models
 end
 
