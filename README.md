@@ -8,7 +8,7 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 
 **It needs no other addon.** The arrow, the minimap and world map marks, the guides and the travel planner are all its own. Other addons can stay installed; TrailMate does not use them.
 
-> **Status: beta (0.5.1-beta).** It is played and tested mostly on one character, a Horde hunter between levels 33 and 37; the class quests were also checked on a level 1 troll shaman. Expect rough edges: see [Known issues](#known-issues). Reports and pull requests are welcome, in English or Spanish ([CONTRIBUTING.md](CONTRIBUTING.md)). Not affiliated with Blizzard Entertainment.
+> **Status: beta (0.5.2-beta).** It is played and tested mostly on one character, a Horde hunter between levels 33 and 37; the class quests were also checked on a level 1 troll shaman. Expect rough edges: see [Known issues](#known-issues). Reports and pull requests are welcome, in English or Spanish ([CONTRIBUTING.md](CONTRIBUTING.md)). Not affiliated with Blizzard Entertainment.
 
 ## Screenshots
 
