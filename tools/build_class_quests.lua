@@ -20,6 +20,7 @@ local Q = require("questdb")
 local qdbDir = arg[1]
 assert(qdbDir, "usage: lua tools/build_class_quests.lua <questdb folder> [--ids]")
 local db = Q.open(qdbDir .. "/QuestieDB_Forever.toc", qdbDir .. "/areaIdToUiMapId.lua")
+Q.loadModels(db, qdbDir) -- the 3D model of each object (see questdb.lua)
 
 -- The class bits of the database, as the game names the classes.
 local CLASSES = {
@@ -101,16 +102,16 @@ for _, id in ipairs(all) do
     if type(races) == "number" and races > 0 then
       q.races = races
     end
-    local start, startName, startCreature = Q.giver(db, Q.field(db, "Quest", id, Q.QUEST.startedBy))
+    local start, startName, startCreature, startModel = Q.giver(db, Q.field(db, "Quest", id, Q.QUEST.startedBy))
     if start then
       q.m, q.x, q.y = start.m, start.x, start.y
     end
-    q.npc, q.cid = startName, startCreature
-    local finish, finishName, finishCreature = Q.giver(db, Q.field(db, "Quest", id, Q.QUEST.finishedBy))
+    q.npc, q.cid, q.model = startName, startCreature, startModel
+    local finish, finishName, finishCreature, finishModel = Q.giver(db, Q.field(db, "Quest", id, Q.QUEST.finishedBy))
     if finish then
       q.tm, q.tx, q.ty = finish.m, finish.x, finish.y
     end
-    q.tnpc, q.tcid = finishName, finishCreature
+    q.tnpc, q.tcid, q.tmodel = finishName, finishCreature, finishModel
     local negative = false
     for _, list in ipairs({ q.pre or {}, q.preAll or {} }) do
       for _, p in ipairs(list) do
@@ -239,7 +240,8 @@ out:write([[
 -- the races it is for, or all), pre (one of these handed in first), preAll
 -- (all of them), excl (taking one of these closes this one), crumb (this
 -- quest only leads to that one), m/x/y and npc where it starts, tm/tx/ty and
--- tnpc where it is handed in, cid and tcid the creature ids of npc and tnpc.
+-- tnpc where it is handed in, cid and tcid the creature ids of npc and tnpc,
+-- model and tmodel their model files when they are objects.
 
 local _, ns = ...
 
@@ -278,6 +280,9 @@ for _, c in ipairs(CLASSES) do
     if q.cid then
       parts[#parts + 1] = ("cid = %d"):format(q.cid)
     end
+    if q.model then
+      parts[#parts + 1] = ("model = %d"):format(q.model)
+    end
     if q.tm then
       parts[#parts + 1] = ("tm = %d, tx = %s, ty = %s"):format(q.tm, q.tx, q.ty)
     end
@@ -286,6 +291,9 @@ for _, c in ipairs(CLASSES) do
     end
     if q.tcid then
       parts[#parts + 1] = ("tcid = %d"):format(q.tcid)
+    end
+    if q.tmodel then
+      parts[#parts + 1] = ("tmodel = %d"):format(q.tmodel)
     end
     out:write("    { " .. table.concat(parts, ", ") .. " },\n")
   end

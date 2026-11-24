@@ -6,7 +6,8 @@
 -- the races it is for, or all), pre (one of these handed in first), preAll
 -- (all of them), excl (taking one of these closes this one), crumb (this
 -- quest only leads to that one), m/x/y and npc where it starts, tm/tx/ty and
--- tnpc where it is handed in, cid and tcid the creature ids of npc and tnpc.
+-- tnpc where it is handed in, cid and tcid the creature ids of npc and tnpc,
+-- model and tmodel their model files when they are objects.
 
 local _, ns = ...
 
@@ -78,7 +79,7 @@ ns.CLASS_QUESTS = {
     { q = 1718, name = "The Islander", level = 30, req = 30, m = 1456, x = 0.572, y = 0.874, npc = "Torm Ragetotem", cid = 3041, tm = 1413, tx = 0.686, ty = 0.492, tnpc = "Klannoc Macleod", tcid = 6236 },
     { q = 1719, name = "The Affray", level = 30, req = 30, pre = { 1718 }, m = 1413, x = 0.686, y = 0.492, npc = "Klannoc Macleod", cid = 6236, tm = 1413, tx = 0.686, ty = 0.492, tnpc = "Klannoc Macleod", tcid = 6236 },
     { q = 1791, name = "The Windwatcher", level = 30, req = 30, pre = { 1719 }, m = 1413, x = 0.686, y = 0.492, npc = "Klannoc Macleod", cid = 6236, tm = 1416, tx = 0.805, ty = 0.669, tnpc = "Bath'rah the Windwatcher", tcid = 6176 },
-    { q = 1714, name = "Essence of the Exile", level = 37, req = 30, m = 1416, x = 0.793, y = 0.668, npc = "Bath'rah's Cauldron", tm = 1416, tx = 0.793, ty = 0.668, tnpc = "Bath'rah's Cauldron" },
+    { q = 1714, name = "Essence of the Exile", level = 37, req = 30, m = 1416, x = 0.793, y = 0.668, npc = "Bath'rah's Cauldron", model = 198100, tm = 1416, tx = 0.793, ty = 0.668, tnpc = "Bath'rah's Cauldron", tmodel = 198100 },
     { q = 1712, name = "Cyclonian", level = 40, req = 30, pre = { 1791 }, m = 1416, x = 0.805, y = 0.669, npc = "Bath'rah the Windwatcher", cid = 6176, tm = 1416, tx = 0.805, ty = 0.669, tnpc = "Bath'rah the Windwatcher", tcid = 6176 },
     { q = 1713, name = "The Summoning", level = 40, req = 30, pre = { 1712 }, m = 1416, x = 0.805, y = 0.669, npc = "Bath'rah the Windwatcher", cid = 6176, tm = 1416, tx = 0.805, ty = 0.669, tnpc = "Bath'rah the Windwatcher", tcid = 6176 },
     { q = 1792, name = "Whirlwind Weapon", level = 40, req = 30, pre = { 1713 }, m = 1416, x = 0.805, y = 0.669, npc = "Bath'rah the Windwatcher", cid = 6176, tm = 1416, tx = 0.805, ty = 0.669, tnpc = "Bath'rah the Windwatcher", tcid = 6176 },
@@ -412,12 +413,12 @@ ns.CLASS_QUESTS = {
     { q = 94465, name = "Call of Fire", level = 11, req = 10, races = 4294967373, m = 1426, x = 0.879, y = 0.448, npc = "Bruegs Kindleborn", cid = 257597, tm = 1432, tx = 0.322, ty = 0.66, tnpc = "Braldir Ashmantle", tcid = 257808 },
     { q = 1525, name = "Call of Fire", level = 12, req = 10, races = 8589934770, pre = { 1524, 97243 }, excl = { 97244 }, m = 1411, x = 0.385, y = 0.59, npc = "Telf Joolam", cid = 5900, tm = 1411, tx = 0.385, ty = 0.59, tnpc = "Telf Joolam", tcid = 5900 },
     { q = 1464, name = "Fire Sapta", level = 13, req = 10, races = 8589934770, pre = { 1525 }, m = 1411, x = 0.385, y = 0.59, npc = "Telf Joolam", cid = 5900, tm = 1411, tx = 0.385, ty = 0.59, tnpc = "Telf Joolam", tcid = 5900 },
-    { q = 1526, name = "Call of Fire", level = 13, req = 10, races = 8589934770, pre = { 1525 }, m = 1411, x = 0.385, y = 0.59, npc = "Telf Joolam", cid = 5900, tm = 1411, tx = 0.39, ty = 0.582, tnpc = "Brazier of the Dormant Flame" },
-    { q = 1527, name = "Call of Fire", level = 13, req = 10, races = 8589934770, pre = { 1526 }, m = 1411, x = 0.39, y = 0.582, npc = "Brazier of the Dormant Flame", tm = 1413, tx = 0.56, ty = 0.199, tnpc = "Kranal Fiss", tcid = 5907 },
+    { q = 1526, name = "Call of Fire", level = 13, req = 10, races = 8589934770, pre = { 1525 }, m = 1411, x = 0.385, y = 0.59, npc = "Telf Joolam", cid = 5900, tm = 1411, tx = 0.39, ty = 0.582, tnpc = "Brazier of the Dormant Flame", tmodel = 200925 },
+    { q = 1527, name = "Call of Fire", level = 13, req = 10, races = 8589934770, pre = { 1526 }, m = 1411, x = 0.39, y = 0.582, npc = "Brazier of the Dormant Flame", model = 200925, tm = 1413, tx = 0.56, ty = 0.199, tnpc = "Kranal Fiss", tcid = 5907 },
     { q = 94473, name = "Fire Sapta", level = 13, req = 10, races = 4294967373, pre = { 94466 }, m = 1432, x = 0.322, y = 0.66, npc = "Braldir Ashmantle", cid = 257808, tm = 1432, tx = 0.322, ty = 0.66, tnpc = "Braldir Ashmantle", tcid = 257808 },
     { q = 94466, name = "Call of Fire", level = 14, req = 10, races = 4, pre = { 94465 }, m = 1432, x = 0.322, y = 0.66, npc = "Braldir Ashmantle", cid = 257808, tm = 1432, tx = 0.322, ty = 0.66, tnpc = "Braldir Ashmantle", tcid = 257808 },
-    { q = 94467, name = "Call of Fire", level = 14, req = 10, races = 4, pre = { 94466 }, m = 1432, x = 0.322, y = 0.66, npc = "Braldir Ashmantle", cid = 257808, tm = 1411, tx = 0.39, ty = 0.582, tnpc = "Brazier of the Dormant Flame" },
-    { q = 94468, name = "Call of Fire", level = 14, req = 10, races = 4, pre = { 94467 }, m = 1411, x = 0.39, y = 0.582, npc = "Brazier of the Dormant Flame", tm = 1426, tx = 0.879, ty = 0.448, tnpc = "Bruegs Kindleborn", tcid = 257597 },
+    { q = 94467, name = "Call of Fire", level = 14, req = 10, races = 4, pre = { 94466 }, m = 1432, x = 0.322, y = 0.66, npc = "Braldir Ashmantle", cid = 257808, tm = 1411, tx = 0.39, ty = 0.582, tnpc = "Brazier of the Dormant Flame", tmodel = 200925 },
+    { q = 94468, name = "Call of Fire", level = 14, req = 10, races = 4, pre = { 94467 }, m = 1411, x = 0.39, y = 0.582, npc = "Brazier of the Dormant Flame", model = 200925, tm = 1426, tx = 0.879, ty = 0.448, tnpc = "Bruegs Kindleborn", tcid = 257597 },
     { q = 79362, name = "Grant's Shield", level = 25, req = 18, races = 162, m = 1416, x = 0.805, y = 0.669, npc = "Bath'rah the Windwatcher", cid = 6176, tm = 1431, tx = 0.726, ty = 0.476, tnpc = "Sirra Von'Indi", tcid = 268 },
     { q = 79363, name = "Silvia's Sword", level = 27, req = 18, races = 162, m = 1416, x = 0.805, y = 0.669, npc = "Bath'rah the Windwatcher", cid = 6176, tm = 1431, tx = 0.726, ty = 0.476, tnpc = "Sirra Von'Indi", tcid = 268 },
     { q = 972, name = "Water Sapta", level = 20, req = 20, races = 8589934770, pre = { 220 }, m = 1413, x = 0.658, y = 0.438, npc = "Islen Waterseer", cid = 5901, tm = 1413, tx = 0.658, ty = 0.438, tnpc = "Islen Waterseer", tcid = 5901 },
@@ -433,9 +434,9 @@ ns.CLASS_QUESTS = {
     { q = 94495, name = "Call of Water", level = 22, req = 20, races = 4294967373, pre = { 94494 }, m = 1432, x = 0.418, y = 0.191, npc = "Norric Lochthane", cid = 258043, tm = 1437, tx = 0.658, ty = 0.765, tnpc = "Hervdana Saegrund", tcid = 258203 },
     { q = 94497, name = "Call of Water", level = 22, req = 20, races = 4294967373, pre = { 94495 }, m = 1437, x = 0.658, y = 0.765, npc = "Hervdana Saegrund", cid = 258203, tm = 1437, tx = 0.658, ty = 0.765, tnpc = "Hervdana Saegrund", tcid = 258203 },
     { q = 94499, name = "Call of Water", level = 22, req = 20, races = 4294967373, pre = { 94497 }, m = 1437, x = 0.658, y = 0.765, npc = "Hervdana Saegrund", cid = 258203, tm = 1437, tx = 0.658, ty = 0.765, tnpc = "Hervdana Saegrund", tcid = 258203 },
-    { q = 63, name = "Call of Water", level = 23, req = 20, races = 8589934770, pre = { 220 }, m = 1413, x = 0.658, y = 0.438, npc = "Islen Waterseer", cid = 5901, tm = 1421, tx = 0.383, ty = 0.446, tnpc = "Brazier of Everfount" },
+    { q = 63, name = "Call of Water", level = 23, req = 20, races = 8589934770, pre = { 220 }, m = 1413, x = 0.658, y = 0.438, npc = "Islen Waterseer", cid = 5901, tm = 1421, tx = 0.383, ty = 0.446, tnpc = "Brazier of Everfount", tmodel = 198067 },
     { q = 96, name = "Call of Water", level = 23, req = 20, races = 8589934770, pre = { 100 }, m = 1421, x = 0.387, y = 0.446, npc = "Minor Manifestation of Water", cid = 5895, tm = 1413, tx = 0.658, ty = 0.438, tnpc = "Islen Waterseer", tcid = 5901 },
-    { q = 100, name = "Call of Water", level = 23, req = 20, races = 8589934770, pre = { 63 }, m = 1421, x = 0.383, y = 0.446, npc = "Brazier of Everfount", tm = 1421, tx = 0.387, ty = 0.446, tnpc = "Minor Manifestation of Water", tcid = 5895 },
+    { q = 100, name = "Call of Water", level = 23, req = 20, races = 8589934770, pre = { 63 }, m = 1421, x = 0.383, y = 0.446, npc = "Brazier of Everfount", model = 198067, tm = 1421, tx = 0.387, ty = 0.446, tnpc = "Minor Manifestation of Water", tcid = 5895 },
     { q = 220, name = "Call of Water", level = 23, req = 20, races = 8589934770, pre = { 1534 }, m = 1413, x = 0.434, y = 0.774, npc = "Brine", cid = 5899, tm = 1413, tx = 0.658, ty = 0.438, tnpc = "Islen Waterseer", tcid = 5901 },
     { q = 1534, name = "Call of Water", level = 23, req = 20, races = 8589934770, pre = { 1536 }, m = 1413, x = 0.434, y = 0.774, npc = "Brine", cid = 5899, tm = 1413, tx = 0.434, ty = 0.774, tnpc = "Brine", tcid = 5899 },
     { q = 94500, name = "Call of Water", level = 23, req = 20, races = 4294967373, pre = { 94499 }, m = 1437, x = 0.658, y = 0.765, npc = "Hervdana Saegrund", cid = 258203, tm = 1437, tx = 0.658, ty = 0.765, tnpc = "Hervdana Saegrund", tcid = 258203 },

@@ -223,6 +223,50 @@ function M.row(db, kind, id)
   return db.rows[key] or nil
 end
 
+--- Reads the 3D model of each game object (a chest, an urn), so the preview
+--- can show objects like creatures. Questie has no appearance for objects,
+--- and the client keeps only its own decorations, so two sources join:
+---   gameobject_template.sql: object id -> appearance (displayId), from the
+---     cMaNGOS classic-db dump (the INSERT lines of that table only);
+---   GameObjectDisplayInfo.csv: appearance -> model file (FileDataID), from
+---     wago.tools for Forever's client (product wowf).
+--- Checked on the user's case (2026-11-23): Garrett Family Chest, object
+--- 124388, appearance 10, model 196976. Sets db.models = { [id] = file }.
+function M.loadModels(db, dir)
+  local files = {}
+  local header = true
+  for line in io.lines(dir .. "/GameObjectDisplayInfo.csv") do
+    if header then
+      assert(line:match("^ID,GeoBox_0,GeoBox_1,GeoBox_2,GeoBox_3,GeoBox_4,GeoBox_5,FileDataID,"),
+        "GameObjectDisplayInfo.csv: unexpected columns")
+      header = false
+    else
+      local id, file = line:match("^(%d+),[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,(%d+),")
+      if id and tonumber(file) > 0 then
+        files[tonumber(id)] = tonumber(file)
+      end
+    end
+  end
+  db.models = {}
+  local f = assert(io.open(dir .. "/gameobject_template.sql"))
+  for line in f:lines() do
+    -- Only that table's rows: (entry, type, displayId, 'name', ...), and
+    -- only the first three are needed.
+    if line:find("^INSERT INTO `gameobject_template`") then
+      for entry, display in line:gmatch("%((%d+),%d+,(%d+),'") do
+        db.models[tonumber(entry)] = files[tonumber(display)]
+      end
+    end
+  end
+  f:close()
+  return db.models
+end
+
+--- The model file of a game object, or nil.
+function M.model(db, objectID)
+  return db.models and db.models[objectID] or nil
+end
+
 --- A zone (AreaTable id) as a map id, or nil.
 function M.map(db, area)
   return db.areas[area]
@@ -277,8 +321,9 @@ end
 
 --- Who starts or ends a quest (its startedBy or finishedBy field: { npcs,
 --- objects, items }): their place ({ m, x, y } or nil), their name, and the
---- creature id when it is an NPC (the game draws its model from it). An item
---- has a name but no place.
+--- creature id when it is an NPC (the game draws its model from it), or the
+--- model file when it is an object (see loadModels). An item has a name but
+--- no place.
 function M.giver(db, by)
   by = by or {}
   for _, npc in ipairs(by[1] or {}) do
@@ -290,7 +335,7 @@ function M.giver(db, by)
   for _, obj in ipairs(by[2] or {}) do
     local place = M.central(db, M.field(db, "Object", obj, M.OBJECT.spawns))
     if place then
-      return place, M.field(db, "Object", obj, M.OBJECT.name)
+      return place, M.field(db, "Object", obj, M.OBJECT.name), nil, M.model(db, obj)
     end
   end
   if by[3] and by[3][1] then
@@ -307,7 +352,9 @@ end
 --- Who or what each objective of a quest is about, to show it, in the
 --- database's order and once per name: { c = creature id, n = name } for a
 --- creature to kill (or to talk to, for a kill credit), with d = true when
---- it is not to kill but drops the item; { n = name } for an object. Spawns
+--- it is not to kill but drops the item; { n = name } for an object, with
+--- m = its model file (see loadModels) and l = the item looted from it (its
+--- icon, when there is no model). Spawns
 --- are not needed to be placed on a map: inside a dungeon they often are not.
 function M.targets(db, questID)
   local obj = M.field(db, "Quest", questID, M.QUEST.objectives) or {}
@@ -322,9 +369,9 @@ function M.targets(db, questID)
     local name = M.field(db, "Npc", id, M.NPC.name)
     return name and { c = id, n = name, d = drop or nil } or nil
   end
-  local function object(id)
+  local function object(id, loot)
     local name = M.field(db, "Object", id, M.OBJECT.name)
-    return name and { n = name } or nil
+    return name and { n = name, l = loot, m = M.model(db, id) } or nil
   end
   for _, c in ipairs(obj[1] or {}) do
     add(npc(c[1]))
@@ -343,7 +390,7 @@ function M.targets(db, questID)
     if not found then
       for _, id in ipairs(M.field(db, "Item", i[1], M.ITEM.objectDrops) or {}) do
         if hasSpawns(db, "Object", id, M.OBJECT.spawns) then
-          found = object(id)
+          found = object(id, i[1])
           break
         end
       end

@@ -202,12 +202,13 @@ function ClassQuests.toPlan(q, ctx)
   local steps = {
     { id = "a" .. q.q, type = "accept", questID = q.q, text = L["Pick up: "] .. q.name,
       why = q.npc and L["From %s"]:format(q.npc) or nil, mapID = q.m, x = q.x, y = q.y,
-      creature = q.cid, who = q.npc },
+      creature = q.cid, who = q.npc, model = q.model },
   }
   -- Where the objectives are is not in the data: the quest text says.
   steps[2] = { id = "c" .. q.q, type = "complete", questID = q.q, text = L["Do: "] .. q.name }
   local turnin = { id = "t" .. q.q, type = "turnin", questID = q.q, text = L["Turn in: "] .. q.name,
-    why = q.tnpc and L["To %s"]:format(q.tnpc) or nil, creature = q.tcid, who = q.tnpc }
+    why = q.tnpc and L["To %s"]:format(q.tnpc) or nil, creature = q.tcid, who = q.tnpc,
+    model = q.tmodel }
   if q.tm then
     turnin.mapID, turnin.x, turnin.y = q.tm, q.tx, q.ty
   end

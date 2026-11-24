@@ -272,6 +272,15 @@ local function updateMarked()
     say(L["Your marked quest is no longer in the log: back to the guide."])
     return false
   end
+  -- Who it is about, for the magnifier: looked up once per kind (the
+  -- lists are long).
+  if detour.aboutKind ~= view.kind then
+    detour.aboutKind = view.kind
+    detour.about = ns.Marked.about(detour.marked, view.kind, {
+      dungeons = ns.DUNGEONS, guides = ns.GUIDES, classQuests = ns.CLASS_QUESTS and ns.CLASS_QUESTS[Api.class() or ""],
+      info = ns.QUEST_INFO,
+    }) or false
+  end
   detour.label, detour.kind = view.text, view.kind
   detour.target = questTarget(detour.marked, view.kind == "turnin")
   detour.item = view.kind == "complete" and Api.questItem(detour.marked) or nil
@@ -329,6 +338,9 @@ local function refresh()
 end
 
 local function loadPlan(p, quiet)
+  -- Who each step is about, for the magnifier, where the plan does not say
+  -- (a route made from the quest log): from the table of every quest.
+  ns.QuestInfo.fill(p and p.steps, ns.QUEST_INFO)
   local ok, err = Plan.validate(p)
   if not ok then
     say(L["Plan rejected: %s"]:format(tostring(err)))
@@ -1002,6 +1014,10 @@ local function followMark()
   if not isMark then
     return
   end
+  -- The game follows the player's quest now: a quest left over from before
+  -- (followed again at login while the guide's quest is not in the log yet)
+  -- is no longer TrailMate's, so marking it again counts (the user's case).
+  ourFocus = nil
   detour = { marked = questID }
   if not updateMarked() then
     return
@@ -2669,7 +2685,12 @@ handlers.TAXIMAP_OPENED = function()
   if goal then
     after(0.1, function()
       guard("flight map", function()
-        ns.UI.markFlight(Api.flightButton(goal), L)
+        local button = Api.flightButton(goal)
+        ns.UI.markFlight(button, L)
+        -- Said too, so the player looks for it (and knows it was found).
+        if button then
+          say(L["Flight map: fly to %s (marked in gold)."]:format(goal))
+        end
       end)
     end)
   end

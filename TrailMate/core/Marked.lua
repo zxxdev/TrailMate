@@ -47,3 +47,60 @@ function Marked.view(questID, title, questLog, L)
   end
   return { kind = "complete", text = L["Do: "] .. name }
 end
+
+-- What a step of the data says about who it is for, as the preview takes it.
+local function shown(kind, creature, who, drop, loot, model)
+  if not who then
+    return nil
+  end
+  return { type = kind, creature = creature, who = who, drop = drop, loot = loot, model = model }
+end
+
+--- Who a marked quest is about, to show it in the preview: for its
+--- objectives, the first creature or object the data names; once done, who
+--- takes it back. data = { dungeons, guides, classQuests, info } (TrailMate's
+--- own lists, then the table of every quest). One with a model wins over one with only a name. nil when no
+--- list knows the quest.
+function Marked.about(questID, kind, data)
+  local turnin = kind == "turnin"
+  local found
+  local function offer(t)
+    local function drawn(x)
+      return x.creature ~= nil or x.model ~= nil
+    end
+    if t and (not found or (drawn(t) and not drawn(found))) then
+      found = t
+    end
+  end
+  for _, d in ipairs(data.dungeons or {}) do
+    for _, q in ipairs(d.quests or {}) do
+      if q.q == questID then
+        local t = q.targets and q.targets[1]
+        if turnin then
+          offer(shown("turnin", q.tcid, q.tnpc, nil, nil, q.tmodel))
+        elseif t then
+          offer(shown("complete", t.c, t.n, t.d, t.l, t.m))
+        end
+      end
+    end
+  end
+  for _, q in ipairs(data.classQuests or {}) do
+    if q.q == questID and turnin then
+      offer(shown("turnin", q.tcid, q.tnpc, nil, nil, q.tmodel))
+    end
+  end
+  if not (found and (found.creature or found.model)) then
+    for _, g in ipairs(data.guides or {}) do
+      for _, s in ipairs(g.steps or {}) do
+        if s.q == questID and s.t == (turnin and "turnin" or "complete") then
+          offer(shown(s.t, s.cid, s.tgt or s.npc, s.drop, s.loot, s.model))
+        end
+      end
+    end
+  end
+  -- No list has it, or none with a model: the table of every quest.
+  if not (found and (found.creature or found.model)) then
+    offer(ns.QuestInfo.about(data.info, questID, turnin and "turnin" or "complete"))
+  end
+  return found
+end

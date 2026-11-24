@@ -2,7 +2,7 @@
 ## Title: |cff9b7bd4TrailMate|r
 ## Notes: Leveling coach: a route that decides, an arrow, trainer and vendor advice. Advises, never plays.
 ## Author: zxxdev
-## Version: 0.5.1-beta
+## Version: 0.5.2-beta
 ## X-License: MIT
 ## X-Curse-Project-ID: 1821539
 ## IconTexture: Interface\AddOns\TrailMate\media\Icon
@@ -36,6 +36,7 @@ core\Trails.lua
 core\Hubs.lua
 core\Guide.lua
 core\Marked.lua
+core\QuestInfo.lua
 core\Dungeons.lua
 core\ClassQuests.lua
 core\Link.lua
@@ -45,6 +46,7 @@ data\Guides.lua
 data\GuideQuests.lua
 data\Dungeons.lua
 data\ClassQuests.lua
+data\QuestInfo.lua
 game\Api.lua
 game\Theme.lua
 game\UI.lua

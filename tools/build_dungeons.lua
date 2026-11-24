@@ -11,7 +11,9 @@
 --   lua tools/build_dungeons.lua <questdb folder>
 --
 -- The folder holds QuestieDB_Forever.toc, areaIdToUiMapId.lua and
--- dungeons.lua (support/Forever/Zones/dungeons.lua of QuestieDB).
+-- dungeons.lua (support/Forever/Zones/dungeons.lua of QuestieDB), and
+-- gameobject_template.sql and GameObjectDisplayInfo.csv for the models of
+-- objects (see questdb.lua, loadModels).
 
 package.path = "tools/?.lua;" .. package.path
 local Q = require("questdb")
@@ -19,6 +21,7 @@ local Q = require("questdb")
 local qdbDir = arg[1]
 assert(qdbDir, "usage: lua tools/build_dungeons.lua <questdb folder>")
 local db = Q.open(qdbDir .. "/QuestieDB_Forever.toc", qdbDir .. "/areaIdToUiMapId.lua")
+Q.loadModels(db, qdbDir) -- the 3D model of each object (see questdb.lua)
 
 -- The 5-player dungeons of levels 1-60, in the order players meet them.
 -- Raids, battlegrounds and later expansions are left out. side: the only
@@ -168,16 +171,16 @@ for _, id in ipairs(ids("Quest")) do
     if type(pre) == "table" and #pre > 0 then
       q.pre = pre
     end
-    local start, startName = giver(Q.field(db, "Quest", id, Q.QUEST.startedBy))
+    local start, startName, startCreature, startModel = giver(Q.field(db, "Quest", id, Q.QUEST.startedBy))
     if start then
       q.m, q.x, q.y = start.m, start.x, start.y
     end
-    q.npc = startName
-    local finish, finishName = giver(Q.field(db, "Quest", id, Q.QUEST.finishedBy))
+    q.npc, q.cid, q.model = startName, startCreature, startModel
+    local finish, finishName, finishCreature, finishModel = giver(Q.field(db, "Quest", id, Q.QUEST.finishedBy))
     if finish then
       q.tm, q.tx, q.ty = finish.m, finish.x, finish.y
     end
-    q.tnpc = finishName
+    q.tnpc, q.tcid, q.tmodel = finishName, finishCreature, finishModel
     q.targets = Q.targets(db, id)
     quests[d] = quests[d] or {}
     table.insert(quests[d], q)
@@ -199,9 +202,12 @@ out:write([[
 --
 -- Quest fields: q id, level, req (level to pick it up), side ("A", "H" or
 -- both), classes (bit mask, or all), pre (needs one of these quests first),
--- m/x/y and npc where it starts, tm/tx/ty and tnpc where it is handed in.
+-- m/x/y and npc where it starts, tm/tx/ty and tnpc where it is handed in;
+-- cid and tcid their creature ids, model and tmodel their model files when
+-- they are objects.
 -- targets: who or what its objectives are about, to show them: c = creature
--- id (its 3D model), n = name, d = true when it drops the item (not to kill).
+-- id (its 3D model), n = name, d = true when it drops the item (not to kill),
+-- l = the item looted from an object (its icon), m = an object's 3D model file.
 
 local _, ns = ...
 
@@ -256,17 +262,30 @@ for _, d in ipairs(DUNGEONS) do
     if q.npc then
       parts[#parts + 1] = ("npc = %s"):format(quote(q.npc))
     end
+    if q.cid then
+      parts[#parts + 1] = ("cid = %d"):format(q.cid)
+    end
+    if q.model then
+      parts[#parts + 1] = ("model = %d"):format(q.model)
+    end
     if q.tm then
       parts[#parts + 1] = ("tm = %d, tx = %s, ty = %s"):format(q.tm, q.tx, q.ty)
     end
     if q.tnpc then
       parts[#parts + 1] = ("tnpc = %s"):format(quote(q.tnpc))
     end
+    if q.tcid then
+      parts[#parts + 1] = ("tcid = %d"):format(q.tcid)
+    end
+    if q.tmodel then
+      parts[#parts + 1] = ("tmodel = %d"):format(q.tmodel)
+    end
     if q.targets and #q.targets > 0 then
       local shown = {}
       for _, t in ipairs(q.targets) do
         shown[#shown + 1] = "{ " .. (t.c and ("c = %d, "):format(t.c) or "") .. ("n = %s"):format(quote(t.n))
-          .. (t.d and ", d = true" or "") .. " }"
+          .. (t.d and ", d = true" or "") .. (t.l and (", l = %d"):format(t.l) or "")
+          .. (t.m and (", m = %d"):format(t.m) or "") .. " }"
       end
       parts[#parts + 1] = "targets = { " .. table.concat(shown, ", ") .. " }"
     end

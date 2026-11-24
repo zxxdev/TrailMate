@@ -9,7 +9,9 @@
 --   lua tools/build_guides.lua <tugs folder> <questdb folder>
 --
 -- The tugs folder holds Horde/*.lua and Alliance/*.lua; the questdb folder
--- holds QuestieDB_Forever.toc, areaIdToUiMapId.lua and zones.lua.
+-- holds QuestieDB_Forever.toc, areaIdToUiMapId.lua and zones.lua, and
+-- gameobject_template.sql and GameObjectDisplayInfo.csv for the models of
+-- objects (see questdb.lua, loadModels).
 
 package.path = "tools/?.lua;" .. package.path
 local Q = require("questdb")
@@ -17,6 +19,7 @@ local Q = require("questdb")
 local tugs, qdbDir = arg[1], arg[2]
 assert(tugs and qdbDir, "usage: lua tools/build_guides.lua <tugs folder> <questdb folder>")
 local db = Q.open(qdbDir .. "/QuestieDB_Forever.toc", qdbDir .. "/areaIdToUiMapId.lua")
+Q.loadModels(db, qdbDir) -- the 3D model of each object (see questdb.lua)
 
 -- Zone names in the guides -> AreaTable ids -> map ids.
 local zoneArea = {}
@@ -117,7 +120,7 @@ local function giverPlace(givers)
   for _, obj in ipairs(givers[2] or {}) do
     objectPlaces(obj, list)
     if #list > 0 then
-      return central(list), Q.field(db, "Object", obj, Q.OBJECT.name)
+      return central(list), Q.field(db, "Object", obj, Q.OBJECT.name), nil, Q.model(db, obj)
     end
   end
   return nil
@@ -131,7 +134,7 @@ local function npcTarget(id)
 end
 local function objectTarget(id)
   local name = Q.field(db, "Object", id, Q.OBJECT.name)
-  return name and { name = name } or nil
+  return name and { name = name, model = Q.model(db, id) } or nil
 end
 local function itemTarget(id)
   for _, npc in ipairs(Q.field(db, "Item", id, Q.ITEM.npcDrops) or {}) do
@@ -145,7 +148,11 @@ local function itemTarget(id)
   end
   for _, obj in ipairs(Q.field(db, "Item", id, Q.ITEM.objectDrops) or {}) do
     if #objectPlaces(obj) > 0 then
-      return objectTarget(obj)
+      local t = objectTarget(obj)
+      if t then
+        t.loot = id -- its icon: objects have no model here
+      end
+      return t
     end
   end
   return nil
@@ -278,7 +285,7 @@ local function parseGuide(path, faction)
         id = tonumber(id)
         local s = quest(id)
         local place
-        place, s.npc, s.cid = giverPlace(Q.field(db, "Quest", id, Q.QUEST.startedBy))
+        place, s.npc, s.cid, s.model = giverPlace(Q.field(db, "Quest", id, Q.QUEST.startedBy))
         guide.steps[#guide.steps + 1] = step("accept", s, place)
         added = true
       end
@@ -288,7 +295,7 @@ local function parseGuide(path, faction)
         s.n = tonumber(n)
         local place, target = objectivePlace(id, s.n)
         if target then
-          s.tgt, s.cid, s.drop = target.name, target.creature, target.drop
+          s.tgt, s.cid, s.drop, s.loot, s.model = target.name, target.creature, target.drop, target.loot, target.model
         end
         guide.steps[#guide.steps + 1] = step("complete", s, place)
         added = true
@@ -297,7 +304,7 @@ local function parseGuide(path, faction)
         id = tonumber(id)
         local s = quest(id)
         local place
-        place, s.npc, s.cid = giverPlace(Q.field(db, "Quest", id, Q.QUEST.finishedBy))
+        place, s.npc, s.cid, s.model = giverPlace(Q.field(db, "Quest", id, Q.QUEST.finishedBy))
         guide.steps[#guide.steps + 1] = step("turnin", s, place)
         added = true
       end
@@ -393,7 +400,9 @@ out:write([[
 -- only = classes or races it is for, text = what to do (goto, note, level),
 -- cid = creature to show (the quest giver, or the one to kill or that drops
 -- the item), tgt = what a "complete" step is about (an NPC or an object),
--- drop = true when tgt is not to kill but drops the item.
+-- drop = true when tgt is not to kill but drops the item, loot = the item
+-- looted from the object tgt (its icon), model = the 3D model file of an
+-- object (tgt, or the one a quest starts or ends at).
 
 local _, ns = ...
 

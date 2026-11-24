@@ -28,6 +28,8 @@ local function fakeObject(name)
         return function(self) rawset(self, "visible", true) end
       elseif key == "Hide" then
         return function(self) rawset(self, "visible", false) end
+      elseif key == "SetShown" then
+        return function(self, on) rawset(self, "visible", on and true or false) end
       elseif key == "IsShown" then
         return function(self) return rawget(self, "visible") == true end
       elseif key == "SetText" then
@@ -375,6 +377,9 @@ describe("addon smoke test", function()
     fire("QUEST_LOG_UPDATE")
     tick()
     assert.equals("Into The Scarlet Monastery (hecha)", window.drows[3].label.shown_text)
+    -- Done: who takes it back, with its magnifier (the user asked).
+    assert.matches("^Entregar: ", window.drows[8].label.shown_text)
+    assert.is_true(window.drows[8].lens.visible)
     assert.equals("2 misiones aquí", window.step.shown_text)
     complete[1051] = true
     fire("QUEST_LOG_UPDATE")
@@ -454,6 +459,76 @@ describe("addon smoke test", function()
     assert.matches("ya no está en el diario", output())
   end)
 
+  it("counts a mark of the quest the game followed again at login (the user's case)", function()
+    _G.C_SuperTrack.GetSuperTrackedQuestID = function() return superTracked end
+    local setTracked = _G.C_SuperTrack.SetSuperTrackedQuestID
+    finally(function()
+      _G.C_SuperTrack.SetSuperTrackedQuestID = setTracked
+      table.remove(quests, 3)
+    end)
+    -- After a reload the game follows Reclaimed Treasures again, and the
+    -- guide's quest cannot be followed (not in the log yet): it stays.
+    quests[3] = { questID = 2342, title = "Reclaimed Treasures", isHeader = false }
+    superTracked = 2342
+    _G.C_SuperTrack.SetSuperTrackedQuestID = function() end
+    _G.SlashCmdList.TRAILMATE("diario")
+    _G.C_SuperTrack.SetSuperTrackedQuestID = setTracked
+    local window = named.TrailMateFrame
+    assert.equals("Hacer: Lobos", window.step.shown_text)
+    -- The player marks another quest, then Reclaimed Treasures again: both count.
+    superTracked = 11
+    fire("SUPER_TRACKING_CHANGED")
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.1)
+    assert.equals("Entregar: Jabalies", window.step.shown_text)
+    superTracked = 2342
+    fire("SUPER_TRACKING_CHANGED")
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.1)
+    assert.equals("Hacer: Reclaimed Treasures", window.step.shown_text)
+  end)
+
+  it("shows the chest of a marked dungeon quest as its 3D model (the user's case)", function()
+    _G.C_SuperTrack.GetSuperTrackedQuestID = function() return superTracked end
+    rawset(_G, "GetItemIcon", function(id) return id == 8026 and "icon-8026" or nil end)
+    finally(function()
+      rawset(_G, "GetItemIcon", nil)
+      table.remove(quests, 3)
+    end)
+    _G.SlashCmdList.TRAILMATE("diario")
+    quests[3] = { questID = 2342, title = "Reclaimed Treasures", isHeader = false }
+    fire("QUEST_LOG_UPDATE")
+    tick()
+    superTracked = 2342
+    fire("SUPER_TRACKING_CHANGED")
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.1)
+    local window = named.TrailMateFrame
+    assert.equals("Hacer: Reclaimed Treasures", window.step.shown_text)
+    -- The quest's object is in Uldaman: its magnifier shows the chest.
+    assert.is_true(window.lens.visible)
+    window.lens.scripts.OnEnter(window.lens)
+    local preview = named.TrailMatePreview
+    assert.is_true(preview.visible)
+    assert.equals("Garrett Family Chest", preview.name.shown_text)
+    assert.equals("Busca en", preview.verb.shown_text)
+    -- The game has not said it took the model file: the icon of the item.
+    assert.is_false(preview.object.visible)
+    assert.is_true(preview.icon.visible)
+    window.lens.scripts.OnLeave(window.lens)
+    -- It took it (object 124388, appearance 10, model file 196976): the
+    -- chest in its own frame, never the creature shown before.
+    preview.object.GetModelFileID = function() return 196976 end
+    window.lens.scripts.OnEnter(window.lens)
+    assert.is_true(preview.object.visible)
+    assert.is_false(preview.model.visible)
+    assert.is_false(preview.icon.visible)
+    window.lens.scripts.OnLeave(window.lens)
+    -- A client that cannot draw it: the icon again.
+    preview.object.SetModel = function() error("no model") end
+    window.lens.scripts.OnEnter(window.lens)
+    assert.is_false(preview.object.visible)
+    assert.is_true(preview.icon.visible)
+    window.lens.scripts.OnLeave(window.lens)
+  end)
+
   it("has its page in Esc > Options > AddOns, and hides the minimap button when asked", function()
     install()
     rawset(_G, "TrailMateDB", nil)
@@ -529,6 +604,25 @@ describe("addon smoke test", function()
     eventFrame().scripts.OnUpdate(eventFrame(), 2)
     assert.is_true(mark.pin.visible)
     assert.is_false(mark.edge.visible)
+    -- Walking, the pin moves every frame with the minimap, not five times a
+    -- second (the user saw it jump): the way walked since the map work.
+    rawset(mark.pin, "SetPoint", function(self, ...) rawset(self, "point", { ... }) end)
+    local north, west = 0, 0
+    rawset(_G, "UnitPosition", function() return west, north end)
+    finally(function()
+      rawset(_G, "UnitPosition", nil)
+    end)
+    eventFrame().scripts.OnUpdate(eventFrame(), 2) -- the map work
+    local before = mark.pin.point[5]
+    north = 10 -- ten yards north, towards the quest
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.05)
+    local after = mark.pin.point[5]
+    assert.is_true(after < before - 2) -- 10 yards: 3 pixels at this zoom
+    -- Ten yards west: the quest is left to the east, the pin goes right.
+    local x = mark.pin.point[4]
+    west = 10
+    eventFrame().scripts.OnUpdate(eventFrame(), 0.05)
+    assert.is_true(mark.pin.point[4] > x + 2)
     -- Purple, not the gold of the game's quest marks.
     assert.same({ 0.61, 0.48, 0.83, 1 }, mark.edge.color)
   end)
@@ -782,8 +876,12 @@ describe("addon smoke test", function()
     fire("TAXIMAP_OPENED")
     local mark = named.TrailMateFlightMark
     assert.is_true(mark.visible)
+    -- Seen on the parchment: a ring and the purple pin over the point, and said.
+    assert.is_true(mark.top.visible)
+    assert.matches("Mapa de vuelos: vuela a Grom'gol", output())
     fire("TAXIMAP_CLOSED")
     assert.is_false(mark.visible)
+    assert.is_false(mark.top.visible)
     -- Without that flight (Grom'gol grey on the flight map: not learned, or
     -- not connected), never to the flight master: straight to the step.
     _G.C_TaxiMap.GetAllTaxiNodes = function()

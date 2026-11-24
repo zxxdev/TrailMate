@@ -122,7 +122,8 @@ function Dungeons.toPlan(d, ctx)
   local steps = {}
   for _, q in ipairs(ready) do
     steps[#steps + 1] = { id = "a" .. q.q, type = "accept", questID = q.q, text = L["Pick up: "] .. q.name,
-      why = q.npc and L["From %s"]:format(q.npc) or nil, mapID = q.m, x = q.x, y = q.y }
+      why = q.npc and L["From %s"]:format(q.npc) or nil, mapID = q.m, x = q.x, y = q.y,
+      creature = q.cid, who = q.npc, model = q.model }
   end
   local e = Dungeons.entrance(d, ctx.distance)
   steps[#steps + 1] = { id = "entrance", type = "goto", soft = true, mapID = e.m, x = e.x, y = e.y,
@@ -130,7 +131,7 @@ function Dungeons.toPlan(d, ctx)
     why = L["Enemies of level %d-%d: go with a group."]:format(d.min, d.max) }
   local function turnin(q)
     local step = { id = "t" .. q.q, type = "turnin", questID = q.q, text = L["Turn in: "] .. q.name,
-      why = q.tnpc and L["To %s"]:format(q.tnpc) or nil }
+      why = q.tnpc and L["To %s"]:format(q.tnpc) or nil, creature = q.tcid, who = q.tnpc, model = q.tmodel }
     if q.tm and q.tm ~= d.inside then
       step.mapID, step.x, step.y = q.tm, q.tx, q.ty
     end
@@ -159,7 +160,8 @@ function Dungeons.here(list, mapID, name)
 end
 
 --- The quests of this dungeon in the quest log ({ [questID] = { complete } })
---- with something still to do inside: { { q, name, targets } }. Handed in
+--- with something still to do inside: { { q, name, targets, tnpc, tcid,
+--- tmodel } } (who takes it back, for the magnifier once it is done). Handed in
 --- ones are not listed; done ones (to hand in outside) only with withDone,
 --- marked done = true, so the window can say they are finished.
 function Dungeons.toDoHere(d, questLog, withDone)
@@ -167,7 +169,8 @@ function Dungeons.toDoHere(d, questLog, withDone)
   for _, q in ipairs(d and d.quests or {}) do
     local entry = questLog and questLog[q.q]
     if entry and (withDone or not entry.complete) then
-      out[#out + 1] = { q = q.q, name = q.name, targets = q.targets, done = entry.complete and true or nil }
+      out[#out + 1] = { q = q.q, name = q.name, targets = q.targets, done = entry.complete and true or nil,
+        tnpc = q.tnpc, tcid = q.tcid, tmodel = q.tmodel }
     end
   end
   return out

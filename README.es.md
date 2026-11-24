@@ -8,7 +8,7 @@ Un entrenador de subida de nivel para **World of Warcraft: Forever** (versión 1
 
 **No necesita ningún otro addon.** La flecha, las marcas del minimapa y del mapa del mundo, las guías y el planificador de viajes son suyos. Puedes tener otros addons instalados; TrailMate no los usa.
 
-> **Estado: beta (0.5.1-beta).** Se juega y se prueba sobre todo con un personaje, un cazador de la Horda entre los niveles 33 y 37; las misiones de clase se comprobaron además con un chamán trol de nivel 1. Habrá cosas por pulir: mira los [problemas conocidos](#problemas-conocidos). Los avisos de fallos y las pull requests son bienvenidos, en inglés o en español ([CONTRIBUTING.es.md](CONTRIBUTING.es.md)). Sin relación con Blizzard Entertainment.
+> **Estado: beta (0.5.2-beta).** Se juega y se prueba sobre todo con un personaje, un cazador de la Horda entre los niveles 33 y 37; las misiones de clase se comprobaron además con un chamán trol de nivel 1. Habrá cosas por pulir: mira los [problemas conocidos](#problemas-conocidos). Los avisos de fallos y las pull requests son bienvenidos, en inglés o en español ([CONTRIBUTING.es.md](CONTRIBUTING.es.md)). Sin relación con Blizzard Entertainment.
 
 ## Capturas
 
@@ -134,6 +134,7 @@ flowchart LR
 
 - Las guías siguen el orden de las guías de subida de la comunidad para Forever hechas para [Guidelime](https://github.com/max-ri/Guidelime) (las guías TUGs). Las 1777 misiones que usan se han comprobado en la base de datos de Forever de Wowhead: las tres que no están se quitan.
 - Los sitios de quien da cada misión, de los objetivos y de las entregas salen de la base de datos de misiones de [Questie](https://github.com/Questie/Questie) para Forever. TrailMate coge el punto de aparición más central de cada personaje u objeto.
+- El modelo 3D de cada objeto de misión (un cofre, una urna) une dos fuentes: su apariencia, de la tabla de objetos de [cMaNGOS classic-db](https://github.com/cmangos/classic-db), y el fichero de modelo de esa apariencia, de los datos del propio cliente de Forever, leídos en [wago.tools](https://wago.tools).
 - Las entradas de las mazmorras (en coordenadas de Forever), el nivel de sus enemigos y sus misiones salen de la misma base de datos; `tools/build_dungeons.lua` escribe `TrailMate/data/Dungeons.lua`. El rango de una mazmorra va del nivel que tienen la mayoría de sus enemigos a su jefe más fuerte.
 - Las misiones de clase son las de la base de datos que son para una sola clase, hasta el nivel 59; `tools/build_class_quests.lua` escribe `TrailMate/data/ClassQuests.lua`. Cada misión que elige (`--ids` las lista) se comprobó con la base de datos de Wowhead para Forever el 2026-11-22: la única que no tiene se deja fuera, con una nota en el generador.
 - `tools/build_guides.lua` junta las dos cosas en `TrailMate/data/Guides.lua`. Cuando TrailMate ve en el juego a quien da una misión, gana el sitio que ha visto.

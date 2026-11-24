@@ -262,6 +262,7 @@ ns.LOCALES.zhCN = {
   ["Dropped by"] = "掉落自",
   ["Search"] = "搜索",
   ["TrailMate: fly here"] = "TrailMate：飞往这里",
+  ["Flight map: fly to %s (marked in gold)."] = "飞行地图：飞往%s（金色标记）。",
   ["All done here"] = "这里都完成了",
   ["Turn them in outside."] = "到外面交任务。",
   ["(done)"] = "(已完成)",
