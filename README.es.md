@@ -1,8 +1,12 @@
-# TrailMate
-
 [English](README.md) · **Español**
 
+<p align="center"><img src="docs/images/logo.png" width="128" alt="El logo de TrailMate: una insignia redonda con un aro dorado, una huella blanca y un sendero que serpentea"></p>
+
+<h1 align="center">TrailMate</h1>
+
 Un entrenador de subida de nivel para **World of Warcraft: Forever** (versión 1.60 del juego, interfaz 16001). Te lleva por guías de misiones con su propia flecha y una línea de puntos en el mapa. Te dice qué aprender en el instructor de clase, qué talento coger después y qué vender, guardar o subastar en el vendedor, y te explica por qué.
+
+<p align="center"><img src="docs/images/step-preview.png" width="615" alt="La ventana de pasos siguiendo la guía de Desolace, 26 de 90 pasos hechos: recoger Bone Collector de Bibbly F'utzbuckle, con los pasos siguientes y los botones Deshacer, Hecho y Saltar. Al lado, el modelo 3D del juego de Bibbly F'utzbuckle, con Hablar con"></p>
 
 **Aconseja, nunca juega.** TrailMate no pulsa teclas, no mueve a tu personaje, no compra, no vende, no aprende hechizos ni gasta puntos de talento. Lee el juego y muestra texto, una flecha y marcas en el mapa; cada acción es tuya.
 
@@ -12,13 +16,19 @@ Un entrenador de subida de nivel para **World of Warcraft: Forever** (versión 1
 
 ## Capturas
 
-| La ventana de pasos, siguiendo una guía | La flecha, con la distancia |
+**En una mazmorra: cada objetivo con su cuenta, y el jefe al que matar**
+
+<img src="docs/images/dungeon-window.png" width="615" alt="La ventana dentro de Scarlet Monastery, mazmorra 1 de 4: la misión Into The Scarlet Monastery con sus cuatro jefes, Herod ya muerto y una lupa junto a los demás. Al lado, el modelo 3D del juego de High Inquisitor Whitemane, con Matar">
+
+| La flecha, con la distancia | En el minimapa, como los botones de otros addons |
 |---|---|
-| ![La ventana de pasos: la guía de Tuercespina, 83 de 91 pasos hechos, el paso actual y los siguientes, y los botones Deshacer, Hecho y Saltar](docs/images/step-window.png) | ![La flecha apuntando al siguiente paso, a 1,9 km](docs/images/arrow.png) |
+| ![La flecha apuntando al siguiente paso, a 1,9 km](docs/images/arrow.png) | ![El botón de TrailMate con la huella en el borde del minimapa](docs/images/minimap-button.png) |
 | **De viaje: primero la piedra de hogar** | **El botón para usarla, bajo la flecha** |
 | ![La ventana de pasos en un viaje a Tuercespina: usa tu piedra de hogar y luego camina](docs/images/trip-window.png) | ![El botón de la piedra de hogar bajo el texto de la flecha](docs/images/hearthstone-button.png) |
-| **En el minimapa, como los botones de otros addons** | |
-| ![El botón de TrailMate con la huella en el borde del minimapa](docs/images/minimap-button.png) | |
+
+**En vuelo: el maestro de vuelo que hay que elegir, con un aro dorado**
+
+<img src="docs/images/flight-map.jpg" width="400" alt="El mapa de vuelos de Kalimdor del juego, con las rutas desde Orgrimmar y un aro dorado alrededor del maestro de vuelo de Shadowprey Village, en Desolace">
 
 Las capturas son del juego en inglés; con el cliente en español, el addon habla en español.
 
