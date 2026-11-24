@@ -1,8 +1,12 @@
-# TrailMate
-
 **English** · [Español](README.es.md)
 
+<p align="center"><img src="docs/images/logo.png" width="128" alt="TrailMate's logo: a round badge with a gold ring, a white paw print and a winding trail"></p>
+
+<h1 align="center">TrailMate</h1>
+
 A leveling coach for **World of Warcraft: Forever** (game version 1.60, interface 16001). It walks you through quest guides with its own arrow and a dotted path on the map, tells you what to learn at the class trainer, which talent to take next and what to sell, keep or auction at a vendor, and explains why.
+
+<p align="center"><img src="docs/images/step-preview.png" width="615" alt="The step window following the guide for Desolace, 26 of 90 steps done: pick up Bone Collector from Bibbly F'utzbuckle, with the next steps and the Undo, Done and Skip buttons. Next to it, the game's 3D model of Bibbly F'utzbuckle, with Talk to"></p>
 
 **It advises, it never plays.** TrailMate does not press keys, move your character, buy, sell, train or spend talent points. It reads the game and shows text, an arrow and marks on the map; every action is yours.
 
@@ -12,13 +16,19 @@ A leveling coach for **World of Warcraft: Forever** (game version 1.60, interfac
 
 ## Screenshots
 
-| The step window, following a guide | The arrow, with the distance |
+**In a dungeon: each objective with its count, and the boss to kill**
+
+<img src="docs/images/dungeon-window.png" width="615" alt="The window inside Scarlet Monastery, dungeon 1 of 4: the quest Into The Scarlet Monastery with its four bosses, Herod already slain, and a magnifier next to the others. Next to it, the game's 3D model of High Inquisitor Whitemane, with Kill">
+
+| The arrow, with the distance | On the minimap, like other addons' buttons |
 |---|---|
-| ![The step window: the guide for Stranglethorn Vale, 83 of 91 steps done, the current step and the next ones, and the Undo, Done and Skip buttons](docs/images/step-window.png) | ![The arrow pointing at the next step, 1.9 km away](docs/images/arrow.png) |
+| ![The arrow pointing at the next step, 1.9 km away](docs/images/arrow.png) | ![The TrailMate button with the paw on the edge of the minimap](docs/images/minimap-button.png) |
 | **On a trip: the hearthstone first** | **The button to use it, under the arrow** |
 | ![The step window on a trip to Stranglethorn Vale: use your hearthstone, then walk](docs/images/trip-window.png) | ![The hearthstone button under the arrow's text](docs/images/hearthstone-button.png) |
-| **On the minimap, like other addons' buttons** | |
-| ![The TrailMate button with the paw on the edge of the minimap](docs/images/minimap-button.png) | |
+
+**Flying: the flight master to pick, circled in gold**
+
+<img src="docs/images/flight-map.jpg" width="400" alt="The game's flight map of Kalimdor with the routes from Orgrimmar and a gold ring around the flight master of Shadowprey Village, in Desolace">
 
 ## What it does today
 
